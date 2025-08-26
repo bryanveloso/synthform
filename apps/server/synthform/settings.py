@@ -31,6 +31,11 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # Django Channels
+    'channels',
+    'daphne',
+
+    # Django Batteries Included
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -66,6 +71,7 @@ TEMPLATES = [
     },
 ]
 
+ASGI_APPLICATION = 'synthform.asgi.application'
 WSGI_APPLICATION = 'synthform.wsgi.application'
 
 
