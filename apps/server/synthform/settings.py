@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -153,3 +154,8 @@ CHANNEL_LAYERS = {
 TWITCH_CLIENT_ID = env("TWITCH_CLIENT_ID", default="")
 TWITCH_CLIENT_SECRET = env("TWITCH_CLIENT_SECRET", default="")
 TWITCH_WEBHOOK_SECRET = env("TWITCH_WEBHOOK_SECRET", default="")
+TWITCH_EVENTSUB_SECRET = env("TWITCH_EVENTSUB_SECRET", default="")
+
+# Encryption
+FERNET_KEY = env("FERNET_KEY", default="")
+SALT_KEY = FERNET_KEY  # django-fernet-encrypted-fields expects this setting
