@@ -137,9 +137,20 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Redis Configuration
+REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
+
 # Django Channels
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-    }
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [REDIS_URL],
+        },
+    },
 }
+
+# Twitch Integration
+TWITCH_CLIENT_ID = env('TWITCH_CLIENT_ID', default='')
+TWITCH_CLIENT_SECRET = env('TWITCH_CLIENT_SECRET', default='')
+TWITCH_WEBHOOK_SECRET = env('TWITCH_WEBHOOK_SECRET', default='')

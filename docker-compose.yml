@@ -10,6 +10,14 @@ services:
     ports:
       - "5432:5432"
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
   server:
     build:
       context: ./apps/server
@@ -18,13 +26,32 @@ services:
       - "7175:7175"
     depends_on:
       - db
+      - redis
     environment:
       - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./apps/server:/app
     command: >
       sh -c "uv run python manage.py migrate &&
              uv run python manage.py runserver 0.0.0.0:7175"
 
+  twitch:
+    build:
+      context: ./apps/server
+      dockerfile: Dockerfile
+    ports:
+      - "4343:4343"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./apps/server:/app
+    command: uv run python -m events.services.twitch
+
 volumes:
   postgres_data:
+  redis_data:
