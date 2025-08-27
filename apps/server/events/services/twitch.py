@@ -6,11 +6,14 @@ import logging
 import os
 import sys
 
+import aiohttp
 import redis
 import twitchio
+import twitchio.eventsub as eventsub
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.utils import timezone
+from twitchio.web.starlette_adapter import StarletteAdapter
 
 # Add the app directory to Python path for Django imports
 sys.path.append(
@@ -25,8 +28,24 @@ django.setup()
 
 from events.models import Event  # noqa: E402
 from events.models import Member  # noqa: E402
+from events.models import Token  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+
+class DebugStarletteAdapter(StarletteAdapter):
+    """StarletteAdapter with additional debugging."""
+
+    async def oauth_callback(self, request):
+        """Override oauth callback to add debugging."""
+        try:
+            logger.debug("Starting OAuth callback processing...")
+            result = await super().oauth_callback(request)
+            logger.debug(f"OAuth callback result: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Exception in oauth_callback: {e}", exc_info=True)
+            raise
 
 
 class TwitchService(twitchio.Client):
@@ -36,7 +55,12 @@ class TwitchService(twitchio.Client):
         super().__init__(
             client_id=settings.TWITCH_CLIENT_ID,
             client_secret=settings.TWITCH_CLIENT_SECRET,
-            redirect_uri="http://localhost:4343/oauth/callback",
+            adapter=DebugStarletteAdapter(
+                domain="twitch.avalonstar.dev",
+                host="0.0.0.0",
+                port=4343,
+                eventsub_secret=settings.TWITCH_EVENTSUB_SECRET,
+            ),
         )
         self._eventsub_connected = False
         self._redis_client = redis.Redis.from_url(
@@ -48,23 +72,159 @@ class TwitchService(twitchio.Client):
         user_info = f"User: {self.user.id if self.user else 'No user logged in'}"
         logger.info(f"TwitchIO client ready. {user_info}")
 
-        # Subscribe to events we care about
-        await self._subscribe_to_events()
+        # Load existing tokens from database
+        await self._load_existing_tokens()
+
+        # Only subscribe to events if user is logged in
+        if self.user:
+            await self._subscribe_to_events()
+        else:
+            logger.info("Waiting for OAuth authorization to subscribe to events")
 
     async def event_oauth_authorized(self, payload):
         """Handle OAuth authorization events."""
-        logger.info(f"OAuth authorized for user: {payload.user_id}")
+        try:
+            logger.info(f"OAuth authorized for user: {payload.user_id}")
 
-        # Store token (TwitchIO handles this automatically)
-        await self.add_token(payload.access_token, payload.refresh_token)
+            # Add the user token to the client's token management
+            try:
+                logger.info("Adding user token to client...")
+                await self.add_token(payload.access_token, payload.refresh_token)
+                logger.info("User token added successfully")
+            except Exception as token_error:
+                logger.error(f"Error adding user token: {token_error}")
 
-        # If this is a new user authorization, we might want to subscribe to their events
-        if payload.user_id and payload.user_id != getattr(self, "bot_id", None):
-            logger.info(f"New user authorized: {payload.user_id}")
+            # Fetch user info manually since TwitchIO client.user isn't being populated
+            try:
+                user_info = await self.fetch_users(ids=[payload.user_id])
+                if user_info:
+                    user = user_info[0]
+                    logger.info(f"Fetched user info: {user.name} (ID: {user.id})")
+
+                    # Subscribe to events now that we have user info and token
+                    logger.info("User authorized, subscribing to EventSub events...")
+                    await self._subscribe_to_events_for_user(str(user.id))
+                else:
+                    logger.error("Failed to fetch user info")
+            except Exception as user_fetch_error:
+                logger.error(f"Error fetching user info: {user_fetch_error}")
+
+        except Exception as e:
+            logger.error(f"Error in event_oauth_authorized: {e}", exc_info=True)
 
     async def event_token_refreshed(self, payload):
         """Handle token refresh events."""
         logger.info(f"Token refreshed for user: {payload.user_id}")
+        # Update token in database
+        await self._save_token_to_db(
+            user_id=payload.user_id,
+            access_token=payload.access_token,
+            refresh_token=payload.refresh_token,
+            expires_at=payload.expires_at,
+            scopes=payload.scopes,
+        )
+
+    async def add_token(
+        self, access_token, refresh_token=None, user_id=None, scopes=None
+    ):
+        """Override TwitchIO's add_token method to store in database."""
+        # First call the parent method to maintain TwitchIO functionality
+        result = await super().add_token(access_token, refresh_token)
+
+        # Extract user_id from token if not provided
+        if not user_id:
+            try:
+                # Validate token and get user info
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Client-ID": settings.TWITCH_CLIENT_ID,
+                }
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                        "https://api.twitch.tv/helix/users", headers=headers
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if data.get("data"):
+                                user_id = data["data"][0]["id"]
+            except Exception as e:
+                logger.error(f"Failed to extract user_id from token: {e}")
+                return result
+
+        # Save to database
+        if user_id:
+            await self._save_token_to_db(
+                user_id=user_id,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                scopes=scopes or [],
+            )
+
+        return result
+
+    async def _save_token_to_db(
+        self, user_id, access_token, refresh_token=None, expires_at=None, scopes=None
+    ):
+        """Save or update token in database."""
+        try:
+            # Try to get existing token
+            try:
+                token = await sync_to_async(Token.objects.get)(
+                    platform="twitch", user_id=user_id
+                )
+                # Update existing token
+                token.access_token = access_token
+                if refresh_token:
+                    token.refresh_token = refresh_token
+                if expires_at:
+                    token.expires_at = expires_at
+                if scopes is not None:
+                    token.scopes = scopes
+                await sync_to_async(token.save)()
+                logger.info(f"Updated token for user {user_id} in database")
+            except Token.DoesNotExist:
+                # Create new token
+                token = await sync_to_async(Token.objects.create)(
+                    platform="twitch",
+                    user_id=user_id,
+                    access_token=access_token,
+                    refresh_token=refresh_token or "",
+                    expires_at=expires_at,
+                    scopes=scopes or [],
+                )
+                logger.info(f"Created new token for user {user_id} in database")
+        except Exception as e:
+            logger.error(f"Error saving token to database: {e}")
+
+    async def _load_existing_tokens(self):
+        """Load existing tokens from database and add them to TwitchIO client."""
+        try:
+            tokens = await sync_to_async(list)(Token.objects.filter(platform="twitch"))
+
+            for token in tokens:
+                if not token.is_expired:
+                    try:
+                        # Add token to TwitchIO's internal storage
+                        # Call parent's add_token method directly to avoid recursion
+                        await super().add_token(token.access_token, token.refresh_token)
+                        logger.info(
+                            f"Loaded token for user {token.user_id} from database"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error loading token for user {token.user_id}: {e}"
+                        )
+                else:
+                    logger.warning(
+                        f"Token for user {token.user_id} has expired, skipping"
+                    )
+
+            logger.info(
+                f"Loaded {len([t for t in tokens if not t.is_expired])} valid tokens from database"
+            )
+
+        except Exception as e:
+            logger.error(f"Error loading tokens from database: {e}")
 
     async def _subscribe_to_events(self):
         """Subscribe to Twitch EventSub events."""
@@ -74,70 +234,39 @@ class TwitchService(twitchio.Client):
                 return
 
             user_id = str(self.user.id)
+            await self._subscribe_to_events_for_user(user_id)
+        except Exception as e:
+            logger.error(f"Error in _subscribe_to_events: {e}")
 
-            # Channel Follow events
-            await self.subscribe_websocket(
-                topic="channel.follow",
-                version="2",
-                condition={
-                    "broadcaster_user_id": user_id,
-                    "moderator_user_id": user_id,
-                },
-            )
-            logger.info("Subscribed to channel.follow events")
+    async def _subscribe_to_events_for_user(self, user_id: str):
+        """Subscribe to Twitch EventSub events for a specific user ID using subscription payload objects."""
+        try:
+            # Create subscription payload objects with the correct conditions
+            subscriptions = [
+                eventsub.ChannelFollowSubscription(
+                    broadcaster_user_id=user_id, moderator_user_id=user_id
+                ),
+                eventsub.ChannelSubscribeSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelSubscriptionGiftSubscription(
+                    broadcaster_user_id=user_id
+                ),
+                eventsub.ChannelCheerSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelRaidSubscription(to_broadcaster_user_id=user_id),
+                eventsub.StreamOnlineSubscription(broadcaster_user_id=user_id),
+                eventsub.StreamOfflineSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelUpdateSubscription(broadcaster_user_id=user_id),
+            ]
 
-            # Channel Subscribe events
-            await self.subscribe_websocket(
-                topic="channel.subscribe",
-                version="1",
-                condition={"broadcaster_user_id": user_id},
-            )
-            logger.info("Subscribed to channel.subscribe events")
-
-            # Channel Subscription Gift events
-            await self.subscribe_websocket(
-                topic="channel.subscription.gift",
-                version="1",
-                condition={"broadcaster_user_id": user_id},
-            )
-            logger.info("Subscribed to channel.subscription.gift events")
-
-            # Channel Cheer events
-            await self.subscribe_websocket(
-                topic="channel.cheer",
-                version="1",
-                condition={"broadcaster_user_id": user_id},
-            )
-            logger.info("Subscribed to channel.cheer events")
-
-            # Channel Raid events
-            await self.subscribe_websocket(
-                topic="channel.raid",
-                version="1",
-                condition={"to_broadcaster_user_id": user_id},
-            )
-            logger.info("Subscribed to channel.raid events")
-
-            # Stream Online/Offline events
-            await self.subscribe_websocket(
-                topic="stream.online",
-                version="1",
-                condition={"broadcaster_user_id": user_id},
-            )
-            await self.subscribe_websocket(
-                topic="stream.offline",
-                version="1",
-                condition={"broadcaster_user_id": user_id},
-            )
-            logger.info("Subscribed to stream online/offline events")
-
-            # Channel Update events
-            await self.subscribe_websocket(
-                topic="channel.update",
-                version="2",
-                condition={"broadcaster_user_id": user_id},
-            )
-            logger.info("Subscribed to channel.update events")
+            for subscription in subscriptions:
+                try:
+                    await self.subscribe_websocket(subscription, token_for=user_id)
+                    logger.info(
+                        f"Successfully subscribed to {subscription.__class__.__name__}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to subscribe to {subscription.__class__.__name__}: {e}"
+                    )
 
             self._eventsub_connected = True
 
@@ -313,11 +442,17 @@ class TwitchService(twitchio.Client):
 
 async def main():
     """Main entry point for TwitchIO service."""
-    # Setup logging
+    # Setup logging with stdio debugging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
     )
+
+    # Enable TwitchIO debugging
+    logging.getLogger("twitchio").setLevel(logging.DEBUG)
+    logging.getLogger("twitchio.web").setLevel(logging.DEBUG)
+    logging.getLogger("twitchio.authentication").setLevel(logging.DEBUG)
 
     logger.info("Starting TwitchIO service...")
 
@@ -334,9 +469,55 @@ async def main():
         # Create and start TwitchIO service
         service = TwitchService()
         logger.info("TwitchIO service created, starting client...")
-        logger.info("Visit http://localhost:4343/oauth/callback to authorize")
 
-        # Start the client (this will run indefinitely)
+        # Define required scopes
+        scopes = [
+            "bits:read",
+            "channel:bot",
+            "channel:edit:commercial",
+            "channel:manage:ads",
+            "channel:manage:redemptions",
+            "channel:manage:videos",
+            "channel:read:ads",
+            "channel:read:charity",
+            "channel:read:goals",
+            "channel:read:guest_star",
+            "channel:read:hype_train",
+            "channel:read:polls",
+            "channel:read:predictions",
+            "channel:read:redemptions",
+            "channel:read:subscriptions",
+            "channel:read:vips",
+            "chat:edit",
+            "chat:read",
+            "clips:edit",
+            "moderator:manage:announcements",
+            "moderator:read:chat_settings",
+            "moderator:read:followers",
+            "moderator:read:shoutouts",
+            "user:bot",
+            "user:read:chat",
+            "user:write:chat",
+        ]
+
+        # Generate OAuth URL using twitchio.authentication.OAuth
+        oauth = twitchio.authentication.OAuth(
+            client_id=settings.TWITCH_CLIENT_ID,
+            client_secret=settings.TWITCH_CLIENT_SECRET,
+            redirect_uri="https://twitch.avalonstar.dev/oauth/callback",
+            # redirect_uri="http://localhost:4343/oauth/callback",
+            scopes=twitchio.Scopes(scopes),
+        )
+        oauth_url = oauth.get_authorization_url()
+
+        logger.info("=" * 80)
+        logger.info("TWITCH OAUTH AUTHORIZATION REQUIRED")
+        logger.info("=" * 80)
+        logger.info("To authorize this application, visit:")
+        logger.info(f"{oauth_url}")
+        logger.info("=" * 80)
+
+        # Start the client
         await service.start()
 
     except KeyboardInterrupt:

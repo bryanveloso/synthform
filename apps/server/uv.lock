@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -297,6 +297,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/04/65d2521842c42f4716225f20d8443a50804920606aec018188bbee30a6b0/django_environ-0.12.0.tar.gz", hash = "sha256:227dc891453dd5bde769c3449cf4a74b6f2ee8f7ab2361c93a07068f4179041a", size = 56804, upload-time = "2025-01-13T17:03:37.74Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/83/b3/0a3bec4ecbfee960f39b1842c2f91e4754251e0a6ed443db9fe3f666ba8f/django_environ-0.12.0-py2.py3-none-any.whl", hash = "sha256:92fb346a158abda07ffe6eb23135ce92843af06ecf8753f43adf9d2366dcc0ca", size = 19957, upload-time = "2025-01-13T17:03:32.918Z" },
+]
+
+[[package]]
+name = "django-fernet-encrypted-fields"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/70/b8/b6725f1207693ba9e76223abf87eb9e8de5114cccad8ddd1bce29a195273/django-fernet-encrypted-fields-0.3.0.tar.gz", hash = "sha256:38031bdaf1724a6e885ee137cc66a2bd7dc3726c438e189ea7e44799ec0ba9b3", size = 4021, upload-time = "2025-02-21T02:58:42.049Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/8a/2c5d88cd540d83ceaa1cb3191ed35dfed0caacc6fe2ff5fe74c9ecc7776f/django_fernet_encrypted_fields-0.3.0-py3-none-any.whl", hash = "sha256:a17cca5bf3638ee44674e64f30792d5960b1d4d4b291ec478c27515fc4860612", size = 5400, upload-time = "2025-02-21T02:58:40.832Z" },
 ]
 
 [[package]]
@@ -661,6 +674,7 @@ dependencies = [
     { name = "channels-redis" },
     { name = "django" },
     { name = "django-environ" },
+    { name = "django-fernet-encrypted-fields" },
     { name = "obsws-python" },
     { name = "psycopg" },
     { name = "redis" },
@@ -674,6 +688,7 @@ requires-dist = [
     { name = "channels-redis", specifier = ">=4.3.0" },
     { name = "django", specifier = ">=5.2.5" },
     { name = "django-environ", specifier = ">=0.11.2" },
+    { name = "django-fernet-encrypted-fields", specifier = ">=0.3.0" },
     { name = "obsws-python", specifier = ">=1.8.0" },
     { name = "psycopg", specifier = ">=3.2.1" },
     { name = "redis", specifier = ">=5.2.0" },
