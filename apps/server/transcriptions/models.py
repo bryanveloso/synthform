@@ -6,6 +6,8 @@ from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.utils import timezone
 
+from streams.models import Session
+
 
 class Transcription(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -20,8 +22,20 @@ class Transcription(models.Model):
     # Search capabilities
     search_vector = SearchVectorField(null=True, blank=True)
 
+    # Session association (for date-based correlation)
+    session = models.ForeignKey(
+        Session,
+        on_delete=models.CASCADE,
+        related_name="transcriptions",
+        null=True,
+        blank=True,
+    )
+
     # Source metadata
     source_file = models.CharField(max_length=255, null=True, blank=True)
+    legacy_stream_session_id = models.CharField(
+        max_length=255, null=True, blank=True, db_index=True
+    )
 
     # Timing
     timestamp = models.DateTimeField(db_index=True)
@@ -32,7 +46,6 @@ class Transcription(models.Model):
     correlation_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
-        db_table = "transcriptions"
         indexes = [
             models.Index(fields=["timestamp"]),
             models.Index(fields=["confidence"]),

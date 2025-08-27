@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Core Applications
     "events",
+    "streams",
     "transcriptions",
 ]
 
@@ -93,7 +94,11 @@ WSGI_APPLICATION = "synthform.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {"default": env.db(default="sqlite:///" + str(BASE_DIR / "db.sqlite3"))}
+DATABASES = {
+    "default": env.db(
+        default="postgresql://synthform:synthform@localhost:5432/synthform"
+    )
+}
 
 
 # Password validation

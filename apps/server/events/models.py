@@ -6,6 +6,8 @@ from django.db import models
 from django.utils import timezone
 from encrypted_fields import EncryptedTextField
 
+from streams.models import Session
+
 
 class Member(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -30,7 +32,6 @@ class Member(models.Model):
     updated_at = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
-        db_table = "members"
         indexes = [
             models.Index(fields=["twitch_id"]),
             models.Index(fields=["created_at"]),
@@ -65,19 +66,26 @@ class Event(models.Model):
         Member, on_delete=models.CASCADE, null=True, blank=True, related_name="events"
     )
 
+    # Session association (for date-based correlation)
+    session = models.ForeignKey(
+        Session, on_delete=models.CASCADE, related_name="events", null=True, blank=True
+    )
+
     # Event payload
     payload = models.JSONField(default=dict)
 
     # Timing
     timestamp = models.DateTimeField(db_index=True)
     correlation_id = models.UUIDField(null=True, blank=True, db_index=True)
+    legacy_correlation_id = models.CharField(
+        max_length=255, null=True, blank=True, db_index=True
+    )
 
     # Metadata
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        db_table = "events"
         indexes = [
             models.Index(fields=["source", "event_type"]),
             models.Index(fields=["timestamp"]),
@@ -144,7 +152,6 @@ class Token(models.Model):
     updated_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        db_table = "tokens"
         unique_together = [("platform", "user_id")]
         indexes = [
             models.Index(fields=["platform", "user_id"]),
