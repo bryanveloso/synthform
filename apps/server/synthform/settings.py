@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import environ
@@ -99,6 +100,12 @@ DATABASES = {
         default="postgresql://synthform:synthform@localhost:5432/synthform"
     )
 }
+
+# Override database host for migration script when running locally
+if os.getenv("DATABASE_HOST_OVERRIDE"):
+    db_config = DATABASES["default"].copy()
+    db_config["HOST"] = os.getenv("DATABASE_HOST_OVERRIDE")
+    DATABASES["default"] = db_config
 
 
 # Password validation
