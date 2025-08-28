@@ -35,7 +35,6 @@ services:
     restart: unless-stopped
     ports:
       - "7175:7175"
-      - "4343:4343"
 
   server:
     build:
@@ -62,13 +61,13 @@ services:
     depends_on:
       - db
       - redis
-      - tailscale
     environment:
       - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./apps/server:/app
-    network_mode: service:tailscale
+    ports:
+      - "4343:4343"
     command: uv run python -m events.services.twitch
 
 volumes:
