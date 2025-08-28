@@ -1,0 +1,64 @@
+name: Deploy to Mac Mini Production
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  DEBUG: False
+  ALLOWED_HOSTS: "*"
+  DATABASE_URL: postgresql://synthform:synthform@db:5432/synthform
+  REDIS_URL: redis://redis:6379/0
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Create production .env file
+      run: |
+        cd apps/server
+        cat > .env << EOF
+        DEBUG=${{ env.DEBUG }}
+        SECRET_KEY=${{ secrets.SECRET_KEY }}
+        ALLOWED_HOSTS=${{ env.ALLOWED_HOSTS }}
+        DATABASE_URL=${{ env.DATABASE_URL }}
+        REDIS_URL=${{ env.REDIS_URL }}
+        TWITCH_CLIENT_ID=${{ secrets.TWITCH_CLIENT_ID }}
+        TWITCH_CLIENT_SECRET=${{ secrets.TWITCH_CLIENT_SECRET }}
+        TWITCH_WEBHOOK_SECRET=${{ secrets.TWITCH_WEBHOOK_SECRET }}
+        TWITCH_EVENTSUB_SECRET=${{ secrets.TWITCH_EVENTSUB_SECRET }}
+        FERNET_KEY=${{ secrets.FERNET_KEY }}
+        EOF
+    
+    - name: Stop existing containers
+      run: |
+        docker compose down || true
+    
+    - name: Build and start containers
+      run: |
+        docker compose up --build -d
+    
+    - name: Wait for database to be ready
+      run: |
+        timeout 60 sh -c 'until docker compose exec -T db pg_isready -U synthform -d synthform; do sleep 1; done'
+    
+    - name: Run database migrations
+      run: |
+        docker compose exec -T server uv run python manage.py migrate
+    
+    - name: Collect static files
+      run: |
+        docker compose exec -T server uv run python manage.py collectstatic --noinput
+    
+    - name: Check application health
+      run: |
+        sleep 10
+        curl -f http://localhost:7175/admin/ || exit 1
+    
+    - name: Clean up old Docker images
+      run: |
+        docker image prune -f
