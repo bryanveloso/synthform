@@ -56,7 +56,7 @@ class TwitchService(twitchio.Client):
             client_id=settings.TWITCH_CLIENT_ID,
             client_secret=settings.TWITCH_CLIENT_SECRET,
             adapter=DebugStarletteAdapter(
-                domain="twitch.avalonstar.dev",
+                domain=settings.EVENTSUB_DOMAIN,
                 host="0.0.0.0",
                 port=4343,
                 eventsub_secret=settings.TWITCH_EVENTSUB_SECRET,
@@ -504,8 +504,7 @@ async def main():
         oauth = twitchio.authentication.OAuth(
             client_id=settings.TWITCH_CLIENT_ID,
             client_secret=settings.TWITCH_CLIENT_SECRET,
-            redirect_uri="https://twitch.avalonstar.dev/oauth/callback",
-            # redirect_uri="http://localhost:4343/oauth/callback",
+            redirect_uri=settings.TWITCH_OAUTH_REDIRECT_URI,
             scopes=twitchio.Scopes(scopes),
         )
         oauth_url = oauth.get_authorization_url()

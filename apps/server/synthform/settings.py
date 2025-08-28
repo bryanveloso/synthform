@@ -161,6 +161,17 @@ TWITCH_CLIENT_SECRET = env("TWITCH_CLIENT_SECRET", default="")
 TWITCH_WEBHOOK_SECRET = env("TWITCH_WEBHOOK_SECRET", default="")
 TWITCH_EVENTSUB_SECRET = env("TWITCH_EVENTSUB_SECRET", default="")
 
+# OAuth Configuration
+# Use different domains for development vs production
+if DEBUG:
+    OAUTH_BASE_URL = env("OAUTH_BASE_URL", default="https://twitch-dev.avalonstar.dev")
+    EVENTSUB_DOMAIN = env("EVENTSUB_DOMAIN", default="twitch-dev.avalonstar.dev")
+else:
+    OAUTH_BASE_URL = env("OAUTH_BASE_URL", default="https://twitch.avalonstar.dev")
+    EVENTSUB_DOMAIN = env("EVENTSUB_DOMAIN", default="twitch.avalonstar.dev")
+
+TWITCH_OAUTH_REDIRECT_URI = f"{OAUTH_BASE_URL}/oauth/callback"
+
 # Encryption
 FERNET_KEY = env("FERNET_KEY", default="")
 SALT_KEY = FERNET_KEY  # django-fernet-encrypted-fields expects this setting
