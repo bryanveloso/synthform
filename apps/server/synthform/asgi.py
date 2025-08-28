@@ -17,6 +17,7 @@ from channels.routing import URLRouter
 from django.core.asgi import get_asgi_application
 from django.urls import path
 
+from audio.routing import websocket_urlpatterns as audio_websocket_urlpatterns
 from events.consumers import EventConsumer
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "synthform.settings")
@@ -24,7 +25,7 @@ django_asgi_app = get_asgi_application()
 
 websocket_urlpatterns = [
     path("ws/events/", EventConsumer.as_asgi()),
-]
+] + audio_websocket_urlpatterns
 
 application = ProtocolTypeRouter(
     {

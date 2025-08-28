@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Core Applications
+    "audio",
     "events",
     "streams",
     "transcriptions",
@@ -182,3 +183,23 @@ TWITCH_OAUTH_REDIRECT_URI = f"{OAUTH_BASE_URL}/oauth/callback"
 # Encryption
 FERNET_KEY = env("FERNET_KEY", default="")
 SALT_KEY = FERNET_KEY  # django-fernet-encrypted-fields expects this setting
+
+# Celery Configuration
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Audio Processing
+AUDIO_PROCESSING_ENABLED = env("AUDIO_PROCESSING_ENABLED", default=True)
+WHISPER_EXTERNAL_URL = env(
+    "WHISPER_EXTERNAL_URL", default="http://host.docker.internal:9090"
+)
+
+# Audio limits and rate limiting
+AUDIO_MAX_STRING_LENGTH = env("AUDIO_MAX_STRING_LENGTH", default=1000)
+AUDIO_MAX_DATA_SIZE = env("AUDIO_MAX_DATA_SIZE", default=10 * 1024 * 1024)  # 10MB
+AUDIO_RATE_LIMIT_PER_SECOND = env("AUDIO_RATE_LIMIT_PER_SECOND", default=100)

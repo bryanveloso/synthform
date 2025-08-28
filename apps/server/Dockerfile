@@ -3,6 +3,7 @@ FROM python:3.12-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 
 # Set work directory
 WORKDIR /app
@@ -14,9 +15,14 @@ RUN apt-get update \
         build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install uv
+RUN pip install uv
+
+# Copy project files for dependency resolution
 COPY pyproject.toml uv.lock ./
-RUN pip install uv && uv sync --frozen
+
+# Install Python dependencies to system location
+RUN uv sync --frozen
 
 # Copy project
 COPY . .

@@ -7,7 +7,7 @@ import os
 import sys
 
 import aiohttp
-import redis
+import redis.asyncio as redis
 import twitchio
 import twitchio.eventsub as eventsub
 from asgiref.sync import sync_to_async
@@ -33,21 +33,6 @@ from events.models import Token  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
-class DebugStarletteAdapter(StarletteAdapter):
-    """StarletteAdapter with additional debugging."""
-
-    async def oauth_callback(self, request):
-        """Override oauth callback to add debugging."""
-        try:
-            logger.debug("Starting OAuth callback processing...")
-            result = await super().oauth_callback(request)
-            logger.debug(f"OAuth callback result: {result}")
-            return result
-        except Exception as e:
-            logger.error(f"Exception in oauth_callback: {e}", exc_info=True)
-            raise
-
-
 class TwitchService(twitchio.Client):
     """Standalone TwitchIO service for handling EventSub events."""
 
@@ -55,7 +40,7 @@ class TwitchService(twitchio.Client):
         super().__init__(
             client_id=settings.TWITCH_CLIENT_ID,
             client_secret=settings.TWITCH_CLIENT_SECRET,
-            adapter=DebugStarletteAdapter(
+            adapter=StarletteAdapter(
                 domain=settings.EVENTSUB_DOMAIN,
                 host="0.0.0.0",
                 port=4343,
@@ -297,9 +282,31 @@ class TwitchService(twitchio.Client):
         """Handle stream online events."""
         await self._create_event_from_payload("stream.online", payload)
 
+        # Session management: Start or continue session
+        from audio.session_manager import cancel_session_timeout
+        from audio.session_manager import get_or_create_active_session
+
+        try:
+            session = await get_or_create_active_session()
+            await cancel_session_timeout(session)
+            logger.info(f"Stream online: Session {session.id} active, timeout canceled")
+        except Exception as e:
+            logger.error(f"Error managing session on stream online: {e}")
+
     async def event_stream_offline(self, payload):
         """Handle stream offline events."""
         await self._create_event_from_payload("stream.offline", payload)
+
+        # Session management: Start timeout countdown
+        from audio.session_manager import get_or_create_active_session
+        from audio.session_manager import start_session_timeout
+
+        try:
+            session = await get_or_create_active_session()
+            await start_session_timeout(session)
+            logger.info(f"Stream offline: Started timeout for session {session.id}")
+        except Exception as e:
+            logger.error(f"Error managing session on stream offline: {e}")
 
     async def event_channel_update(self, payload):
         """Handle channel update events."""
@@ -319,7 +326,6 @@ class TwitchService(twitchio.Client):
                 event_type=event_type,
                 payload=payload_dict,
                 member=member,
-                source_id=getattr(payload, "id", None),
             )
 
             logger.info(
@@ -361,11 +367,8 @@ class TwitchService(twitchio.Client):
             channel = "events:twitch"
             message_json = json.dumps(redis_message)
 
-            # Use asyncio to run Redis publish in thread pool
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None, self._redis_client.publish, channel, message_json
-            )
+            # Publish directly with async Redis client
+            await self._redis_client.publish(channel, message_json)
 
             logger.debug(f"Published {event_type} event to Redis channel: {channel}")
 
@@ -427,12 +430,10 @@ class TwitchService(twitchio.Client):
         event_type: str,
         payload: dict,
         member: Member | None,
-        source_id: str | None = None,
     ) -> Event:
         """Create Event record using sync_to_async."""
         return await sync_to_async(Event.objects.create)(
             source="twitch",
-            source_id=source_id,
             event_type=event_type,
             member=member,
             payload=payload,
