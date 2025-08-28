@@ -58,7 +58,6 @@ class Event(models.Model):
 
     # Event identification
     source = models.CharField(max_length=20, choices=SOURCES, db_index=True)
-    source_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
     event_type = models.CharField(max_length=100, db_index=True)
 
     # Member association (nullable for anonymous events)
@@ -76,10 +75,6 @@ class Event(models.Model):
 
     # Timing
     timestamp = models.DateTimeField(db_index=True)
-    correlation_id = models.UUIDField(null=True, blank=True, db_index=True)
-    legacy_correlation_id = models.CharField(
-        max_length=255, null=True, blank=True, db_index=True
-    )
 
     # Metadata
     created_at = models.DateTimeField(default=timezone.now)
@@ -90,7 +85,6 @@ class Event(models.Model):
             models.Index(fields=["source", "event_type"]),
             models.Index(fields=["timestamp"]),
             models.Index(fields=["member", "timestamp"]),
-            models.Index(fields=["correlation_id"]),
         ]
         ordering = ["-timestamp"]
 
