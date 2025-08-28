@@ -42,13 +42,10 @@ jobs:
       run: |
         docker compose up --build -d
     
-    - name: Wait for database to be ready
+    - name: Wait for services to be ready
       run: |
         timeout 60 sh -c 'until docker compose exec -T db pg_isready -U synthform -d synthform; do sleep 1; done'
-    
-    - name: Run database migrations
-      run: |
-        docker compose exec -T server uv run python manage.py migrate
+        sleep 5
     
     - name: Collect static files
       run: |
