@@ -1,4 +1,4 @@
-name: Deploy to Mac Mini Production
+name: Deploy to OrbStack
 
 on:
   push:
