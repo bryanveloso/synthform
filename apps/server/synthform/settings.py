@@ -195,9 +195,7 @@ CELERY_ENABLE_UTC = True
 
 # Audio Processing
 AUDIO_PROCESSING_ENABLED = env("AUDIO_PROCESSING_ENABLED", default=True)
-WHISPER_EXTERNAL_URL = env(
-    "WHISPER_EXTERNAL_URL", default="http://host.docker.internal:9090"
-)
+WHISPER_EXTERNAL_URL = env("WHISPER_EXTERNAL_URL", default="http://zelan:9090")
 
 # Audio limits and rate limiting
 AUDIO_MAX_STRING_LENGTH = env("AUDIO_MAX_STRING_LENGTH", default=1000)
