@@ -234,8 +234,8 @@ class TwitchService(twitchio.Client):
                         f"Token for user {token.user_id} has expired, skipping"
                     )
 
-            # If we have valid tokens but no user, subscribe to events for the first valid token
-            if valid_tokens and not self.user:
+            # If we have valid tokens, automatically subscribe to events
+            if valid_tokens:
                 primary_token = valid_tokens[0]  # Use first valid token
                 logger.info(
                     f"Subscribing to EventSub events for user {primary_token.user_id}"
@@ -277,35 +277,59 @@ class TwitchService(twitchio.Client):
                 ),
                 # Subscription events
                 eventsub.ChannelSubscribeSubscription(broadcaster_user_id=user_id),
-                eventsub.ChannelSubscriptionEndSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelSubscriptionEndSubscription(
+                    broadcaster_user_id=user_id
+                ),
                 eventsub.ChannelSubscriptionGiftSubscription(
                     broadcaster_user_id=user_id
                 ),
-                eventsub.ChannelSubscriptionMessageSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelSubscriptionMessageSubscription(
+                    broadcaster_user_id=user_id
+                ),
                 # Bits/Cheer events
                 eventsub.ChannelCheerSubscription(broadcaster_user_id=user_id),
                 # Raid events
                 eventsub.ChannelRaidSubscription(to_broadcaster_user_id=user_id),
                 # Chat events
-                eventsub.ChatClearSubscription(broadcaster_user_id=user_id, user_id=user_id),
+                eventsub.ChatClearSubscription(
+                    broadcaster_user_id=user_id, user_id=user_id
+                ),
                 eventsub.ChatClearUserMessagesSubscription(
                     broadcaster_user_id=user_id, user_id=user_id
                 ),
-                eventsub.ChatMessageSubscription(broadcaster_user_id=user_id, user_id=user_id),
-                eventsub.ChatNotificationSubscription(broadcaster_user_id=user_id, user_id=user_id),
+                eventsub.ChatMessageSubscription(
+                    broadcaster_user_id=user_id, user_id=user_id
+                ),
+                eventsub.ChatNotificationSubscription(
+                    broadcaster_user_id=user_id, user_id=user_id
+                ),
                 # Channel Points events
-                eventsub.ChannelPointsRewardAddSubscription(broadcaster_user_id=user_id),
-                eventsub.ChannelPointsRewardUpdateSubscription(broadcaster_user_id=user_id),
-                eventsub.ChannelPointsRewardRemoveSubscription(broadcaster_user_id=user_id),
-                eventsub.ChannelPointsRedeemAddSubscription(broadcaster_user_id=user_id),
-                eventsub.ChannelPointsRedeemUpdateSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRewardAddSubscription(
+                    broadcaster_user_id=user_id
+                ),
+                eventsub.ChannelPointsRewardUpdateSubscription(
+                    broadcaster_user_id=user_id
+                ),
+                eventsub.ChannelPointsRewardRemoveSubscription(
+                    broadcaster_user_id=user_id
+                ),
+                eventsub.ChannelPointsRedeemAddSubscription(
+                    broadcaster_user_id=user_id
+                ),
+                eventsub.ChannelPointsRedeemUpdateSubscription(
+                    broadcaster_user_id=user_id
+                ),
                 # Poll events
                 eventsub.ChannelPollBeginSubscription(broadcaster_user_id=user_id),
                 eventsub.ChannelPollProgressSubscription(broadcaster_user_id=user_id),
                 eventsub.ChannelPollEndSubscription(broadcaster_user_id=user_id),
                 # Prediction events
-                eventsub.ChannelPredictionBeginSubscription(broadcaster_user_id=user_id),
-                eventsub.ChannelPredictionProgressSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPredictionBeginSubscription(
+                    broadcaster_user_id=user_id
+                ),
+                eventsub.ChannelPredictionProgressSubscription(
+                    broadcaster_user_id=user_id
+                ),
                 eventsub.ChannelPredictionLockSubscription(broadcaster_user_id=user_id),
                 eventsub.ChannelPredictionEndSubscription(broadcaster_user_id=user_id),
                 # Charity events
