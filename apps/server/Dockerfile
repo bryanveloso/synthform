@@ -27,6 +27,13 @@ RUN uv sync --frozen
 # Copy project
 COPY . .
 
+# Set minimal environment for collectstatic during build
+ENV SECRET_KEY=build-time-key
+ENV DEBUG=False
+
+# Collect static files at build time
+RUN uv run python manage.py collectstatic --noinput
+
 # Expose port
 EXPOSE 7175
 
