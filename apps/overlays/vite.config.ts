@@ -8,7 +8,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 export default defineConfig({
   plugins: [tsconfigPaths(), tanstackRouter({ target: 'react', autoCodeSplitting: true }), tailwindcss(), react()],
   server: {
-    allowedHosts: ['saya', 'zelan'],
+    allowedHosts: ['saya', 'zelan', 'synthform'],
     host: true,
     port: 8008
   }
