@@ -11,16 +11,20 @@ from __future__ import annotations
 
 import os
 
+import django
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter
 from channels.routing import URLRouter
 from django.core.asgi import get_asgi_application
 from django.urls import path
 
-from audio.routing import websocket_urlpatterns as audio_websocket_urlpatterns
-from events.consumers import EventConsumer
-
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "synthform.settings")
+django.setup()
+
+# Import after Django setup
+from audio.routing import websocket_urlpatterns as audio_websocket_urlpatterns  # noqa: E402, I001
+from events.consumers import EventConsumer  # noqa: E402
+
 django_asgi_app = get_asgi_application()
 
 websocket_urlpatterns = [
