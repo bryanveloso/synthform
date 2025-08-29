@@ -37,7 +37,8 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Subscribe to live events
         await self.pubsub.subscribe("events:twitch")
-        logger.info("Subscribed to Redis events:twitch channel")
+        await self.pubsub.subscribe("events:obs")
+        logger.info("Subscribed to Redis events:twitch and events:obs channels")
 
         # Start Redis message listener
         self.redis_task = asyncio.create_task(self._listen_to_redis())
@@ -78,20 +79,30 @@ class OverlayConsumer(AsyncWebsocketConsumer):
     async def _route_live_event(self, event_data: dict) -> None:
         """Route live events to appropriate overlay layers."""
         event_type = event_data.get("event_type")
+        source = event_data.get("source")
 
         if not event_type:
             return
 
-        # Route to timeline layer (all events)
-        await self._send_message("timeline", "push", event_data)
+        # Handle OBS events differently
+        if source == "obs":
+            # OBS events go to OBS state layer for real-time state updates
+            await self._send_message("obs", "update", event_data)
 
-        # Update base layer with latest event
-        await self._send_message("base", "update", event_data)
+            # Also broadcast scene changes to overlays that might need to adapt
+            if event_type == "obs.scene.changed":
+                await self._send_message("base", "obs_scene_changed", event_data)
+        else:
+            # Route to timeline layer (all non-OBS events)
+            await self._send_message("timeline", "push", event_data)
 
-        # Handle special event types
-        if event_type in ["channel.follow", "channel.subscribe", "channel.cheer"]:
-            # These are significant events that might trigger alerts or ticker updates
-            pass
+            # Update base layer with latest event
+            await self._send_message("base", "update", event_data)
+
+            # Handle special event types
+            if event_type in ["channel.follow", "channel.subscribe", "channel.cheer"]:
+                # These are significant events that might trigger alerts or ticker updates
+                pass
 
     async def _send_initial_state(self) -> None:
         """Send sync messages for all layers on connection."""
@@ -109,6 +120,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         ticker_items = await self._get_ticker_items()
         if ticker_items:
             await self._send_message("ticker", "sync", ticker_items)
+
+        # OBS layer - current OBS state
+        obs_state = await self._get_obs_state()
+        if obs_state:
+            await self._send_message("obs", "sync", obs_state)
 
         # Alert layer starts empty - no initial alerts
 
@@ -253,6 +269,17 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Unexpected error querying recent follows: {e}")
             return {"message": "Recent follows unavailable"}
+
+    async def _get_obs_state(self) -> dict | None:
+        """Get current OBS state from OBS service."""
+        try:
+            from streams.services.obs import obs_service
+
+            return await obs_service.get_current_state()
+
+        except Exception as e:
+            logger.error(f"Error getting OBS state: {e}")
+            return {"message": "OBS state unavailable", "connected": False}
 
     async def receive(self, text_data: str) -> None:
         """Handle messages from overlay clients (currently unused)."""
