@@ -18,6 +18,24 @@ services:
     volumes:
       - redis_data:/data
 
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: synthform
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TS_EXTRA_ARGS=--advertise-tags=tag:container
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+    volumes:
+      - tailscale_data:/var/lib/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+    restart: unless-stopped
+    ports:
+      - "7175:7175"
+
   server:
     build:
       context: ./apps/server
@@ -25,16 +43,14 @@ services:
     depends_on:
       - db
       - redis
+      - tailscale
     environment:
       - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
       - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - ./apps/server:/app
-    ports:
-      - "7175:7175"
+    network_mode: service:tailscale
     command: >
       sh -c "uv run python manage.py migrate &&
-             uv run python manage.py runserver 0.0.0.0:7175"
+             daphne -b 0.0.0.0 -p 7175 synthform.asgi:application"
 
   twitch:
     build:
@@ -46,8 +62,6 @@ services:
     environment:
       - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
       - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - ./apps/server:/app
     ports:
       - "4343:4343"
     command: uv run python -m events.services.twitch
@@ -55,3 +69,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  tailscale_data:

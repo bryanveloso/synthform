@@ -17,6 +17,8 @@ Including another URLconf
 
 from __future__ import annotations
 
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include
 from django.urls import path
@@ -25,3 +27,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("events/", include("events.urls")),
 ]
+
+# Serve static files in all environments (dev and production)
+# This is acceptable for local network deployments
+if settings.STATIC_ROOT:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
