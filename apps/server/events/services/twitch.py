@@ -6,25 +6,22 @@ import logging
 import os
 import sys
 
-import aiohttp
-import redis.asyncio as redis
-import twitchio
-import twitchio.eventsub as eventsub
-from asgiref.sync import sync_to_async
-from django.conf import settings
-from django.utils import timezone
-from twitchio.web.starlette_adapter import StarletteAdapter
-
-# Add the app directory to Python path for Django imports
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-
-# Setup Django
+# Setup Django for standalone execution
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "synthform.settings")
-import django
+
+import django  # noqa: E402
 
 django.setup()
+
+import redis.asyncio as redis  # noqa: E402
+import twitchio  # noqa: E402
+import twitchio.eventsub as eventsub  # noqa: E402
+from asgiref.sync import sync_to_async  # noqa: E402
+from django.conf import settings  # noqa: E402
+from django.utils import timezone  # noqa: E402
+from twitchio import HTTPException  # noqa: E402
+from twitchio import InvalidTokenException  # noqa: E402
+from twitchio.web.starlette_adapter import StarletteAdapter  # noqa: E402
 
 from events.models import Event  # noqa: E402
 from events.models import Member  # noqa: E402
@@ -66,7 +63,9 @@ class TwitchService(twitchio.Client):
         else:
             logger.info("Waiting for OAuth authorization to subscribe to events")
 
-    async def event_oauth_authorized(self, payload):
+    async def event_oauth_authorized(
+        self, payload: twitchio.authentication.UserTokenPayload
+    ):
         """Handle OAuth authorization events."""
         try:
             logger.info(f"OAuth authorized for user: {payload.user_id}")
@@ -74,7 +73,25 @@ class TwitchService(twitchio.Client):
             # Add the user token to the client's token management
             try:
                 logger.info("Adding user token to client...")
-                await self.add_token(payload.access_token, payload.refresh_token)
+                # Calculate expires_at from expires_in
+                expires_at = None
+                if payload.expires_in:
+                    from datetime import UTC
+                    from datetime import datetime
+                    from datetime import timedelta
+
+                    expires_at = datetime.now(UTC) + timedelta(
+                        seconds=payload.expires_in
+                    )
+
+                # Pass additional data to add_token
+                await self.add_token(
+                    payload.access_token,
+                    payload.refresh_token,
+                    user_id=payload.user_id,
+                    scopes=payload.scope,
+                    expires_at=expires_at,
+                )
                 logger.info("User token added successfully")
             except Exception as token_error:
                 logger.error(f"Error adding user token: {token_error}")
@@ -91,13 +108,17 @@ class TwitchService(twitchio.Client):
                     await self._subscribe_to_events_for_user(str(user.id))
                 else:
                     logger.error("Failed to fetch user info")
+            except InvalidTokenException as token_error:
+                logger.error(f"Invalid token when fetching user info: {token_error}")
+            except HTTPException as http_error:
+                logger.error(f"HTTP error fetching user info: {http_error}")
             except Exception as user_fetch_error:
-                logger.error(f"Error fetching user info: {user_fetch_error}")
+                logger.error(f"Unexpected error fetching user info: {user_fetch_error}")
 
         except Exception as e:
             logger.error(f"Error in event_oauth_authorized: {e}", exc_info=True)
 
-    async def event_token_refreshed(self, payload):
+    async def event_token_refreshed(self, payload: twitchio.TokenRefreshedPayload):
         """Handle token refresh events."""
         logger.info(f"Token refreshed for user: {payload.user_id}")
         # Update token in database
@@ -110,30 +131,36 @@ class TwitchService(twitchio.Client):
         )
 
     async def add_token(
-        self, access_token, refresh_token=None, user_id=None, scopes=None
+        self,
+        access_token,
+        refresh_token=None,
+        user_id=None,
+        scopes=None,
+        expires_at=None,
     ):
         """Override TwitchIO's add_token method to store in database."""
         # First call the parent method to maintain TwitchIO functionality
         result = await super().add_token(access_token, refresh_token)
 
-        # Extract user_id from token if not provided
+        # Extract user_id using TwitchIO's fetch_users method if needed
         if not user_id:
             try:
-                # Validate token and get user info
-                headers = {
-                    "Authorization": f"Bearer {access_token}",
-                    "Client-ID": settings.TWITCH_CLIENT_ID,
-                }
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(
-                        "https://api.twitch.tv/helix/users", headers=headers
-                    ) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            if data.get("data"):
-                                user_id = data["data"][0]["id"]
+                # Use TwitchIO's fetch_users to get current user info from the token
+                users = await self.fetch_users()
+                if users:
+                    user_id = str(users[0].id)
+                    # TwitchIO doesn't expose scopes/expires_at easily,
+                    # so we'll rely on defaults for now
+            except InvalidTokenException as token_error:
+                logger.error(
+                    f"Invalid token when fetching user for add_token: {token_error}"
+                )
+                return result
+            except HTTPException as http_error:
+                logger.error(f"HTTP error fetching user for add_token: {http_error}")
+                return result
             except Exception as e:
-                logger.error(f"Failed to extract user_id from token: {e}")
+                logger.error(f"Unexpected error fetching user info using TwitchIO: {e}")
                 return result
 
         # Save to database
@@ -142,6 +169,7 @@ class TwitchService(twitchio.Client):
                 user_id=user_id,
                 access_token=access_token,
                 refresh_token=refresh_token,
+                expires_at=expires_at,
                 scopes=scopes or [],
             )
 
@@ -209,7 +237,9 @@ class TwitchService(twitchio.Client):
             # If we have valid tokens but no user, subscribe to events for the first valid token
             if valid_tokens and not self.user:
                 primary_token = valid_tokens[0]  # Use first valid token
-                logger.info(f"Subscribing to EventSub events for user {primary_token.user_id}")
+                logger.info(
+                    f"Subscribing to EventSub events for user {primary_token.user_id}"
+                )
                 await self._subscribe_to_events_for_user(primary_token.user_id)
 
             logger.info(
@@ -236,18 +266,67 @@ class TwitchService(twitchio.Client):
         try:
             # Create subscription payload objects with the correct conditions
             subscriptions = [
+                # Stream events
+                eventsub.StreamOnlineSubscription(broadcaster_user_id=user_id),
+                eventsub.StreamOfflineSubscription(broadcaster_user_id=user_id),
+                # Channel information updates
+                eventsub.ChannelUpdateSubscription(broadcaster_user_id=user_id),
+                # Follow events
                 eventsub.ChannelFollowSubscription(
                     broadcaster_user_id=user_id, moderator_user_id=user_id
                 ),
+                # Subscription events
                 eventsub.ChannelSubscribeSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelSubscriptionEnd(broadcaster_user_id=user_id),
                 eventsub.ChannelSubscriptionGiftSubscription(
                     broadcaster_user_id=user_id
                 ),
+                eventsub.ChannelSubscriptionMessage(broadcaster_user_id=user_id),
+                # Bits/Cheer events
                 eventsub.ChannelCheerSubscription(broadcaster_user_id=user_id),
+                # Raid events
                 eventsub.ChannelRaidSubscription(to_broadcaster_user_id=user_id),
-                eventsub.StreamOnlineSubscription(broadcaster_user_id=user_id),
-                eventsub.StreamOfflineSubscription(broadcaster_user_id=user_id),
-                eventsub.ChannelUpdateSubscription(broadcaster_user_id=user_id),
+                # Chat events
+                eventsub.ChannelChatClear(broadcaster_user_id=user_id, user_id=user_id),
+                eventsub.ChannelChatClearUserMessages(
+                    broadcaster_user_id=user_id, user_id=user_id
+                ),
+                eventsub.ChatMessage(broadcaster_user_id=user_id, user_id=user_id),
+                eventsub.ChatNotification(broadcaster_user_id=user_id, user_id=user_id),
+                # Channel Points events
+                eventsub.ChannelPointsRewardAdd(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRewardUpdate(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRewardRemove(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRedemptionAdd(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRedemptionUpdate(broadcaster_user_id=user_id),
+                # Poll events
+                eventsub.ChannelPollBegin(broadcaster_user_id=user_id),
+                eventsub.ChannelPollProgress(broadcaster_user_id=user_id),
+                eventsub.ChannelPollEnd(broadcaster_user_id=user_id),
+                # Prediction events
+                eventsub.ChannelPredictionBegin(broadcaster_user_id=user_id),
+                eventsub.ChannelPredictionProgress(broadcaster_user_id=user_id),
+                eventsub.ChannelPredictionLock(broadcaster_user_id=user_id),
+                eventsub.ChannelPredictionEnd(broadcaster_user_id=user_id),
+                # Charity events
+                eventsub.CharityCampaignDonation(broadcaster_user_id=user_id),
+                # Hype Train events
+                eventsub.HypeTrainBegin(broadcaster_user_id=user_id),
+                eventsub.HypeTrainProgress(broadcaster_user_id=user_id),
+                eventsub.HypeTrainEnd(broadcaster_user_id=user_id),
+                # Goal events
+                eventsub.GoalBegin(broadcaster_user_id=user_id),
+                eventsub.GoalProgress(broadcaster_user_id=user_id),
+                eventsub.GoalEnd(broadcaster_user_id=user_id),
+                # Shoutout events
+                eventsub.ShoutoutCreate(
+                    broadcaster_user_id=user_id, moderator_user_id=user_id
+                ),
+                # VIP events
+                eventsub.ChannelVIPAdd(broadcaster_user_id=user_id),
+                eventsub.ChannelVIPRemove(broadcaster_user_id=user_id),
+                # Ad break events
+                eventsub.ChannelAdBreakBegin(broadcaster_user_id=user_id),
             ]
 
             for subscription in subscriptions:
@@ -256,9 +335,17 @@ class TwitchService(twitchio.Client):
                     logger.info(
                         f"Successfully subscribed to {subscription.__class__.__name__}"
                     )
+                except InvalidTokenException as token_error:
+                    logger.error(
+                        f"Invalid token when subscribing to {subscription.__class__.__name__}: {token_error}"
+                    )
+                except HTTPException as http_error:
+                    logger.error(
+                        f"HTTP error subscribing to {subscription.__class__.__name__}: {http_error}"
+                    )
                 except Exception as e:
                     logger.error(
-                        f"Failed to subscribe to {subscription.__class__.__name__}: {e}"
+                        f"Unexpected error subscribing to {subscription.__class__.__name__}: {e}"
                     )
 
             self._eventsub_connected = True
@@ -319,6 +406,147 @@ class TwitchService(twitchio.Client):
     async def event_channel_update(self, payload):
         """Handle channel update events."""
         await self._create_event_from_payload("channel.update", payload)
+
+    # Additional subscription events
+    async def event_subscription_end(self, payload):
+        """Handle channel subscription end events."""
+        await self._create_event_from_payload("channel.subscription.end", payload)
+
+    async def event_subscription_message(self, payload):
+        """Handle channel subscription message events."""
+        await self._create_event_from_payload("channel.subscription.message", payload)
+
+    # Chat events
+    async def event_channel_chat_clear(self, payload):
+        """Handle channel chat clear events."""
+        await self._create_event_from_payload("channel.chat.clear", payload)
+
+    async def event_channel_chat_clear_user_messages(self, payload):
+        """Handle channel chat clear user messages events."""
+        await self._create_event_from_payload(
+            "channel.chat.clear_user_messages", payload
+        )
+
+    async def event_chat_message(self, payload):
+        """Handle chat message events."""
+        await self._create_event_from_payload("channel.chat.message", payload)
+
+    async def event_chat_notification(self, payload):
+        """Handle chat notification events."""
+        await self._create_event_from_payload("channel.chat.notification", payload)
+
+    # Channel Points events
+    async def event_channel_points_reward_add(self, payload):
+        """Handle channel points reward add events."""
+        await self._create_event_from_payload(
+            "channel.channel_points_custom_reward.add", payload
+        )
+
+    async def event_channel_points_reward_update(self, payload):
+        """Handle channel points reward update events."""
+        await self._create_event_from_payload(
+            "channel.channel_points_custom_reward.update", payload
+        )
+
+    async def event_channel_points_reward_remove(self, payload):
+        """Handle channel points reward remove events."""
+        await self._create_event_from_payload(
+            "channel.channel_points_custom_reward.remove", payload
+        )
+
+    async def event_channel_points_redemption_add(self, payload):
+        """Handle channel points redemption add events."""
+        await self._create_event_from_payload(
+            "channel.channel_points_custom_reward_redemption.add", payload
+        )
+
+    async def event_channel_points_redemption_update(self, payload):
+        """Handle channel points redemption update events."""
+        await self._create_event_from_payload(
+            "channel.channel_points_custom_reward_redemption.update", payload
+        )
+
+    # Poll events
+    async def event_channel_poll_begin(self, payload):
+        """Handle channel poll begin events."""
+        await self._create_event_from_payload("channel.poll.begin", payload)
+
+    async def event_channel_poll_progress(self, payload):
+        """Handle channel poll progress events."""
+        await self._create_event_from_payload("channel.poll.progress", payload)
+
+    async def event_channel_poll_end(self, payload):
+        """Handle channel poll end events."""
+        await self._create_event_from_payload("channel.poll.end", payload)
+
+    # Prediction events
+    async def event_channel_prediction_begin(self, payload):
+        """Handle channel prediction begin events."""
+        await self._create_event_from_payload("channel.prediction.begin", payload)
+
+    async def event_channel_prediction_progress(self, payload):
+        """Handle channel prediction progress events."""
+        await self._create_event_from_payload("channel.prediction.progress", payload)
+
+    async def event_channel_prediction_lock(self, payload):
+        """Handle channel prediction lock events."""
+        await self._create_event_from_payload("channel.prediction.lock", payload)
+
+    async def event_channel_prediction_end(self, payload):
+        """Handle channel prediction end events."""
+        await self._create_event_from_payload("channel.prediction.end", payload)
+
+    # Charity events
+    async def event_charity_campaign_donate(self, payload):
+        """Handle charity campaign donation events."""
+        await self._create_event_from_payload(
+            "channel.charity_campaign.donate", payload
+        )
+
+    # Hype Train events
+    async def event_hype_train_begin(self, payload):
+        """Handle hype train begin events."""
+        await self._create_event_from_payload("channel.hype_train.begin", payload)
+
+    async def event_hype_train_progress(self, payload):
+        """Handle hype train progress events."""
+        await self._create_event_from_payload("channel.hype_train.progress", payload)
+
+    async def event_hype_train_end(self, payload):
+        """Handle hype train end events."""
+        await self._create_event_from_payload("channel.hype_train.end", payload)
+
+    # Goal events
+    async def event_goal_begin(self, payload):
+        """Handle goal begin events."""
+        await self._create_event_from_payload("channel.goal.begin", payload)
+
+    async def event_goal_progress(self, payload):
+        """Handle goal progress events."""
+        await self._create_event_from_payload("channel.goal.progress", payload)
+
+    async def event_goal_end(self, payload):
+        """Handle goal end events."""
+        await self._create_event_from_payload("channel.goal.end", payload)
+
+    # Shoutout events
+    async def event_shoutout_create(self, payload):
+        """Handle shoutout create events."""
+        await self._create_event_from_payload("channel.shoutout.create", payload)
+
+    # VIP events
+    async def event_channel_vip_add(self, payload):
+        """Handle channel VIP add events."""
+        await self._create_event_from_payload("channel.vip.add", payload)
+
+    async def event_channel_vip_remove(self, payload):
+        """Handle channel VIP remove events."""
+        await self._create_event_from_payload("channel.vip.remove", payload)
+
+    # Ad break events
+    async def event_channel_ad_break_begin(self, payload):
+        """Handle channel ad break begin events."""
+        await self._create_event_from_payload("channel.ad_break.begin", payload)
 
     async def _create_event_from_payload(self, event_type: str, payload):
         """Create Event record and publish to Redis."""
@@ -510,6 +738,15 @@ async def main():
         ]
 
         # Generate OAuth URL using twitchio.authentication.OAuth
+        # Check if we have valid tokens before showing OAuth message
+        from django.utils import timezone
+
+        valid_tokens_exist = await sync_to_async(
+            lambda: Token.objects.filter(
+                platform="twitch", expires_at__gt=timezone.now()
+            ).exists()
+        )()
+
         oauth = twitchio.authentication.OAuth(
             client_id=settings.TWITCH_CLIENT_ID,
             client_secret=settings.TWITCH_CLIENT_SECRET,
@@ -518,12 +755,18 @@ async def main():
         )
         oauth_url = oauth.get_authorization_url()
 
-        logger.info("=" * 80)
-        logger.info("TWITCH OAUTH AUTHORIZATION REQUIRED")
-        logger.info("=" * 80)
-        logger.info("To authorize this application, visit:")
-        logger.info(f"{oauth_url}")
-        logger.info("=" * 80)
+        if not valid_tokens_exist:
+            logger.info("=" * 80)
+            logger.info("TWITCH OAUTH AUTHORIZATION REQUIRED")
+            logger.info("=" * 80)
+            logger.info("To authorize this application, visit:")
+            logger.info(f"{oauth_url}")
+            logger.info("=" * 80)
+        else:
+            logger.info(
+                "Valid tokens found in database. OAuth URL available if needed:"
+            )
+            logger.info(f"{oauth_url}")
 
         # Start the client
         await service.start()
