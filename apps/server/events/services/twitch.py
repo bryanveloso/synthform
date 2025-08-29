@@ -283,7 +283,7 @@ class TwitchService(twitchio.Client):
                 eventsub.ChannelSubscriptionGiftSubscription(
                     broadcaster_user_id=user_id
                 ),
-                eventsub.ChannelSubscriptionMessageSubscription(
+                eventsub.ChannelSubscribeMessageSubscription(
                     broadcaster_user_id=user_id
                 ),
                 # Bits/Cheer events
