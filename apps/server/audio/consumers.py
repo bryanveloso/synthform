@@ -27,13 +27,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
         self.last_chunk_time = 0
 
     async def connect(self):
-        # For now, require authentication in production
-        if not settings.DEBUG:
-            if isinstance(self.scope["user"], AnonymousUser):
-                logger.warning("Unauthorized WebSocket connection attempt")
-                await self.close(code=4003)  # Unauthorized
-                return
-
+        # Allow unauthenticated connections for OBS plugins on Tailscale network
         await self.accept()
 
         # Get existing active session or create new one
@@ -233,12 +227,7 @@ class EventsConsumer(AsyncWebsocketConsumer):
     """Consumer for broadcasting transcription events."""
 
     async def connect(self):
-        # Apply same authentication as AudioConsumer
-        if not settings.DEBUG:
-            if isinstance(self.scope["user"], AnonymousUser):
-                await self.close(code=4003)  # Unauthorized
-                return
-
+        # Allow unauthenticated connections for OBS plugins on Tailscale network
         await self.channel_layer.group_add("audio_events", self.channel_name)
         await self.accept()
 
@@ -277,12 +266,7 @@ class CaptionsConsumer(AsyncWebsocketConsumer):
     """Consumer for OBS caption plugin."""
 
     async def connect(self):
-        # Apply same authentication as AudioConsumer
-        if not settings.DEBUG:
-            if isinstance(self.scope["user"], AnonymousUser):
-                await self.close(code=4003)  # Unauthorized
-                return
-
+        # Allow unauthenticated connections for OBS plugins on Tailscale network
         await self.channel_layer.group_add("captions", self.channel_name)
         await self.accept()
 
