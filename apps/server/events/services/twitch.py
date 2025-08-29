@@ -186,6 +186,7 @@ class TwitchService(twitchio.Client):
         try:
             tokens = await sync_to_async(list)(Token.objects.filter(platform="twitch"))
 
+            valid_tokens = []
             for token in tokens:
                 if not token.is_expired:
                     try:
@@ -195,6 +196,7 @@ class TwitchService(twitchio.Client):
                         logger.info(
                             f"Loaded token for user {token.user_id} from database"
                         )
+                        valid_tokens.append(token)
                     except Exception as e:
                         logger.error(
                             f"Error loading token for user {token.user_id}: {e}"
@@ -203,6 +205,12 @@ class TwitchService(twitchio.Client):
                     logger.warning(
                         f"Token for user {token.user_id} has expired, skipping"
                     )
+
+            # If we have valid tokens but no user, subscribe to events for the first valid token
+            if valid_tokens and not self.user:
+                primary_token = valid_tokens[0]  # Use first valid token
+                logger.info(f"Subscribing to EventSub events for user {primary_token.user_id}")
+                await self._subscribe_to_events_for_user(primary_token.user_id)
 
             logger.info(
                 f"Loaded {len([t for t in tokens if not t.is_expired])} valid tokens from database"
