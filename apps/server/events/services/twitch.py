@@ -230,9 +230,29 @@ class TwitchService(twitchio.Client):
                             f"Error loading token for user {token.user_id}: {e}"
                         )
                 else:
-                    logger.warning(
-                        f"Token for user {token.user_id} has expired, skipping"
-                    )
+                    # Token is expired, try to refresh it
+                    logger.info(f"Token for user {token.user_id} has expired, attempting refresh")
+                    try:
+                        if token.refresh_token:
+                            # Use TwitchIO's built-in refresh mechanism
+                            refreshed_token = await self.refresh_token(token.refresh_token)
+                            if refreshed_token:
+                                # Update our database token
+                                await self._save_token_to_database(
+                                    token.user_id,
+                                    refreshed_token.access_token,
+                                    refreshed_token.refresh_token,
+                                    refreshed_token.expires_at,
+                                    refreshed_token.scopes
+                                )
+                                logger.info(f"Successfully refreshed token for user {token.user_id}")
+                                valid_tokens.append(token)
+                            else:
+                                logger.warning(f"Failed to refresh token for user {token.user_id}")
+                        else:
+                            logger.warning(f"No refresh token available for user {token.user_id}")
+                    except Exception as e:
+                        logger.error(f"Error refreshing token for user {token.user_id}: {e}")
 
             # If we have valid tokens, automatically subscribe to events
             if valid_tokens:
@@ -572,11 +592,36 @@ class TwitchService(twitchio.Client):
         """Handle channel ad break begin events."""
         await self._create_event_from_payload("channel.ad_break.begin", payload)
 
+    def _serialize_payload(self, payload) -> dict:
+        """Safely serialize TwitchIO payload objects, excluding HTTP clients and other useless objects."""
+        # Fields to explicitly exclude (HTTP clients, internal objects, etc.)
+        excluded_fields = {'_http', 'client', '_client', 'http_client', '_http_client'}
+        
+        if hasattr(payload, '__dict__'):
+            payload_dict = {}
+            for key, value in payload.__dict__.items():
+                # Skip explicitly excluded fields
+                if key in excluded_fields:
+                    continue
+                    
+                # Include all basic serializable types
+                if isinstance(value, (str, int, float, bool, list, dict, type(None))):
+                    payload_dict[key] = value
+                else:
+                    logger.debug(f"Excluding field '{key}' of type {type(value).__name__}")
+                    
+            return payload_dict
+        elif isinstance(payload, dict):
+            return {k: v for k, v in payload.items() 
+                   if k not in excluded_fields and isinstance(v, (str, int, float, bool, list, dict, type(None)))}
+        else:
+            return {}
+
     async def _create_event_from_payload(self, event_type: str, payload):
         """Create Event record and publish to Redis."""
         try:
-            # Convert payload to dict for storage
-            payload_dict = payload.__dict__.copy()
+            # Convert payload to dict for storage with safe serialization
+            payload_dict = self._serialize_payload(payload)
 
             # Extract user information for Member creation
             member = await self._get_or_create_member_from_payload(payload)
