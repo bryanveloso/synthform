@@ -22,23 +22,23 @@ SESSION_TIMEOUT_MINUTES = 15
 
 async def get_or_create_active_session() -> Session:
     """Get existing active session or create new one with proper locking."""
-    try:
-        # First try to get existing active session with lock
-        session = await Session.objects.select_for_update().aget(is_active=True)
-        logger.info(f"Found existing active session: {session.id}")
-        return session
-    except Session.DoesNotExist:
-        # No active session exists, create one
+    async with transaction.atomic():
         try:
-            async with transaction.atomic():
+            # First try to get existing active session with lock
+            session = await Session.objects.select_for_update().aget(is_active=True)
+            logger.info(f"Found existing active session: {session.id}")
+            return session
+        except Session.DoesNotExist:
+            # No active session exists, create one
+            try:
                 session = await Session.objects.acreate(is_active=True)
                 logger.info(f"Created new session: {session.id}")
                 return session
-        except IntegrityError:
-            # Another process created a session, get it
-            session = await Session.objects.aget(is_active=True)
-            logger.info(f"Found session created by another process: {session.id}")
-            return session
+            except IntegrityError:
+                # Another process created a session, get it
+                session = await Session.objects.aget(is_active=True)
+                logger.info(f"Found session created by another process: {session.id}")
+                return session
 
 
 async def start_session_timeout(session: Session) -> None:
