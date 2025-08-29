@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     # Core Applications
     "audio",
     "events",
+    "overlays",
     "streams",
     "transcriptions",
 ]
