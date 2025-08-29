@@ -15,7 +15,7 @@ async def cleanup_redis_connections(
 ) -> None:
     """
     Clean up Redis connections and tasks gracefully.
-    
+
     Args:
         redis_conn: Redis connection to close
         pubsub_conn: Redis pubsub connection to unsubscribe and close

@@ -48,7 +48,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code: int) -> None:
         """Clean up connections when overlay disconnects."""
         logger.info(f"Overlay client disconnected with code: {close_code}")
-        
+
         await cleanup_redis_connections(self.redis, self.pubsub, self.redis_task)
 
     async def _listen_to_redis(self) -> None:
