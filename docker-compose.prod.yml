@@ -66,6 +66,13 @@ services:
       - "4343:4343"
     command: uv run python -m events.services.twitch
 
+  overlays:
+    build:
+      context: ./apps/overlays
+      dockerfile: Dockerfile
+    ports:
+      - "8008:8008"
+
 volumes:
   postgres_data:
   redis_data:
