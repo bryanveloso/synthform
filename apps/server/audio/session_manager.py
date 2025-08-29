@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from celery import current_app
 from django.db import IntegrityError
 from django.db import transaction
+from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from .models import Session
@@ -20,25 +21,31 @@ logger = logging.getLogger(__name__)
 SESSION_TIMEOUT_MINUTES = 15
 
 
-async def get_or_create_active_session() -> Session:
-    """Get existing active session or create new one with proper locking."""
-    async with transaction.atomic():
+@sync_to_async
+def _get_or_create_active_session_sync() -> Session:
+    """Synchronous version for transaction handling."""
+    with transaction.atomic():
         try:
             # First try to get existing active session with lock
-            session = await Session.objects.select_for_update().aget(is_active=True)
+            session = Session.objects.select_for_update().get(is_active=True)
             logger.info(f"Found existing active session: {session.id}")
             return session
         except Session.DoesNotExist:
             # No active session exists, create one
             try:
-                session = await Session.objects.acreate(is_active=True)
+                session = Session.objects.create(is_active=True)
                 logger.info(f"Created new session: {session.id}")
                 return session
             except IntegrityError:
                 # Another process created a session, get it
-                session = await Session.objects.aget(is_active=True)
+                session = Session.objects.get(is_active=True)
                 logger.info(f"Found session created by another process: {session.id}")
                 return session
+
+
+async def get_or_create_active_session() -> Session:
+    """Get existing active session or create new one with proper locking."""
+    return await _get_or_create_active_session_sync()
 
 
 async def start_session_timeout(session: Session) -> None:
