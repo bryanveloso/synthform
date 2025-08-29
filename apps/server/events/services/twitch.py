@@ -277,56 +277,56 @@ class TwitchService(twitchio.Client):
                 ),
                 # Subscription events
                 eventsub.ChannelSubscribeSubscription(broadcaster_user_id=user_id),
-                eventsub.ChannelSubscriptionEnd(broadcaster_user_id=user_id),
+                eventsub.ChannelSubscriptionEndSubscription(broadcaster_user_id=user_id),
                 eventsub.ChannelSubscriptionGiftSubscription(
                     broadcaster_user_id=user_id
                 ),
-                eventsub.ChannelSubscriptionMessage(broadcaster_user_id=user_id),
+                eventsub.ChannelSubscriptionMessageSubscription(broadcaster_user_id=user_id),
                 # Bits/Cheer events
                 eventsub.ChannelCheerSubscription(broadcaster_user_id=user_id),
                 # Raid events
                 eventsub.ChannelRaidSubscription(to_broadcaster_user_id=user_id),
                 # Chat events
-                eventsub.ChannelChatClear(broadcaster_user_id=user_id, user_id=user_id),
-                eventsub.ChannelChatClearUserMessages(
+                eventsub.ChatClearSubscription(broadcaster_user_id=user_id, user_id=user_id),
+                eventsub.ChatClearUserMessagesSubscription(
                     broadcaster_user_id=user_id, user_id=user_id
                 ),
-                eventsub.ChatMessage(broadcaster_user_id=user_id, user_id=user_id),
-                eventsub.ChatNotification(broadcaster_user_id=user_id, user_id=user_id),
+                eventsub.ChatMessageSubscription(broadcaster_user_id=user_id, user_id=user_id),
+                eventsub.ChatNotificationSubscription(broadcaster_user_id=user_id, user_id=user_id),
                 # Channel Points events
-                eventsub.ChannelPointsRewardAdd(broadcaster_user_id=user_id),
-                eventsub.ChannelPointsRewardUpdate(broadcaster_user_id=user_id),
-                eventsub.ChannelPointsRewardRemove(broadcaster_user_id=user_id),
-                eventsub.ChannelPointsRedemptionAdd(broadcaster_user_id=user_id),
-                eventsub.ChannelPointsRedemptionUpdate(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRewardAddSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRewardUpdateSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRewardRemoveSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRedeemAddSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPointsRedeemUpdateSubscription(broadcaster_user_id=user_id),
                 # Poll events
-                eventsub.ChannelPollBegin(broadcaster_user_id=user_id),
-                eventsub.ChannelPollProgress(broadcaster_user_id=user_id),
-                eventsub.ChannelPollEnd(broadcaster_user_id=user_id),
+                eventsub.ChannelPollBeginSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPollProgressSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPollEndSubscription(broadcaster_user_id=user_id),
                 # Prediction events
-                eventsub.ChannelPredictionBegin(broadcaster_user_id=user_id),
-                eventsub.ChannelPredictionProgress(broadcaster_user_id=user_id),
-                eventsub.ChannelPredictionLock(broadcaster_user_id=user_id),
-                eventsub.ChannelPredictionEnd(broadcaster_user_id=user_id),
+                eventsub.ChannelPredictionBeginSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPredictionProgressSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPredictionLockSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelPredictionEndSubscription(broadcaster_user_id=user_id),
                 # Charity events
-                eventsub.CharityCampaignDonation(broadcaster_user_id=user_id),
+                eventsub.CharityDonationSubscription(broadcaster_user_id=user_id),
                 # Hype Train events
-                eventsub.HypeTrainBegin(broadcaster_user_id=user_id),
-                eventsub.HypeTrainProgress(broadcaster_user_id=user_id),
-                eventsub.HypeTrainEnd(broadcaster_user_id=user_id),
+                eventsub.HypeTrainBeginSubscription(broadcaster_user_id=user_id),
+                eventsub.HypeTrainProgressSubscription(broadcaster_user_id=user_id),
+                eventsub.HypeTrainEndSubscription(broadcaster_user_id=user_id),
                 # Goal events
-                eventsub.GoalBegin(broadcaster_user_id=user_id),
-                eventsub.GoalProgress(broadcaster_user_id=user_id),
-                eventsub.GoalEnd(broadcaster_user_id=user_id),
+                eventsub.GoalBeginSubscription(broadcaster_user_id=user_id),
+                eventsub.GoalProgressSubscription(broadcaster_user_id=user_id),
+                eventsub.GoalEndSubscription(broadcaster_user_id=user_id),
                 # Shoutout events
-                eventsub.ShoutoutCreate(
+                eventsub.ShoutoutCreateSubscription(
                     broadcaster_user_id=user_id, moderator_user_id=user_id
                 ),
                 # VIP events
-                eventsub.ChannelVIPAdd(broadcaster_user_id=user_id),
-                eventsub.ChannelVIPRemove(broadcaster_user_id=user_id),
+                eventsub.ChannelVIPAddSubscription(broadcaster_user_id=user_id),
+                eventsub.ChannelVIPRemoveSubscription(broadcaster_user_id=user_id),
                 # Ad break events
-                eventsub.ChannelAdBreakBegin(broadcaster_user_id=user_id),
+                eventsub.AdBreakBeginSubscription(broadcaster_user_id=user_id),
             ]
 
             for subscription in subscriptions:
