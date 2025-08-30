@@ -113,7 +113,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # Handle special event types for alerts/ticker
             if event_type in self.VIEWER_INTERACTIONS:
                 # These are significant events that might trigger alerts or ticker updates
-                pass
+                await self._send_message("alerts", "push", event_data)
 
     async def _send_initial_state(self) -> None:
         """Send sync messages for all layers on connection."""
@@ -137,7 +137,8 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         if obs_state:
             await self._send_message("obs", "sync", obs_state)
 
-        # Alert layer starts empty - no initial alerts
+        # Alert layer - starts with empty queue
+        await self._send_message("alerts", "sync", [])
 
     async def _send_message(self, layer: str, verb: str, payload: dict | list) -> None:
         """Send formatted message to overlay client."""
