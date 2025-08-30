@@ -125,8 +125,6 @@ class TwitchService(twitchio.Client):
         # Only subscribe to events if user is logged in
         if self.user:
             await self._subscribe_to_events()
-        else:
-            logger.info("Waiting for OAuth authorization to subscribe to events")
 
     async def event_oauth_authorized(
         self, payload: twitchio.authentication.UserTokenPayload
