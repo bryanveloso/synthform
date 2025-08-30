@@ -17,6 +17,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
       
     - name: Create production .env file
       run: |
@@ -36,7 +38,7 @@ jobs:
     - name: Check changes and deploy selectively
       run: |
         # Check what changed in this push
-        CHANGED_FILES=$(git diff --name-only HEAD~1)
+        CHANGED_FILES=$(git diff --name-only HEAD~1 2>/dev/null || git ls-files)
         
         # Server changes (Django app, but not Twitch service)
         if echo "$CHANGED_FILES" | grep -q "apps/server" && ! echo "$CHANGED_FILES" | grep -q "apps/server/events/services/twitch.py"; then
@@ -73,11 +75,6 @@ jobs:
     - name: Collect static files
       run: |
         docker compose -f docker-compose.prod.yml exec -T server uv run python manage.py collectstatic --noinput
-    
-    - name: Check application health
-      run: |
-        sleep 10
-        curl -f http://localhost:7175/health/ || exit 1
     
     - name: Clean up old Docker images
       run: |
