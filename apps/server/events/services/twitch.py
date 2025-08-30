@@ -1060,7 +1060,6 @@ class TwitchService(twitchio.Client):
         payload_dict = {
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "user_login": payload.user.login if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id
             if payload.broadcaster
             else None,
@@ -1099,7 +1098,6 @@ class TwitchService(twitchio.Client):
         payload_dict = {
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "user_login": payload.user.login if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id
             if payload.broadcaster
             else None,
@@ -1123,7 +1121,7 @@ class TwitchService(twitchio.Client):
         payload_dict = {
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "user_login": payload.user.login if payload.user else None,
+            "user_login": (await payload.user.user()).login if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id
             if payload.broadcaster
             else None,
@@ -1145,7 +1143,7 @@ class TwitchService(twitchio.Client):
         payload_dict = {
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "user_login": payload.user.login if payload.user else None,
+            "user_login": (await payload.user.user()).login if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id
             if payload.broadcaster
             else None,
@@ -1178,7 +1176,7 @@ class TwitchService(twitchio.Client):
         payload_dict = {
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "user_login": payload.user.login if payload.user else None,
+            "user_login": (await payload.user.user()).login if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id
             if payload.broadcaster
             else None,
@@ -1213,9 +1211,6 @@ class TwitchService(twitchio.Client):
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_login": payload.broadcaster.login
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "is_enabled": reward.is_enabled if hasattr(reward, "is_enabled") else None,
@@ -1261,9 +1256,6 @@ class TwitchService(twitchio.Client):
             "broadcaster_user_name": payload.broadcaster.name
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
-            "broadcaster_user_login": payload.broadcaster.login
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
             "is_enabled": reward.is_enabled if hasattr(reward, "is_enabled") else None,
             "is_paused": reward.is_paused if hasattr(reward, "is_paused") else None,
             "is_in_stock": reward.is_in_stock
@@ -1305,9 +1297,6 @@ class TwitchService(twitchio.Client):
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_login": payload.broadcaster.login
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "is_enabled": reward.is_enabled if hasattr(reward, "is_enabled") else None,
@@ -1390,9 +1379,6 @@ class TwitchService(twitchio.Client):
             "broadcaster_user_name": payload.broadcaster.name
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
-            "broadcaster_user_login": payload.broadcaster.login
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
             "title": payload.title if hasattr(payload, "title") else None,
             "choices": [
                 {
@@ -1439,9 +1425,6 @@ class TwitchService(twitchio.Client):
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_login": payload.broadcaster.login
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "title": payload.title if hasattr(payload, "title") else None,
@@ -1491,9 +1474,6 @@ class TwitchService(twitchio.Client):
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_login": payload.broadcaster.login
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "title": payload.title if hasattr(payload, "title") else None,
@@ -1561,7 +1541,9 @@ class TwitchService(twitchio.Client):
                         {
                             "user_id": p.user.id,
                             "user_name": p.user.name,
-                            "user_login": p.user.login,
+                            "user_login": (await p.user.user()).login
+                            if p.user
+                            else None,
                             "channel_points_used": p.channel_points_used,
                             "channel_points_won": p.channel_points_won,
                         }
@@ -1602,7 +1584,9 @@ class TwitchService(twitchio.Client):
                         {
                             "user_id": p.user.id,
                             "user_name": p.user.name,
-                            "user_login": p.user.login,
+                            "user_login": (await p.user.user()).login
+                            if p.user
+                            else None,
                             "channel_points_used": p.channel_points_used,
                             "channel_points_won": p.channel_points_won,
                         }
@@ -1645,7 +1629,9 @@ class TwitchService(twitchio.Client):
                         {
                             "user_id": p.user.id,
                             "user_name": p.user.name,
-                            "user_login": p.user.login,
+                            "user_login": (await p.user.user()).login
+                            if p.user
+                            else None,
                             "channel_points_used": p.channel_points_used,
                             "channel_points_won": p.channel_points_won,
                         }
@@ -1686,7 +1672,9 @@ class TwitchService(twitchio.Client):
                         {
                             "user_id": p.user.id,
                             "user_name": p.user.name,
-                            "user_login": p.user.login,
+                            "user_login": (await p.user.user()).login
+                            if p.user
+                            else None,
                             "channel_points_used": p.channel_points_used,
                             "channel_points_won": p.channel_points_won,
                         }
@@ -1733,7 +1721,9 @@ class TwitchService(twitchio.Client):
                 {
                     "user_id": contrib.user.id,
                     "user_name": contrib.user.name,
-                    "user_login": contrib.user.login,
+                    "user_login": (await contrib.user.user()).login
+                    if contrib.user
+                    else None,
                     "type": contrib.type,
                     "total": contrib.total,
                 }
@@ -1744,7 +1734,9 @@ class TwitchService(twitchio.Client):
             "last_contribution": {
                 "user_id": payload.last_contribution.user.id,
                 "user_name": payload.last_contribution.user.name,
-                "user_login": payload.last_contribution.user.login,
+                "user_login": (await payload.last_contribution.user.user()).login
+                if payload.last_contribution and payload.last_contribution.user
+                else None,
                 "type": payload.last_contribution.type,
                 "total": payload.last_contribution.total,
             }
@@ -1778,7 +1770,9 @@ class TwitchService(twitchio.Client):
                 {
                     "user_id": contrib.user.id,
                     "user_name": contrib.user.name,
-                    "user_login": contrib.user.login,
+                    "user_login": (await contrib.user.user()).login
+                    if contrib.user
+                    else None,
                     "type": contrib.type,
                     "total": contrib.total,
                 }
@@ -1789,7 +1783,9 @@ class TwitchService(twitchio.Client):
             "last_contribution": {
                 "user_id": payload.last_contribution.user.id,
                 "user_name": payload.last_contribution.user.name,
-                "user_login": payload.last_contribution.user.login,
+                "user_login": (await payload.last_contribution.user.user()).login
+                if payload.last_contribution and payload.last_contribution.user
+                else None,
                 "type": payload.last_contribution.type,
                 "total": payload.last_contribution.total,
             }
@@ -1822,7 +1818,9 @@ class TwitchService(twitchio.Client):
                 {
                     "user_id": contrib.user.id,
                     "user_name": contrib.user.name,
-                    "user_login": contrib.user.login,
+                    "user_login": (await contrib.user.user()).login
+                    if contrib.user
+                    else None,
                     "type": contrib.type,
                     "total": contrib.total,
                 }
@@ -1853,9 +1851,6 @@ class TwitchService(twitchio.Client):
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_login": payload.broadcaster.login
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "type": payload.type if hasattr(payload, "type") else None,
@@ -1889,9 +1884,6 @@ class TwitchService(twitchio.Client):
             "broadcaster_user_name": payload.broadcaster.name
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
-            "broadcaster_user_login": payload.broadcaster.login
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
             "type": payload.type if hasattr(payload, "type") else None,
             "description": payload.description
             if hasattr(payload, "description")
@@ -1921,9 +1913,6 @@ class TwitchService(twitchio.Client):
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_login": payload.broadcaster.login
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "type": payload.type if hasattr(payload, "type") else None,
@@ -1972,7 +1961,7 @@ class TwitchService(twitchio.Client):
             "broadcaster_user_name": payload.broadcaster.name
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
-            "broadcaster_user_login": payload.broadcaster.login
+            "broadcaster_user_id": payload.broadcaster.id
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "requester_user_id": payload.requester.id
@@ -2003,16 +1992,13 @@ class TwitchService(twitchio.Client):
             "user_name": payload.user.name
             if hasattr(payload, "user") and payload.user
             else None,
-            "user_login": payload.user.login
+            "user_login": (await payload.user.user()).login
             if hasattr(payload, "user") and payload.user
             else None,
             "broadcaster_user_id": payload.broadcaster.id
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_login": payload.broadcaster.login
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
         }
@@ -2032,16 +2018,13 @@ class TwitchService(twitchio.Client):
             "user_name": payload.user.name
             if hasattr(payload, "user") and payload.user
             else None,
-            "user_login": payload.user.login
+            "user_login": (await payload.user.user()).login
             if hasattr(payload, "user") and payload.user
             else None,
             "broadcaster_user_id": payload.broadcaster.id
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
             "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_login": payload.broadcaster.login
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
         }
@@ -2061,16 +2044,10 @@ class TwitchService(twitchio.Client):
             "broadcaster_user_name": payload.broadcaster.name
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
-            "broadcaster_user_login": payload.broadcaster.login
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
             "to_broadcaster_user_id": payload.to_broadcaster.id
             if hasattr(payload, "to_broadcaster") and payload.to_broadcaster
             else None,
             "to_broadcaster_user_name": payload.to_broadcaster.name
-            if hasattr(payload, "to_broadcaster") and payload.to_broadcaster
-            else None,
-            "to_broadcaster_user_login": payload.to_broadcaster.login
             if hasattr(payload, "to_broadcaster") and payload.to_broadcaster
             else None,
             "moderator_user_id": payload.moderator.id
