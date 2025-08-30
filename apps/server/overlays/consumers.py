@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime
+from datetime import timezone
 
 import redis.asyncio as redis
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -16,6 +17,17 @@ logger = logging.getLogger(__name__)
 
 class OverlayConsumer(AsyncWebsocketConsumer):
     """WebSocket consumer for overlay real-time communication."""
+
+    # Timeline-worthy viewer interactions
+    VIEWER_INTERACTIONS = [
+        "channel.follow",
+        "channel.subscribe",
+        "channel.subscription.gift",
+        "channel.subscription.message",
+        "channel.cheer",
+        "channel.channel_points_custom_reward_redemption",
+        "channel.raid",
+    ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -93,14 +105,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             if event_type == "obs.scene.changed":
                 await self._send_message("base", "obs_scene_changed", event_data)
         else:
-            # Route to timeline layer (all non-OBS events)
-            await self._send_message("timeline", "push", event_data)
+            # Only route viewer interactions to timeline and base layers
+            if event_type in self.VIEWER_INTERACTIONS:
+                await self._send_message("timeline", "push", event_data)
+                await self._send_message("base", "update", event_data)
 
-            # Update base layer with latest event
-            await self._send_message("base", "update", event_data)
-
-            # Handle special event types
-            if event_type in ["channel.follow", "channel.subscribe", "channel.cheer"]:
+            # Handle special event types for alerts/ticker
+            if event_type in self.VIEWER_INTERACTIONS:
                 # These are significant events that might trigger alerts or ticker updates
                 pass
 
@@ -134,7 +145,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         message = {
             "type": f"{layer}:{verb}",
             "payload": payload,
-            "timestamp": datetime.now(datetime.UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "sequence": self.sequence,
         }
 
@@ -142,11 +153,15 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         logger.debug(f"Sent {layer}:{verb} message to overlay client")
 
     async def _get_latest_event(self) -> dict | None:
-        """Query database for latest event."""
+        """Query database for latest viewer interaction."""
         from events.models import Event
 
         try:
-            latest_event = await Event.objects.select_related("member").afirst()
+            latest_event = (
+                await Event.objects.select_related("member")
+                .filter(event_type__in=self.VIEWER_INTERACTIONS)
+                .afirst()
+            )
             if latest_event:
                 return {
                     "id": str(latest_event.id),
@@ -171,12 +186,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             return None
 
     async def _get_recent_events(self, limit: int = 10) -> list[dict]:
-        """Query database for recent events."""
+        """Query database for recent timeline-worthy events."""
         from events.models import Event
 
         try:
             events = []
-            async for event in Event.objects.select_related("member")[:limit]:
+            async for event in Event.objects.select_related("member").filter(
+                event_type__in=self.VIEWER_INTERACTIONS
+            )[:limit]:
                 events.append(
                     {
                         "id": str(event.id),

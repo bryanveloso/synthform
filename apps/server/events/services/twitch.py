@@ -1961,9 +1961,6 @@ class TwitchService(twitchio.Client):
             "broadcaster_user_name": payload.broadcaster.name
             if hasattr(payload, "broadcaster") and payload.broadcaster
             else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
             "requester_user_id": payload.requester.id
             if hasattr(payload, "requester") and payload.requester
             else None,

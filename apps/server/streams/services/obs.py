@@ -328,18 +328,9 @@ class OBSService:
             streaming_status = self._client_req.get_stream_status()
 
             return {
-                "current_scene": {
-                    "attrs": current_scene.attrs(),
-                    "data": current_scene.__dict__,
-                },
-                "recording": {
-                    "attrs": recording_status.attrs(),
-                    "data": recording_status.__dict__,
-                },
-                "streaming": {
-                    "attrs": streaming_status.attrs(),
-                    "data": streaming_status.__dict__,
-                },
+                "current_scene": self._serialize_event_data(current_scene),
+                "recording": self._serialize_event_data(recording_status),
+                "streaming": self._serialize_event_data(streaming_status),
                 "connected": True,
             }
 
