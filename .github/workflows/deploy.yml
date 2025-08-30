@@ -33,13 +33,37 @@ jobs:
         FERNET_KEY=${{ secrets.FERNET_KEY }}
         EOF
     
-    - name: Stop existing containers
+    - name: Check changes and deploy selectively
       run: |
-        docker compose -f docker-compose.prod.yml down || true
-    
-    - name: Build and start containers
-      run: |
-        docker compose -f docker-compose.prod.yml up --build -d
+        # Check what changed in this push
+        CHANGED_FILES=$(git diff --name-only HEAD~1)
+        
+        # Server changes (Django app, but not Twitch service)
+        if echo "$CHANGED_FILES" | grep -q "apps/server" && ! echo "$CHANGED_FILES" | grep -q "apps/server/events/services/twitch.py"; then
+          echo "Server code changed, rebuilding server container"
+          docker compose -f docker-compose.prod.yml up --build -d server
+        fi
+        
+        # Twitch service changes
+        if echo "$CHANGED_FILES" | grep -q "apps/server/events/services/twitch.py\|apps/server/events/models.py"; then
+          echo "Twitch service code changed, rebuilding twitch container"
+          docker compose -f docker-compose.prod.yml up --build -d twitch
+        fi
+        
+        # Overlays changes
+        if echo "$CHANGED_FILES" | grep -q "apps/overlays"; then
+          echo "Overlay code changed, rebuilding overlays container"
+          docker compose -f docker-compose.prod.yml up --build -d overlays
+        fi
+        
+        # Infrastructure changes (compose files, Dockerfiles)
+        if echo "$CHANGED_FILES" | grep -q "docker-compose\|Dockerfile"; then
+          echo "Infrastructure changed, rebuilding all containers"
+          docker compose -f docker-compose.prod.yml up --build -d --remove-orphans
+        fi
+        
+        # Ensure all services are running (non-destructive)
+        docker compose -f docker-compose.prod.yml up -d
     
     - name: Wait for services to be ready
       run: |
@@ -53,7 +77,7 @@ jobs:
     - name: Check application health
       run: |
         sleep 10
-        curl -f http://localhost:7175/admin/ || exit 1
+        curl -f http://localhost:7175/health/ || exit 1
     
     - name: Clean up old Docker images
       run: |
