@@ -729,16 +729,24 @@ class TwitchService(twitchio.Client):
             "id": payload.id,
             "text": payload.text,
             "type": payload.type,
-            "broadcaster_user_id": payload.broadcaster.id if payload.broadcaster else None,
-            "broadcaster_user_name": payload.broadcaster.name if payload.broadcaster else None,
+            "broadcaster_user_id": payload.broadcaster.id
+            if payload.broadcaster
+            else None,
+            "broadcaster_user_name": payload.broadcaster.name
+            if payload.broadcaster
+            else None,
             "user_id": payload.chatter.id if payload.chatter else None,
             "user_name": payload.chatter.name if payload.chatter else None,
-            "user_display_name": payload.chatter.display_name if payload.chatter else None,
+            "user_display_name": payload.chatter.display_name
+            if payload.chatter
+            else None,
             "colour": str(payload.colour) if payload.colour else None,
             "badges": [
                 {"set_id": badge.set_id, "id": badge.id, "info": badge.info}
                 for badge in payload.badges
-            ] if payload.badges else [],
+            ]
+            if payload.badges
+            else [],
             "fragments": [
                 {
                     "type": fragment.type,
@@ -747,17 +755,23 @@ class TwitchService(twitchio.Client):
                         "prefix": fragment.cheermote.prefix,
                         "bits": fragment.cheermote.bits,
                         "tier": fragment.cheermote.tier,
-                    } if hasattr(fragment, 'cheermote') and fragment.cheermote else None,
+                    }
+                    if hasattr(fragment, "cheermote") and fragment.cheermote
+                    else None,
                     "emote": {
                         "id": fragment.emote.id,
                         "set_id": fragment.emote.set_id,
                         "format": fragment.emote.format,
-                    } if hasattr(fragment, 'emote') and fragment.emote else None,
+                    }
+                    if hasattr(fragment, "emote") and fragment.emote
+                    else None,
                     "mention": {
                         "user_id": fragment.mention.user_id,
                         "user_name": fragment.mention.user_name,
                         "user_login": fragment.mention.user_login,
-                    } if hasattr(fragment, 'mention') and fragment.mention else None,
+                    }
+                    if hasattr(fragment, "mention") and fragment.mention
+                    else None,
                 }
                 for fragment in payload.fragments
             ],
@@ -771,10 +785,14 @@ class TwitchService(twitchio.Client):
                 "thread_user_id": payload.reply.thread_user_id,
                 "thread_user_name": payload.reply.thread_user_name,
                 "thread_user_login": payload.reply.thread_user_login,
-            } if payload.reply else None,
+            }
+            if payload.reply
+            else None,
             "cheer": {
                 "bits": payload.cheer.bits,
-            } if payload.cheer else None,
+            }
+            if payload.cheer
+            else None,
             "subscriber": getattr(payload.chatter, "subscriber", False)
             if payload.chatter
             else False,
@@ -797,13 +815,16 @@ class TwitchService(twitchio.Client):
         payload_dict = {
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "user_login": payload.user.login if payload.user else None,
             "user_display_name": payload.user.display_name if payload.user else None,
             "followed_at": payload.followed_at.isoformat()
             if payload.followed_at
             else None,
-            "broadcaster_user_id": payload.broadcaster.id if payload.broadcaster else None,
-            "broadcaster_user_name": payload.broadcaster.name if payload.broadcaster else None,
+            "broadcaster_user_id": payload.broadcaster.id
+            if payload.broadcaster
+            else None,
+            "broadcaster_user_name": payload.broadcaster.name
+            if payload.broadcaster
+            else None,
             "timestamp": payload.timestamp.isoformat() if payload.timestamp else None,
         }
         member = await self._get_or_create_member_from_payload(payload)
@@ -821,7 +842,6 @@ class TwitchService(twitchio.Client):
             "is_anonymous": payload.is_anonymous,
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "user_login": payload.user.login if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
         }
@@ -835,14 +855,16 @@ class TwitchService(twitchio.Client):
     async def _handle_channel_subscribe(self, event_type: str, payload):
         """Handle ChannelSubscribe payload with its specific structure."""
         payload_dict = {
-            "user_id": payload.user_id,
-            "user_name": payload.user_name,
-            "user_login": payload.user_login,
+            "user_id": payload.user.id if payload.user else None,
+            "user_name": payload.user.name if payload.user else None,
             "tier": payload.tier,
             "is_gift": payload.is_gift,
-            "broadcaster_user_id": payload.broadcaster_user_id,
-            "broadcaster_user_name": payload.broadcaster_user_name,
-            "broadcaster_user_login": payload.broadcaster_user_login,
+            "broadcaster_user_id": payload.broadcaster.id
+            if payload.broadcaster
+            else None,
+            "broadcaster_user_name": payload.broadcaster.name
+            if payload.broadcaster
+            else None,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -1314,7 +1336,6 @@ class TwitchService(twitchio.Client):
             "broadcaster_user_name": payload.broadcaster.name,
             "user_id": payload.user.id,
             "user_name": payload.user.name,
-            "user_login": payload.user.login,
             "user_input": payload.user_input,
             "status": payload.status,
             "reward": {
@@ -1342,7 +1363,6 @@ class TwitchService(twitchio.Client):
             "broadcaster_user_name": payload.broadcaster.name,
             "user_id": payload.user.id,
             "user_name": payload.user.name,
-            "user_login": payload.user.login,
             "user_input": payload.user_input,
             "status": payload.status,
             "reward": {
