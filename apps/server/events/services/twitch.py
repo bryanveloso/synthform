@@ -2170,10 +2170,30 @@ class TwitchService(twitchio.Client):
         member: Member | None,
     ) -> Event:
         """Create Event record using sync_to_async."""
+        # Get today's session for all events
+        session = None
+        from streams.models import Session
+        from django.utils import timezone as django_timezone
+
+        today = django_timezone.now().date()
+
+        if event_type == "stream.online":
+            # Create or get today's session when going live
+            session, created = await sync_to_async(Session.objects.get_or_create)(
+                session_date=today
+            )
+        else:
+            # For all other events, associate with existing session if it exists
+            try:
+                session = await sync_to_async(Session.objects.get)(session_date=today)
+            except Session.DoesNotExist:
+                session = None
+
         return await sync_to_async(Event.objects.create)(
             source="twitch",
             event_type=event_type,
             member=member,
+            session=session,
             payload=payload,
             timestamp=timezone.now(),
         )
