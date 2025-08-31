@@ -8,7 +8,9 @@ type MessageTypes =
   | 'obs:update'
   | 'obs:sync'
   | 'ticker:sync'
-  | 'alert:show';
+  | 'alert:show'
+  | 'alerts:sync'
+  | 'alerts:push'
 
 interface ServerMessage {
   type: string;

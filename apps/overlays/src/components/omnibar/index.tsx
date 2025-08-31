@@ -3,38 +3,60 @@ import { useState, useEffect } from 'react'
 
 const MESSAGE_TYPES = ['base:sync', 'base:update', 'timeline:sync', 'timeline:push', 'alerts:sync', 'alerts:push'] as const
 
+interface TimelineEvent {
+  id: string
+  timestamp: string
+  type: string
+  [key: string]: unknown
+}
+
+interface Alert {
+  id: string
+  type: string
+  message?: string
+  [key: string]: unknown
+}
+
 export const Omnibar = () => {
   const { data, isConnected } = useServer(MESSAGE_TYPES)
-  const [timelineEvents, setTimelineEvents] = useState<any[]>([])
-  const [alertQueue, setAlertQueue] = useState<any[]>([])
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
+  const [alertQueue, setAlertQueue] = useState<Alert[]>([])
+
+  // Extract specific data values to avoid dependency issues
+  const timelineSync = data['timeline:sync']
+  const timelinePush = data['timeline:push']
+  const alertsSync = data['alerts:sync']
+  const alertsPush = data['alerts:push']
 
   // Initialize timeline with recent events from sync
   useEffect(() => {
-    if (data['timeline:sync']) {
-      setTimelineEvents(Array.isArray(data['timeline:sync']) ? data['timeline:sync'] : [data['timeline:sync']])
+    if (timelineSync) {
+      const events: TimelineEvent[] = Array.isArray(timelineSync) ? timelineSync : [timelineSync]
+      setTimelineEvents(events)
     }
-  }, [data['timeline:sync']])
+  }, [timelineSync])
 
   // Append new events from push
   useEffect(() => {
-    if (data['timeline:push']) {
-      setTimelineEvents(prev => [...prev, data['timeline:push']])
+    if (timelinePush) {
+      setTimelineEvents(prev => [...prev, timelinePush as TimelineEvent])
     }
-  }, [data['timeline:push']])
+  }, [timelinePush])
 
   // Initialize alert queue from sync (should be empty)
   useEffect(() => {
-    if (data['alerts:sync']) {
-      setAlertQueue(Array.isArray(data['alerts:sync']) ? data['alerts:sync'] : [data['alerts:sync']])
+    if (alertsSync) {
+      const alerts: Alert[] = Array.isArray(alertsSync) ? alertsSync : [alertsSync]
+      setAlertQueue(alerts)
     }
-  }, [data['alerts:sync']])
+  }, [alertsSync])
 
   // Append new alerts from push
   useEffect(() => {
-    if (data['alerts:push']) {
-      setAlertQueue(prev => [...prev, data['alerts:push']])
+    if (alertsPush) {
+      setAlertQueue(prev => [...prev, alertsPush as Alert])
     }
-  }, [data['alerts:push']])
+  }, [alertsPush])
 
   return (
     <div>
