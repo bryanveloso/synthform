@@ -2185,9 +2185,17 @@ class TwitchService(twitchio.Client):
 
         if event_type == "stream.online":
             # Create or get today's session when going live
-            session, created = await sync_to_async(Session.objects.get_or_create)(
-                session_date=today
-            )
+            try:
+                session, created = await sync_to_async(Session.objects.get_or_create)(
+                    session_date=today
+                )
+                logger.info(f"Session for {today}: {'created' if created else 'found existing'}")
+            except Exception as e:
+                logger.error(f"Failed to get_or_create session for {today}: {e}")
+                logger.error(f"Exception type: {type(e)}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                session = None
         else:
             # For all other events, associate with existing session if it exists
             try:
