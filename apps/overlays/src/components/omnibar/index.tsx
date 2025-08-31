@@ -19,14 +19,31 @@ interface Alert {
 
 export const Omnibar = () => {
   const { data, isConnected } = useServer(MESSAGE_TYPES)
+  const [baseData, setBaseData] = useState<any>(null)
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
   const [alertQueue, setAlertQueue] = useState<Alert[]>([])
 
   // Extract specific data values to avoid dependency issues
+  const baseSync = data['base:sync']
+  const baseUpdate = data['base:update']
   const timelineSync = data['timeline:sync']
   const timelinePush = data['timeline:push']
   const alertsSync = data['alerts:sync']
   const alertsPush = data['alerts:push']
+
+  // Initialize base data from sync
+  useEffect(() => {
+    if (baseSync) {
+      setBaseData(baseSync)
+    }
+  }, [baseSync])
+
+  // Update base data from live events
+  useEffect(() => {
+    if (baseUpdate) {
+      setBaseData(baseUpdate)
+    }
+  }, [baseUpdate])
 
   // Initialize timeline with recent events from sync
   useEffect(() => {
@@ -62,7 +79,7 @@ export const Omnibar = () => {
     <div>
       <div>WebSocket: {isConnected ? 'Connected' : 'Disconnected'}</div>
       <div>
-        Base Data: <pre>{data['base:sync'] ? JSON.stringify(data['base:sync'], null, 2) : 'No data'}</pre>
+        Base Data: <pre>{baseData ? JSON.stringify(baseData, null, 2) : 'No data'}</pre>
       </div>
       <div>
         Timeline Events ({timelineEvents.length}):{' '}
