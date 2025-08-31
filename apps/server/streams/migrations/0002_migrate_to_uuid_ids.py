@@ -11,6 +11,7 @@ def migrate_to_uuid_ids(apps, schema_editor):
     """
     Session = apps.get_model('streams', 'Session')
     Event = apps.get_model('events', 'Event')
+    Transcription = apps.get_model('transcriptions', 'Transcription')
     
     # Step 1: Add temporary UUID field to Session
     with schema_editor.connection.cursor() as cursor:
@@ -28,9 +29,10 @@ def migrate_to_uuid_ids(apps, schema_editor):
                 [str(new_uuid), session.id]
             )
     
-    # Step 3: Add temporary UUID foreign key field to Event
+    # Step 3: Add temporary UUID foreign key fields to Event and Transcription
     with schema_editor.connection.cursor() as cursor:
         cursor.execute('ALTER TABLE events_event ADD COLUMN temp_session_uuid UUID')
+        cursor.execute('ALTER TABLE transcriptions_transcription ADD COLUMN temp_session_uuid UUID')
     
     # Step 4: Populate UUID foreign keys in Event based on old integer relationships
     for event in Event.objects.select_related('session'):
@@ -43,9 +45,20 @@ def migrate_to_uuid_ids(apps, schema_editor):
                         [str(new_uuid), str(event.id)]
                     )
     
-    # Step 5: Drop old foreign key constraint
+    # Step 5: Populate UUID foreign keys in Transcription based on old integer relationships
+    for transcription in Transcription.objects.select_related('session'):
+        if transcription.session_id:
+            new_uuid = id_mapping.get(transcription.session_id)
+            if new_uuid:
+                with schema_editor.connection.cursor() as cursor:
+                    cursor.execute(
+                        'UPDATE transcriptions_transcription SET temp_session_uuid = %s WHERE id = %s',
+                        [str(new_uuid), str(transcription.id)]
+                    )
+    
+    # Step 6: Drop old foreign key constraints
     with schema_editor.connection.cursor() as cursor:
-        # Find and drop the foreign key constraint
+        # Find and drop foreign key constraints for events_event
         cursor.execute("""
             SELECT constraint_name 
             FROM information_schema.table_constraints 
@@ -56,24 +69,43 @@ def migrate_to_uuid_ids(apps, schema_editor):
         for row in cursor.fetchall():
             constraint_name = row[0]
             cursor.execute(f'ALTER TABLE events_event DROP CONSTRAINT {constraint_name}')
+        
+        # Find and drop foreign key constraints for transcriptions_transcription
+        cursor.execute("""
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE table_name = 'transcriptions_transcription' 
+            AND constraint_type = 'FOREIGN KEY'
+            AND constraint_name LIKE '%session_id%'
+        """)
+        for row in cursor.fetchall():
+            constraint_name = row[0]
+            cursor.execute(f'ALTER TABLE transcriptions_transcription DROP CONSTRAINT {constraint_name}')
     
-    # Step 6: Drop old session_id column from Event
+    # Step 7: Drop old session_id columns from Event and Transcription
     with schema_editor.connection.cursor() as cursor:
         cursor.execute('ALTER TABLE events_event DROP COLUMN session_id')
+        cursor.execute('ALTER TABLE transcriptions_transcription DROP COLUMN session_id')
     
-    # Step 7: Drop old integer id from Session and make temp_uuid_id the primary key
+    # Step 8: Drop old integer id from Session and make temp_uuid_id the primary key
     with schema_editor.connection.cursor() as cursor:
         cursor.execute('ALTER TABLE streams_session DROP CONSTRAINT streams_session_pkey')
         cursor.execute('ALTER TABLE streams_session DROP COLUMN id')
         cursor.execute('ALTER TABLE streams_session RENAME COLUMN temp_uuid_id TO id')
         cursor.execute('ALTER TABLE streams_session ADD PRIMARY KEY (id)')
     
-    # Step 8: Rename temp foreign key column and add proper constraint
+    # Step 9: Rename temp foreign key columns and add proper constraints
     with schema_editor.connection.cursor() as cursor:
         cursor.execute('ALTER TABLE events_event RENAME COLUMN temp_session_uuid TO session_id')
+        cursor.execute('ALTER TABLE transcriptions_transcription RENAME COLUMN temp_session_uuid TO session_id')
         cursor.execute('''
             ALTER TABLE events_event 
             ADD CONSTRAINT events_event_session_id_fkey 
+            FOREIGN KEY (session_id) REFERENCES streams_session(id) ON DELETE CASCADE
+        ''')
+        cursor.execute('''
+            ALTER TABLE transcriptions_transcription 
+            ADD CONSTRAINT transcriptions_transcription_session_id_fkey 
             FOREIGN KEY (session_id) REFERENCES streams_session(id) ON DELETE CASCADE
         ''')
 
@@ -89,6 +121,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('streams', '0001_initial'),
         ('events', '0002_remove_event_events_even_correla_2f9f43_idx_and_more'),
+        ('transcriptions', '0001_initial'),
     ]
     
     operations = [
