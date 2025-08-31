@@ -37,8 +37,8 @@ jobs:
     
     - name: Check changes and deploy selectively
       run: |
-        # Check what changed in this push
-        CHANGED_FILES=$(git diff --name-only HEAD~1 2>/dev/null || git ls-files)
+        # Check what changed in this push (all commits since the previous push)
+        CHANGED_FILES=$(git diff --name-only ${{ github.event.before }}..HEAD 2>/dev/null || git ls-files)
         
         # Server changes (Django app, but not Twitch service)
         if echo "$CHANGED_FILES" | grep -q "apps/server" && ! echo "$CHANGED_FILES" | grep -q "apps/server/events/services/twitch.py"; then
