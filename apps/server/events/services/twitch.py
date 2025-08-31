@@ -2206,11 +2206,9 @@ class TwitchService(twitchio.Client):
             # For all other events, find the most recent active session
             # (one where stream went online but hasn't gone offline yet)
             try:
-                from events.models import Event as EventModel
-
                 # Get the most recent stream.online event
                 latest_online = await sync_to_async(
-                    EventModel.objects.filter(
+                    Event.objects.filter(
                         source="twitch", event_type="stream.online"
                     )
                     .order_by("-timestamp")
@@ -2220,7 +2218,7 @@ class TwitchService(twitchio.Client):
                 if latest_online:
                     # Check if there's a stream.offline after this online event
                     offline_after = await sync_to_async(
-                        EventModel.objects.filter(
+                        Event.objects.filter(
                             source="twitch",
                             event_type="stream.offline",
                             timestamp__gt=latest_online.timestamp,
