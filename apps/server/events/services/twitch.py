@@ -184,11 +184,15 @@ class TwitchService(twitchio.Client):
     async def event_token_refreshed(self, payload: twitchio.TokenRefreshedPayload):
         """Handle token refresh events."""
         logger.info(f"🔄 TOKEN REFRESH EVENT: user {payload.user_id}")
-        logger.info(f"   New access token: {payload.access_token[:20] if payload.access_token else 'None'}...")
-        logger.info(f"   New refresh token: {payload.refresh_token[:20] if payload.refresh_token else 'None'}...")
+        logger.info(
+            f"   New access token: {payload.access_token[:20] if payload.access_token else 'None'}..."
+        )
+        logger.info(
+            f"   New refresh token: {payload.refresh_token[:20] if payload.refresh_token else 'None'}..."
+        )
         logger.info(f"   Expires at: {payload.expires_at}")
         logger.info(f"   Scopes: {payload.scopes}")
-        
+
         # Update token in database
         await self._save_token_to_db(
             user_id=payload.user_id,
@@ -2176,31 +2180,70 @@ class TwitchService(twitchio.Client):
         member: Member | None,
     ) -> Event:
         """Create Event record using sync_to_async."""
-        # Get today's session for all events
+        # Get or create session based on stream state, not just date
         session = None
         from streams.models import Session
         from django.utils import timezone as django_timezone
 
-        today = django_timezone.now().date()
-
         if event_type == "stream.online":
-            # Create or get today's session when going live
+            # Create session for stream start date
+            stream_date = django_timezone.now().date()
             try:
                 session, created = await sync_to_async(Session.objects.get_or_create)(
-                    session_date=today
+                    session_date=stream_date
                 )
-                logger.info(f"Session for {today}: {'created' if created else 'found existing'}")
+                logger.info(
+                    f"Session for {stream_date}: {'created' if created else 'found existing'}"
+                )
             except Exception as e:
-                logger.error(f"Failed to get_or_create session for {today}: {e}")
+                logger.error(f"Failed to get_or_create session for {stream_date}: {e}")
                 logger.error(f"Exception type: {type(e)}")
                 import traceback
+
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 session = None
         else:
-            # For all other events, associate with existing session if it exists
+            # For all other events, find the most recent active session
+            # (one where stream went online but hasn't gone offline yet)
             try:
-                session = await sync_to_async(Session.objects.get)(session_date=today)
-            except Session.DoesNotExist:
+                from events.models import Event as EventModel
+
+                # Get the most recent stream.online event
+                latest_online = await sync_to_async(
+                    EventModel.objects.filter(
+                        source="twitch", event_type="stream.online"
+                    )
+                    .order_by("-timestamp")
+                    .first
+                )()
+
+                if latest_online:
+                    # Check if there's a stream.offline after this online event
+                    offline_after = await sync_to_async(
+                        EventModel.objects.filter(
+                            source="twitch",
+                            event_type="stream.offline",
+                            timestamp__gt=latest_online.timestamp,
+                        ).exists
+                    )()
+
+                    if not offline_after:
+                        # Stream is still active, use its session
+                        session = latest_online.session
+                        if session:
+                            logger.debug(
+                                f"Using active session {session.id} from {session.session_date}"
+                            )
+                        else:
+                            logger.warning(
+                                f"Latest stream.online event has no session!"
+                            )
+
+                if not session:
+                    logger.debug("No active stream session found")
+
+            except Exception as e:
+                logger.error(f"Error finding active session: {e}")
                 session = None
 
         return await sync_to_async(Event.objects.create)(
