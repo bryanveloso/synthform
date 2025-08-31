@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class OverlayConsumer(AsyncWebsocketConsumer):
-    """WebSocket consumer for overlay real-time communication."""
+    """WebSocket consumer for overlay communication."""
 
     # Timeline-worthy viewer interactions
     VIEWER_INTERACTIONS = [
