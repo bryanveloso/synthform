@@ -184,13 +184,35 @@ class TwitchService(twitchio.Client):
     async def event_token_refreshed(self, payload: twitchio.TokenRefreshedPayload):
         """Handle token refresh events."""
         logger.info(f"🔄 TOKEN REFRESH EVENT: user {payload.user_id}")
-        logger.info(
-            f"   New access token: {payload.access_token[:20] if payload.access_token else 'None'}..."
-        )
-        logger.info(
-            f"   New refresh token: {payload.refresh_token[:20] if payload.refresh_token else 'None'}..."
-        )
-        logger.info(f"   Expires at: {payload.expires_at}")
+
+        # Get the old token from our database for comparison
+        try:
+            from events.models import Token
+
+            old_token = await Token.objects.aget(
+                platform="twitch", user_id=payload.user_id
+            )
+            old_refresh_token = old_token.refresh_token
+
+            # Compare with the new refresh token to verify it changed
+            if payload.refresh_token and payload.refresh_token != old_refresh_token:
+                logger.info("   ✅ Token refresh verified - refresh token changed")
+                logger.info(f"   Old refresh token: {old_refresh_token[:20]}...")
+                logger.info(f"   New refresh token: {payload.refresh_token[:20]}...")
+            elif payload.refresh_token == old_refresh_token:
+                logger.warning(
+                    "   ⚠️ Token refresh completed but refresh token unchanged"
+                )
+            else:
+                logger.warning(
+                    "   ⚠️ Token refresh completed but no refresh token in payload"
+                )
+
+        except Token.DoesNotExist:
+            logger.info("   Token refresh completed (no existing token to compare)")
+        except Exception as e:
+            logger.info("   Token refreshed successfully")
+            logger.debug(f"   Could not verify token change: {e}")
         logger.info(f"   Scopes: {payload.scopes}")
 
         # Update token in database
@@ -2208,9 +2230,7 @@ class TwitchService(twitchio.Client):
             try:
                 # Get the most recent stream.online event
                 latest_online = await sync_to_async(
-                    Event.objects.filter(
-                        source="twitch", event_type="stream.online"
-                    )
+                    Event.objects.filter(source="twitch", event_type="stream.online")
                     .order_by("-timestamp")
                     .first
                 )()
