@@ -19,7 +19,7 @@ interface Alert {
 
 export const Omnibar = () => {
   const { data, isConnected } = useServer(MESSAGE_TYPES)
-  const [baseData, setBaseData] = useState<any>(null)
+  const [baseData, setBaseData] = useState<TimelineEvent | null>(null)
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
   const [alertQueue, setAlertQueue] = useState<Alert[]>([])
 
@@ -53,10 +53,10 @@ export const Omnibar = () => {
     }
   }, [timelineSync])
 
-  // Append new events from push
+  // Prepend new events from push
   useEffect(() => {
     if (timelinePush) {
-      setTimelineEvents(prev => [...prev, timelinePush as TimelineEvent])
+      setTimelineEvents(prev => [timelinePush as TimelineEvent, ...prev])
     }
   }, [timelinePush])
 
