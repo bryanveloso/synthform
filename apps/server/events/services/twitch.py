@@ -2232,7 +2232,7 @@ class TwitchService(twitchio.Client):
                 latest_online = await sync_to_async(
                     Event.objects.filter(source="twitch", event_type="stream.online")
                     .order_by("-timestamp")
-                    .first
+                    .first()
                 )()
 
                 if latest_online:
