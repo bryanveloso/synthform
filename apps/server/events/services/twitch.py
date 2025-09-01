@@ -29,6 +29,10 @@ from events.models import Token  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
+# Configure TwitchIO logging to reduce noise
+logging.getLogger("twitchio.authentication.tokens").setLevel(logging.WARNING)
+logging.getLogger("twitchio.eventsub.websockets").setLevel(logging.WARNING)
+
 
 class TwitchService(twitchio.Client):
     """Standalone TwitchIO service for handling EventSub events."""
