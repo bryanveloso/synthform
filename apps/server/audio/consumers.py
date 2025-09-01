@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import struct
+import time
 from datetime import datetime
 from datetime import timezone as dt_timezone
 
@@ -270,18 +271,41 @@ class CaptionsConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add("captions", self.channel_name)
         await self.accept()
 
+        # Send connection acknowledgment
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "connected",
+                    "data": {"message": "Connected to caption server"},
+                }
+            )
+        )
+
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard("captions", self.channel_name)
+
+    async def receive(self, text_data):
+        """Handle incoming messages from OBS plugin."""
+        try:
+            data = json.loads(text_data)
+            if data.get("type") == "ping":
+                # Respond to ping with pong
+                await self.send(text_data=json.dumps({"type": "pong"}))
+        except json.JSONDecodeError as e:
+            logger.warning(f"CaptionsConsumer received invalid JSON: {e}")
 
     async def caption_event(self, event):
         """Send caption to OBS."""
         await self.send(
             text_data=json.dumps(
                 {
-                    "type": "audio:transcription",
-                    "timestamp": event["timestamp"],
-                    "text": event["text"],
-                    "is_final": True,
+                    "type": "transcription",
+                    "data": {
+                        "text": event["text"],
+                        "confidence": event.get("confidence", 0.95),
+                        "is_final": True,
+                        "timestamp": int(event["timestamp"] * 1000),
+                    },
                 }
             )
         )
