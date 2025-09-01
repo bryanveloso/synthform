@@ -1172,10 +1172,16 @@ class TwitchService(twitchio.Client):
 
     async def _handle_channel_subscription_gift(self, event_type: str, payload):
         """Handle ChannelSubscriptionGift payload with its specific structure."""
+        # Get recipient information from subscription_data instead of using gifter as primary user
+        recipient = (
+            payload.subscription_data.user if payload.subscription_data else None
+        )
+
         payload_dict = {
-            "user_id": payload.user.id if payload.user else None,
-            "user_name": payload.user.name if payload.user else None,
-            "user_login": (await payload.user.user()).name if payload.user else None,
+            # Primary user should be the recipient, not the gifter
+            "user_id": recipient.id if recipient else None,
+            "user_name": recipient.name if recipient else None,
+            "user_login": (await recipient.user()).name if recipient else None,
             "broadcaster_user_id": payload.broadcaster.id
             if payload.broadcaster
             else None,
@@ -1190,6 +1196,10 @@ class TwitchService(twitchio.Client):
             "is_anonymous": payload.is_anonymous
             if hasattr(payload, "is_anonymous")
             else None,
+            # Keep gifter information for tracking purposes
+            "gifter_id": payload.user.id if payload.user else None,
+            "gifter_name": payload.user.name if payload.user else None,
+            "gifter_login": (await payload.user.user()).name if payload.user else None,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
