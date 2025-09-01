@@ -331,27 +331,15 @@ class TwitchService(twitchio.Client):
                     )
                     try:
                         if token.refresh_token:
-                            # Use TwitchIO's built-in refresh mechanism
-                            refreshed_token = await self.refresh_token(
-                                token.refresh_token
+                            # Add expired token to TwitchIO - it will refresh automatically when used
+                            await self.add_token(
+                                token.access_token, token.refresh_token
                             )
-                            if refreshed_token:
-                                # Update our database token
-                                await self._save_token_to_database(
-                                    token.user_id,
-                                    refreshed_token.access_token,
-                                    refreshed_token.refresh_token,
-                                    refreshed_token.expires_at,
-                                    refreshed_token.scopes,
-                                )
-                                logger.info(
-                                    f"Successfully refreshed token for user {token.user_id}"
-                                )
-                                valid_tokens.append(token)
-                            else:
-                                logger.warning(
-                                    f"Failed to refresh token for user {token.user_id}"
-                                )
+                            # Add to valid tokens list so TwitchIO can manage it
+                            valid_tokens.append(token)
+                            logger.info(
+                                f"Added expired token for user {token.user_id} to TwitchIO for auto-refresh"
+                            )
                         else:
                             logger.warning(
                                 f"No refresh token available for user {token.user_id}"
