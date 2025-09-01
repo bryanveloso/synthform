@@ -215,12 +215,17 @@ class TwitchService(twitchio.Client):
             logger.debug(f"   Could not verify token change: {e}")
         logger.info(f"   Scopes: {payload.scopes}")
 
+        # Calculate expires_at from expires_in
+        from django.utils import timezone
+
+        expires_at = timezone.now() + timezone.timedelta(seconds=payload.expires_in)
+
         # Update token in database
         await self._save_token_to_db(
             user_id=payload.user_id,
-            access_token=payload.access_token,
+            access_token=payload.token,
             refresh_token=payload.refresh_token,
-            expires_at=payload.expires_at,
+            expires_at=expires_at,
             scopes=payload.scopes,
         )
         logger.info(f"✅ Token refresh complete for user {payload.user_id}")
