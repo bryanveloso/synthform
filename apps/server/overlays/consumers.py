@@ -50,7 +50,8 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Subscribe to live events
         await self.pubsub.subscribe("events:twitch")
         await self.pubsub.subscribe("events:obs")
-        logger.info("Subscribed to Redis events:twitch and events:obs channels")
+        await self.pubsub.subscribe("events:limitbreak")
+        logger.info("Subscribed to Redis events:twitch, events:obs, and events:limitbreak channels")
 
         # Start Redis message listener
         self.redis_task = asyncio.create_task(self._listen_to_redis())
@@ -96,6 +97,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         if not event_type:
             return
 
+        # Handle limit break events
+        if event_type == "limitbreak.update":
+            await self._send_message("limitbreak", "update", event_data.get("data", {}))
+            return
+
         # Handle OBS events differently
         if source == "obs":
             # OBS events go to OBS state layer for real-time state updates
@@ -139,6 +145,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Alert layer - starts with empty queue
         await self._send_message("alerts", "sync", [])
+
+        # Limit break layer - get current state
+        limit_break_state = await self._get_limit_break_state()
+        # Always send sync message, even if state is empty
+        await self._send_message("limitbreak", "sync", limit_break_state or {"count": 0, "bar1": 0, "bar2": 0, "bar3": 0, "isMaxed": False})
 
     async def _send_message(self, layer: str, verb: str, payload: dict | list) -> None:
         """Send formatted message to overlay client."""
@@ -298,6 +309,38 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error getting OBS state: {e}")
             return {"message": "OBS state unavailable", "connected": False}
+
+    async def _get_limit_break_state(self) -> dict | None:
+        """Get current limit break state using the helix service."""
+        from streams.services.helix import helix_service
+        
+        try:
+            logger.info("Fetching limit break state using helix service...")
+            
+            # Get the current redemption count directly from helix service
+            count = await helix_service.get_reward_redemption_count("2ffe5101-c90d-4f27-912c-8fa439c38ee1")
+            logger.info(f"Limit break queue count from helix service: {count}")
+            
+            # Calculate bar states based on breakpoints at 33/66/100
+            bar1 = min(count / 33, 1.0)
+            bar2 = min(max(count - 33, 0) / 33, 1.0)
+            bar3 = min(max(count - 66, 0) / 34, 1.0)
+            is_maxed = count >= 100
+
+            result = {
+                "count": count,
+                "bar1": bar1,
+                "bar2": bar2,
+                "bar3": bar3,
+                "isMaxed": is_maxed,
+            }
+            logger.info(f"Limit break state calculated: {result}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error getting limit break state: {e}")
+            # Return a fallback state instead of None to ensure the message is sent
+            return {"count": 0, "bar1": 0, "bar2": 0, "bar3": 0, "isMaxed": False}
 
     async def receive(self, text_data: str) -> None:
         """Handle messages from overlay clients (currently unused)."""

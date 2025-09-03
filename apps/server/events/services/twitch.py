@@ -217,12 +217,16 @@ class TwitchEventHandler:
         await self._create_event_from_payload(
             "channel.channel_points_custom_reward_redemption.add", payload
         )
+        # Check if this is a limit break reward redemption
+        await self._handle_limit_break_update(payload)
 
     async def event_custom_redemption_update(self, payload):
         """Handle channel points redemption update events."""
         await self._create_event_from_payload(
             "channel.channel_points_custom_reward_redemption.update", payload
         )
+        # Check if this is a limit break reward redemption
+        await self._handle_limit_break_update(payload)
 
     async def event_automatic_redemption_add(self, payload):
         """Handle automatic redemption add events."""
@@ -1712,6 +1716,57 @@ class TwitchEventHandler:
         logger.info(
             f"Processed ShoutoutCreate: {payload_dict.get('broadcaster_user_name')} shouted out {payload_dict.get('to_broadcaster_user_name')} to {payload_dict.get('viewer_count')} viewers"
         )
+
+    async def _handle_limit_break_update(self, payload):
+        """Handle limit break updates when 'Throw Something At Me' reward events occur."""
+        # The reward ID for "Throw Something At Me"
+        THROW_REWARD_ID = "2ffe5101-c90d-4f27-912c-8fa439c38ee1"
+
+        # Check if this event is for our target reward
+        reward_id = None
+        if hasattr(payload, "reward") and hasattr(payload.reward, "id"):
+            reward_id = payload.reward.id
+
+        if reward_id != THROW_REWARD_ID:
+            return  # Not the reward we care about
+
+        try:
+            # Get current queue count from Twitch API
+            count = await self.get_reward_queue_count(THROW_REWARD_ID)
+
+            # Calculate limit break state (3 bars: 33/66/100)
+            bar1_fill = min(count / 33, 1.0)
+            bar2_fill = min(max(count - 33, 0) / 33, 1.0) if count > 33 else 0
+            bar3_fill = min(max(count - 66, 0) / 34, 1.0) if count > 66 else 0
+            is_maxed = count >= 100
+
+            limit_break_data = {
+                "count": count,
+                "bars": {"bar1": bar1_fill, "bar2": bar2_fill, "bar3": bar3_fill},
+                "is_maxed": is_maxed,
+                "sound_trigger": count >= 100,  # Trigger sound when hitting 100
+            }
+
+            # Publish to Redis for overlay consumers
+            redis_conn = redis.from_url(settings.REDIS_URL)
+            await redis_conn.publish(
+                "events:limitbreak",
+                json.dumps(
+                    {
+                        "event_type": "limitbreak.update",
+                        "data": limit_break_data,
+                        "timestamp": timezone.now().isoformat(),
+                    }
+                ),
+            )
+            await redis_conn.close()
+
+            logger.info(
+                f"Limit break update: {count} redemptions, bars: {bar1_fill:.2f}/{bar2_fill:.2f}/{bar3_fill:.2f}, maxed: {is_maxed}"
+            )
+
+        except Exception as e:
+            logger.error(f"Error handling limit break update: {e}")
 
     async def _publish_to_redis(
         self,

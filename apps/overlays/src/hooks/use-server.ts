@@ -11,6 +11,8 @@ type MessageTypes =
   | 'alert:show'
   | 'alerts:sync'
   | 'alerts:push'
+  | 'limitbreak:sync'
+  | 'limitbreak:update'
 
 interface ServerMessage {
   type: string;
@@ -30,7 +32,7 @@ class ServerConnection {
 
   private getWebSocketUrl(): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = 'saya';
+    const host = 'localhost'
     const port = '7175'; // Django server port
     return `${protocol}//${host}:${port}/ws/overlay/`;
   }
