@@ -1720,7 +1720,7 @@ class TwitchEventHandler:
     async def _handle_limit_break_update(self, payload):
         """Handle limit break updates when 'Throw Something At Me' reward events occur."""
         # The reward ID for "Throw Something At Me"
-        THROW_REWARD_ID = "2ffe5101-c90d-4f27-912c-8fa439c38ee1"
+        THROW_REWARD_ID = "5685d03e-80c2-4640-ba06-566fb8bbc4ce"
 
         # Check if this event is for our target reward
         reward_id = None
@@ -1731,8 +1731,10 @@ class TwitchEventHandler:
             return  # Not the reward we care about
 
         try:
-            # Get current queue count from Twitch API
-            count = await self.get_reward_queue_count(THROW_REWARD_ID)
+            # Get current queue count from helix service
+            from shared.services.twitch.helix import helix_service
+
+            count = await helix_service.get_reward_redemption_count(THROW_REWARD_ID)
 
             # Calculate limit break state (3 bars: 33/66/100)
             bar1_fill = min(count / 33, 1.0)

@@ -51,7 +51,9 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         await self.pubsub.subscribe("events:twitch")
         await self.pubsub.subscribe("events:obs")
         await self.pubsub.subscribe("events:limitbreak")
-        logger.info("Subscribed to Redis events:twitch, events:obs, and events:limitbreak channels")
+        logger.info(
+            "Subscribed to Redis events:twitch, events:obs, and events:limitbreak channels"
+        )
 
         # Start Redis message listener
         self.redis_task = asyncio.create_task(self._listen_to_redis())
@@ -149,7 +151,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Limit break layer - get current state
         limit_break_state = await self._get_limit_break_state()
         # Always send sync message, even if state is empty
-        await self._send_message("limitbreak", "sync", limit_break_state or {"count": 0, "bar1": 0, "bar2": 0, "bar3": 0, "isMaxed": False})
+        await self._send_message(
+            "limitbreak",
+            "sync",
+            limit_break_state
+            or {"count": 0, "bar1": 0, "bar2": 0, "bar3": 0, "isMaxed": False},
+        )
 
     async def _send_message(self, layer: str, verb: str, payload: dict | list) -> None:
         """Send formatted message to overlay client."""
@@ -312,15 +319,17 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
     async def _get_limit_break_state(self) -> dict | None:
         """Get current limit break state using the helix service."""
-        from streams.services.helix import helix_service
-        
+        from shared.services.twitch.helix import helix_service
+
         try:
             logger.info("Fetching limit break state using helix service...")
-            
+
             # Get the current redemption count directly from helix service
-            count = await helix_service.get_reward_redemption_count("2ffe5101-c90d-4f27-912c-8fa439c38ee1")
+            count = await helix_service.get_reward_redemption_count(
+                "5685d03e-80c2-4640-ba06-566fb8bbc4ce"
+            )
             logger.info(f"Limit break queue count from helix service: {count}")
-            
+
             # Calculate bar states based on breakpoints at 33/66/100
             bar1 = min(count / 33, 1.0)
             bar2 = min(max(count - 33, 0) / 33, 1.0)

@@ -158,26 +158,31 @@ class TwitchService(twitchio.Client):
         """Load existing tokens from database on startup."""
         try:
             tokens = await self._auth_service.get_all_tokens()
-            
+
             valid_tokens = []
             for token_data in tokens:
                 logger.info(f"Loading token for user: {token_data['user_id']}")
                 try:
                     # Call parent's add_token method directly - only takes access and refresh
                     await super().add_token(
-                        token_data["access_token"], 
-                        token_data["refresh_token"]
+                        token_data["access_token"], token_data["refresh_token"]
                     )
                     valid_tokens.append(token_data)
-                    logger.info(f"Loaded token for user {token_data['user_id']} from database")
+                    logger.info(
+                        f"Loaded token for user {token_data['user_id']} from database"
+                    )
                 except Exception as e:
-                    logger.error(f"Error loading token for user {token_data['user_id']}: {e}")
+                    logger.error(
+                        f"Error loading token for user {token_data['user_id']}: {e}"
+                    )
 
             # If we have valid tokens, automatically subscribe to events
             if valid_tokens:
                 primary_token = valid_tokens[0]  # Use first valid token
-                logger.info(f"Subscribing to EventSub events for user {primary_token['user_id']}")
-                await self._subscribe_to_events_for_user(str(primary_token['user_id']))
+                logger.info(
+                    f"Subscribing to EventSub events for user {primary_token['user_id']}"
+                )
+                await self._subscribe_to_events_for_user(str(primary_token["user_id"]))
 
             if tokens:
                 logger.info(f"Loaded {len(valid_tokens)} valid tokens from database")
@@ -192,7 +197,9 @@ class TwitchService(twitchio.Client):
         try:
             # This method is called after event_ready, check if we have a user
             if not self.user:
-                logger.debug("No user context in client - subscriptions handled via loaded tokens")
+                logger.debug(
+                    "No user context in client - subscriptions handled via loaded tokens"
+                )
                 return
 
             user_id = str(self.user.id)
@@ -428,23 +435,23 @@ class TwitchService(twitchio.Client):
     # Channel Points event delegation
     async def event_custom_reward_add(self, payload):
         """Delegate custom reward add events to handler."""
-        await self._event_handler.handle_custom_reward_add(payload)
+        await self._event_handler.event_custom_reward_add(payload)
 
     async def event_custom_reward_update(self, payload):
         """Delegate custom reward update events to handler."""
-        await self._event_handler.handle_custom_reward_update(payload)
+        await self._event_handler.event_custom_reward_update(payload)
 
     async def event_custom_reward_remove(self, payload):
         """Delegate custom reward remove events to handler."""
-        await self._event_handler.handle_custom_reward_remove(payload)
+        await self._event_handler.event_custom_reward_remove(payload)
 
     async def event_custom_redemption_add(self, payload):
         """Delegate custom redemption add events to handler."""
-        await self._event_handler.handle_custom_redemption_add(payload)
+        await self._event_handler.event_custom_redemption_add(payload)
 
     async def event_custom_redemption_update(self, payload):
         """Delegate custom redemption update events to handler."""
-        await self._event_handler.handle_custom_redemption_update(payload)
+        await self._event_handler.event_custom_redemption_update(payload)
 
     # Poll event delegation
     async def event_poll_begin(self, payload):
@@ -553,7 +560,7 @@ if __name__ == "__main__":
         level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    
+
     # Enable TwitchIO debugging
     logging.getLogger("twitchio").setLevel(logging.DEBUG)
     logging.getLogger("twitchio.web").setLevel(logging.DEBUG)
