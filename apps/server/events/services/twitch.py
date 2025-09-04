@@ -1899,10 +1899,12 @@ class TwitchEventHandler:
 
                     if not offline_after:
                         # Stream is still active, use its session
-                        session = latest_online.session
+                        session = await sync_to_async(lambda: latest_online.session)()
                         if session:
+                            session_id = await sync_to_async(lambda: session.id)()
+                            session_date = await sync_to_async(lambda: session.session_date)()
                             logger.debug(
-                                f"Using active session {session.id} from {session.session_date}"
+                                f"Using active session {session_id} from {session_date}"
                             )
                         else:
                             logger.warning("Latest stream.online event has no session!")
