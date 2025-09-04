@@ -435,107 +435,167 @@ class TwitchService(twitchio.Client):
     # Channel Points event delegation
     async def event_custom_reward_add(self, payload):
         """Delegate custom reward add events to handler."""
-        await self._event_handler.event_custom_reward_add(payload)
+        await self._safe_delegate(
+            self._event_handler.event_custom_reward_add, payload, "custom_reward_add"
+        )
 
     async def event_custom_reward_update(self, payload):
         """Delegate custom reward update events to handler."""
-        await self._event_handler.event_custom_reward_update(payload)
+        await self._safe_delegate(
+            self._event_handler.event_custom_reward_update,
+            payload,
+            "custom_reward_update",
+        )
 
     async def event_custom_reward_remove(self, payload):
         """Delegate custom reward remove events to handler."""
-        await self._event_handler.event_custom_reward_remove(payload)
+        await self._safe_delegate(
+            self._event_handler.event_custom_reward_remove,
+            payload,
+            "custom_reward_remove",
+        )
 
     async def event_custom_redemption_add(self, payload):
         """Delegate custom redemption add events to handler."""
-        await self._event_handler.event_custom_redemption_add(payload)
+        await self._safe_delegate(
+            self._event_handler.event_custom_redemption_add,
+            payload,
+            "custom_redemption_add",
+        )
 
     async def event_custom_redemption_update(self, payload):
         """Delegate custom redemption update events to handler."""
-        await self._event_handler.event_custom_redemption_update(payload)
+        await self._safe_delegate(
+            self._event_handler.event_custom_redemption_update,
+            payload,
+            "custom_redemption_update",
+        )
 
     # Poll event delegation
     async def event_poll_begin(self, payload):
         """Delegate poll begin events to handler."""
-        await self._event_handler.handle_poll_begin(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_poll_begin, payload, "poll_begin"
+        )
 
     async def event_poll_progress(self, payload):
         """Delegate poll progress events to handler."""
-        await self._event_handler.handle_poll_progress(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_poll_progress, payload, "poll_progress"
+        )
 
     async def event_poll_end(self, payload):
         """Delegate poll end events to handler."""
-        await self._event_handler.handle_poll_end(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_poll_end, payload, "poll_end"
+        )
 
     # Prediction event delegation
     async def event_prediction_begin(self, payload):
         """Delegate prediction begin events to handler."""
-        await self._event_handler.handle_prediction_begin(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_prediction_begin, payload, "prediction_begin"
+        )
 
     async def event_prediction_progress(self, payload):
         """Delegate prediction progress events to handler."""
-        await self._event_handler.handle_prediction_progress(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_prediction_progress,
+            payload,
+            "prediction_progress",
+        )
 
     async def event_prediction_lock(self, payload):
         """Delegate prediction lock events to handler."""
-        await self._event_handler.handle_prediction_lock(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_prediction_lock, payload, "prediction_lock"
+        )
 
     async def event_prediction_end(self, payload):
         """Delegate prediction end events to handler."""
-        await self._event_handler.handle_prediction_end(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_prediction_end, payload, "prediction_end"
+        )
 
     # Hype Train event delegation
     async def event_hype_train(self, payload):
         """Delegate hype train begin events to handler."""
-        await self._event_handler.handle_hype_train_begin(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_hype_train_begin, payload, "hype_train_begin"
+        )
 
     async def event_hype_train_progress(self, payload):
         """Delegate hype train progress events to handler."""
-        await self._event_handler.handle_hype_train_progress(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_hype_train_progress,
+            payload,
+            "hype_train_progress",
+        )
 
     async def event_hype_train_end(self, payload):
         """Delegate hype train end events to handler."""
-        await self._event_handler.handle_hype_train_end(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_hype_train_end, payload, "hype_train_end"
+        )
 
     # Goal event delegation
     async def event_goal_begin(self, payload):
         """Delegate goal begin events to handler."""
-        await self._event_handler.handle_goal_begin(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_goal_begin, payload, "goal_begin"
+        )
 
     async def event_goal_progress(self, payload):
         """Delegate goal progress events to handler."""
-        await self._event_handler.handle_goal_progress(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_goal_progress, payload, "goal_progress"
+        )
 
     async def event_goal_end(self, payload):
         """Delegate goal end events to handler."""
-        await self._event_handler.handle_goal_end(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_goal_end, payload, "goal_end"
+        )
 
     # Charity event delegation
     async def event_charity_campaign_donate(self, payload):
         """Delegate charity donation events to handler."""
-        await self._event_handler.handle_charity_donation(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_charity_donation, payload, "charity_donation"
+        )
 
     # Shoutout event delegation
     async def event_shoutout_create(self, payload):
         """Delegate shoutout create events to handler."""
-        await self._event_handler.handle_shoutout_create(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_shoutout_create, payload, "shoutout_create"
+        )
 
     async def event_shoutout_receive(self, payload):
         """Delegate shoutout receive events to handler."""
-        await self._event_handler.handle_shoutout_receive(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_shoutout_receive, payload, "shoutout_receive"
+        )
 
     # VIP event delegation
     async def event_vip_add(self, payload):
         """Delegate VIP add events to handler."""
-        await self._event_handler.handle_vip_add(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_vip_add, payload, "vip_add"
+        )
 
     async def event_vip_remove(self, payload):
         """Delegate VIP remove events to handler."""
-        await self._event_handler.handle_vip_remove(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_vip_remove, payload, "vip_remove"
+        )
 
     # Ad break event delegation
     async def event_ad_break(self, payload):
         """Delegate ad break events to handler."""
-        await self._event_handler.handle_ad_break(payload)
+        await self._safe_delegate(
+            self._event_handler.handle_ad_break, payload, "ad_break"
+        )
 
 
 async def main():

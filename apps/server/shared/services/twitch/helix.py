@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 import twitchio
 from django.conf import settings
@@ -18,12 +19,12 @@ class HelixService:
     reward redemption counts for the limit-break feature.
     """
 
-    def __init__(self):
-        self._client = None
-        self._broadcaster = None
-        self._broadcaster_id = None
+    def __init__(self) -> None:
+        self._client: Optional[twitchio.Client] = None
+        self._broadcaster: Optional[twitchio.User] = None
+        self._broadcaster_id: Optional[str] = None
 
-    async def initialize(self):
+    async def initialize(self) -> bool:
         """Initialize the Helix client with authentication."""
         from authentication.services import AuthService
 
@@ -80,7 +81,7 @@ class HelixService:
             return True
 
         except Exception as e:
-            logger.error(f"Error initializing Helix service: {e}")
+            logger.error(f"Error initializing Helix service: {e}", exc_info=True)
             return False
 
     async def get_reward_redemption_count(self, reward_id: str) -> int:
@@ -95,8 +96,9 @@ class HelixService:
         if not self._broadcaster:
             await self.initialize()
             if not self._broadcaster:
-                logger.error("Helix service not properly initialized")
-                return 0
+                raise RuntimeError(
+                    "Helix service failed to initialize - cannot fetch reward redemptions"
+                )
 
         try:
             # Fetch the custom reward using the User object's method
@@ -104,7 +106,7 @@ class HelixService:
 
             if not rewards:
                 logger.warning(f"Reward {reward_id} not found")
-                return 0
+                return 0  # This is a valid case - reward doesn't exist
 
             reward = rewards[0]
 
@@ -117,10 +119,15 @@ class HelixService:
             return count
 
         except Exception as e:
-            logger.error(f"Error fetching reward redemption count: {e}")
-            return 0
+            logger.error(
+                f"Error fetching reward redemption count for {reward_id}: {e}",
+                exc_info=True,
+            )
+            raise  # Propagate the error for proper handling
 
-    async def fulfill_redemptions(self, reward_id: str, count: int = None):
+    async def fulfill_redemptions(
+        self, reward_id: str, count: Optional[int] = None
+    ) -> None:
         """Mark redemptions as fulfilled for a specific reward.
 
         Args:
@@ -162,7 +169,7 @@ class HelixService:
         except Exception as e:
             logger.error(f"Error fulfilling redemptions: {e}")
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the Helix client connection."""
         if self._client:
             # Client doesn't need explicit closing when not used as context manager
