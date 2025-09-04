@@ -68,7 +68,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
     ports:
       - "4343:4343"
-    command: uv run python -m events.services.twitch
+    command: uv run python -m shared.services.twitch.service
 
   overlays:
     build:

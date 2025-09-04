@@ -7,7 +7,6 @@ from django.utils.html import format_html
 
 from .models import Event
 from .models import Member
-from .models import Token
 
 
 @admin.register(Member)
@@ -76,24 +75,3 @@ class EventAdmin(admin.ModelAdmin):
             return str(obj.payload)
 
     formatted_payload.short_description = "Payload (formatted)"
-
-
-@admin.register(Token)
-class TokenAdmin(admin.ModelAdmin):
-    list_display = ("platform", "user_id", "is_expired", "expires_at", "created_at")
-    list_filter = ("platform", "expires_at", "created_at")
-    search_fields = ("user_id", "platform")
-    readonly_fields = ("id", "created_at", "updated_at", "is_expired")
-    ordering = ["-created_at"]
-
-    def get_form(self, request, obj=None, **kwargs):
-        # Don't show actual token values for security
-        form = super().get_form(request, obj, **kwargs)
-        if obj:
-            form.base_fields[
-                "access_token"
-            ].help_text = "Token is encrypted and hidden for security"
-            form.base_fields[
-                "refresh_token"
-            ].help_text = "Token is encrypted and hidden for security"
-        return form

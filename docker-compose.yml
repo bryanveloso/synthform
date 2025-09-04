@@ -54,7 +54,7 @@ services:
       - ./apps/server:/app
     ports:
       - "4343:4343"
-    command: uv run python -m events.services.twitch
+    command: uv run python -m shared.services.twitch.service
 
 volumes:
   postgres_data:

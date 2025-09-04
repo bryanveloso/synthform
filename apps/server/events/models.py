@@ -122,48 +122,4 @@ class Event(models.Model):
         return f"{self.source}.{self.event_type}{member_info} at {self.timestamp}"
 
 
-class Token(models.Model):
-    PLATFORMS = [
-        ("twitch", "Twitch"),
-        ("youtube", "YouTube"),
-        ("discord", "Discord"),
-    ]
-
-    # Platform and user identification
-    platform = models.CharField(
-        max_length=20, choices=PLATFORMS, default="twitch", db_index=True
-    )
-    user_id = models.CharField(max_length=255, db_index=True)  # Platform user ID
-
-    # Token data (encrypted)
-    access_token = EncryptedTextField()
-    refresh_token = EncryptedTextField()
-    expires_at = models.DateTimeField(null=True, blank=True)
-    scopes = models.JSONField(default=list)
-
-    # Timestamps
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        unique_together = [("platform", "user_id")]
-        indexes = [
-            models.Index(fields=["platform", "user_id"]),
-            models.Index(fields=["platform", "created_at"]),
-        ]
-
-    def save(self, *args, **kwargs):
-        if not self.pk:
-            self.created_at = timezone.now()
-        self.updated_at = timezone.now()
-        super().save(*args, **kwargs)
-
-    @property
-    def is_expired(self):
-        """Check if the token is expired."""
-        if not self.expires_at:
-            return False
-        return timezone.now() >= self.expires_at
-
-    def __str__(self):
-        return f"{self.platform} token for user {self.user_id}"
+# Token model has been moved to authentication.models

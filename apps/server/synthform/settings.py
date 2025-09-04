@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Core Applications
     "audio",
+    "authentication",
     "events",
     "overlays",
     "streams",
