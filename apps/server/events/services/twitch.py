@@ -397,9 +397,9 @@ class TwitchEventHandler:
                     if hasattr(fragment, "emote") and fragment.emote
                     else None,
                     "mention": {
-                        "user_id": fragment.mention.user_id,
-                        "user_name": fragment.mention.user_name,
-                        "user_login": fragment.mention.user_login,
+                        "user_id": fragment.mention.id,
+                        "user_name": fragment.mention.name,
+                        "user_login": fragment.mention.name,
                     }
                     if hasattr(fragment, "mention") and fragment.mention
                     else None,
