@@ -24,8 +24,8 @@ class AudioConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.session = None
-        self.chunk_count = 0
-        self.last_chunk_time = 0
+        self.chunk_timestamps = []  # Track timestamps for sliding window
+        self.window_start_time = 0
 
     async def connect(self):
         # Allow unauthenticated connections for OBS plugins on Tailscale network
@@ -168,20 +168,28 @@ class AudioConsumer(AsyncWebsocketConsumer):
         return True
 
     def _check_rate_limit(self) -> bool:
-        """Simple rate limiting to prevent abuse."""
-        import time
-
+        """Basic rate limiting for DoS protection only."""
         current_time = time.time()
-
-        # Reset counter if more than 1 second has passed
-        if current_time - self.last_chunk_time > 1.0:
-            self.chunk_count = 0
-
-        self.last_chunk_time = current_time
-        self.chunk_count += 1
-
-        # Apply configured rate limit
-        return self.chunk_count <= settings.AUDIO_RATE_LIMIT_PER_SECOND
+        
+        # Remove timestamps older than 1 second from the window
+        self.chunk_timestamps = [
+            t for t in self.chunk_timestamps 
+            if current_time - t < 1.0
+        ]
+        
+        # Use a much higher limit - this is only for DoS protection
+        # Normal streaming is ~100 chunks/sec, so 1000 gives plenty of headroom
+        dos_protection_limit = 1000  
+        
+        # Check if we're within the DoS protection limit
+        if len(self.chunk_timestamps) >= dos_protection_limit:
+            # This should only trigger in attack scenarios
+            logger.warning(f"DoS protection triggered: {len(self.chunk_timestamps)} chunks/second")
+            return False
+            
+        # Add current timestamp to the window
+        self.chunk_timestamps.append(current_time)
+        return True
 
     async def _process_audio(
         self,
@@ -197,9 +205,9 @@ class AudioConsumer(AsyncWebsocketConsumer):
         if not self.session:
             return
 
-        # Apply rate limiting
+        # Apply DoS protection
         if not self._check_rate_limit():
-            logger.warning("Rate limit exceeded, dropping audio chunk")
+            logger.warning("DoS protection triggered, dropping audio chunk")
             return
 
         # Create chunk record

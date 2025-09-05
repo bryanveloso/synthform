@@ -5,9 +5,12 @@ import json
 import logging
 import time
 import uuid
+from dataclasses import dataclass, field
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Optional
+from typing import Tuple
 
 import numpy as np
 import websockets
@@ -15,6 +18,44 @@ from channels.layers import get_channel_layer
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class AudioBuffer:
+    """Buffer for accumulating audio chunks before processing."""
+    chunks: List[Tuple[bytes, int, int, float]] = field(default_factory=list)  # (data, sample_rate, channels, timestamp)
+    total_size: int = 0
+    start_time: float = 0.0
+    
+    def clear(self):
+        """Clear the buffer."""
+        self.chunks.clear()
+        self.total_size = 0
+        self.start_time = 0.0
+    
+    def add_chunk(self, data: bytes, sample_rate: int, channels: int):
+        """Add a chunk to the buffer."""
+        timestamp = time.time()
+        if not self.chunks:
+            self.start_time = timestamp
+        self.chunks.append((data, sample_rate, channels, timestamp))
+        self.total_size += len(data)
+    
+    def get_duration_ms(self) -> int:
+        """Get buffer duration in milliseconds."""
+        if not self.chunks:
+            return 0
+        return int((time.time() - self.start_time) * 1000)
+    
+    def remove_oldest_chunks(self, target_size: int):
+        """Remove oldest chunks until buffer is below target size."""
+        while self.total_size > target_size and len(self.chunks) > 1:
+            removed_chunk = self.chunks.pop(0)
+            self.total_size -= len(removed_chunk[0])
+            if not self.chunks:
+                self.start_time = 0.0
+            elif len(self.chunks) == 1:
+                self.start_time = self.chunks[0][3]
 
 
 class AudioProcessor:
@@ -27,6 +68,13 @@ class AudioProcessor:
         self.transcription_callback: Optional[Callable] = None
         self.client_uid = str(uuid.uuid4())
         self.connection_task = None
+        
+        # Buffer for accumulating audio chunks
+        self.buffer = AudioBuffer()
+        self.buffer_duration_threshold_ms = 1500  # Process when buffer reaches 1.5 seconds
+        self.max_buffer_size = 10 * 1024 * 1024  # 10MB max buffer size
+        self.processing_task = None
+        self.last_process_time = 0
 
     async def start(self, session_id: str = "default"):
         """Initialize the WhisperLive WebSocket connection."""
@@ -113,16 +161,53 @@ class AudioProcessor:
         if self.connection_task and not self.connection_task.done():
             self.connection_task.cancel()
 
+        # Cancel processing task
+        if self.processing_task and not self.processing_task.done():
+            self.processing_task.cancel()
+        
+        # Clear buffer
+        self.buffer.clear()
+        
         logger.info("Audio processor stopped")
 
     async def process_chunk(
         self, audio_data: bytes, sample_rate: int = 48000, channels: int = 2
     ) -> None:
-        """Process audio chunk with WhisperLive WebSocket."""
+        """Add audio chunk to buffer and process when threshold reached."""
         if not self.running:
             logger.warning("Audio processor not running")
             return
 
+        # Add chunk to buffer
+        self.buffer.add_chunk(audio_data, sample_rate, channels)
+        
+        # Check for buffer overflow and remove oldest chunks if needed
+        if self.buffer.total_size > self.max_buffer_size:
+            logger.warning(f"Audio buffer overflow: {self.buffer.total_size} bytes, removing oldest chunks")
+            self.buffer.remove_oldest_chunks(self.max_buffer_size // 2)  # Remove to 50% capacity
+        
+        # Process buffer if duration threshold reached
+        buffer_duration = self.buffer.get_duration_ms()
+        if buffer_duration >= self.buffer_duration_threshold_ms:
+            # Avoid overlapping processing
+            if self.processing_task and not self.processing_task.done():
+                logger.debug("Previous processing still running, skipping")
+                return
+            
+            # Start processing task
+            self.processing_task = asyncio.create_task(self._process_buffer())
+        
+        # Log buffer status periodically
+        current_time = time.time()
+        if current_time - self.last_process_time > 5.0:  # Log every 5 seconds
+            logger.info(f"Audio buffer: {len(self.buffer.chunks)} chunks, {self.buffer.total_size} bytes, {buffer_duration}ms")
+            self.last_process_time = current_time
+    
+    async def _process_buffer(self) -> None:
+        """Process accumulated audio buffer with WhisperLive."""
+        if not self.buffer.chunks:
+            return
+        
         try:
             # Ensure connection is established
             url_parts = settings.WHISPER_EXTERNAL_URL.replace("http://", "").split(":")
@@ -135,19 +220,30 @@ class AudioProcessor:
                 logger.error("Failed to establish WebSocket connection")
                 return
 
-            # Convert audio data to format expected by WhisperLive
-            audio_array = self._bytes_to_numpy(audio_data, sample_rate, channels)
+            # Combine all chunks in buffer
+            combined_audio = []
+            for chunk_data, sample_rate, channels, _ in self.buffer.chunks:
+                # Convert each chunk to numpy array
+                audio_array = self._bytes_to_numpy(chunk_data, sample_rate, channels)
+                combined_audio.append(audio_array)
+            
+            # Concatenate all audio arrays
+            if combined_audio:
+                full_audio = np.concatenate(combined_audio)
+                
+                # Convert to float32 and send as binary WebSocket message
+                audio_float32 = full_audio.astype(np.float32)
+                audio_bytes = audio_float32.tobytes()
 
-            # Convert to float32 and send as binary WebSocket message
-            audio_float32 = audio_array.astype(np.float32)
-            audio_bytes = audio_float32.tobytes()
-
-            # Send binary audio data to WhisperLive
-            await self.websocket.send(audio_bytes)
-            logger.info(f"Sent {len(audio_bytes)} bytes of audio data to WhisperLive")
+                # Send binary audio data to WhisperLive
+                await self.websocket.send(audio_bytes)
+                logger.info(f"Sent {len(audio_bytes)} bytes ({self.buffer.get_duration_ms()}ms) of buffered audio to WhisperLive")
+            
+            # Clear buffer after processing
+            self.buffer.clear()
 
         except Exception as e:
-            logger.error(f"Error processing audio chunk: {e}")
+            logger.error(f"Error processing audio buffer: {e}")
             # Reset connection on error and properly close websocket
             if self.websocket:
                 try:
