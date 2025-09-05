@@ -32,8 +32,8 @@ class ServerConnection {
 
   private getWebSocketUrl(): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = 'localhost'
-    const port = '7175'; // Django server port
+    const host = import.meta.env.VITE_WS_HOST || (window.location.hostname === 'localhost' ? 'localhost' : 'saya')
+    const port = import.meta.env.VITE_WS_PORT || '7175'
     return `${protocol}//${host}:${port}/ws/overlay/`;
   }
 
