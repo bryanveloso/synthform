@@ -1860,7 +1860,7 @@ class TwitchEventHandler:
         from streams.models import Session
 
         if event_type == "stream.online":
-            # Create session for stream start date
+            # Create session for stream start date and store in Redis
             stream_date = django_timezone.now().date()
             try:
                 session, created = await sync_to_async(Session.objects.get_or_create)(
@@ -1869,6 +1869,15 @@ class TwitchEventHandler:
                 logger.info(
                     f"Session for {stream_date}: {'created' if created else 'found existing'}"
                 )
+
+                # Store session ID in Redis with 12-hour TTL
+                redis_key = "twitch:active_session"
+                ttl_seconds = 12 * 60 * 60  # 12 hours
+                await self._redis_client.set(redis_key, str(session.id), ex=ttl_seconds)
+                logger.info(
+                    f"Stored active session {session.id} in Redis with {ttl_seconds}s TTL"
+                )
+
             except Exception as e:
                 logger.error(f"Failed to get_or_create session for {stream_date}: {e}")
                 logger.error(f"Exception type: {type(e)}")
@@ -1876,44 +1885,99 @@ class TwitchEventHandler:
 
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 session = None
-        else:
-            # For all other events, find the most recent active session
-            # (one where stream went online but hasn't gone offline yet)
+        elif event_type == "stream.offline":
+            # Clear the active session from Redis on stream offline
             try:
-                # Get the most recent stream.online event
-                latest_online = await sync_to_async(
-                    Event.objects.filter(source="twitch", event_type="stream.online")
-                    .order_by("-timestamp")
-                    .first()
-                )()
+                redis_key = "twitch:active_session"
+                await self._redis_client.delete(redis_key)
+                logger.info("Cleared active session from Redis on stream.offline")
+                session = None  # Offline events don't need a session
+            except Exception as e:
+                logger.error(f"Error clearing Redis session: {e}")
+                session = None
+        else:
+            # For all other events, check Redis first for active session
+            try:
+                redis_key = "twitch:active_session"
+                session_id = await self._redis_client.get(redis_key)
 
-                if latest_online:
-                    # Check if there's a stream.offline after this online event
-                    offline_after = await sync_to_async(
-                        Event.objects.filter(
-                            source="twitch",
-                            event_type="stream.offline",
-                            timestamp__gt=latest_online.timestamp,
-                        ).exists
+                if session_id:
+                    # Found active session in Redis
+                    session_id_str = (
+                        session_id.decode("utf-8")
+                        if isinstance(session_id, bytes)
+                        else session_id
+                    )
+                    session = await sync_to_async(Session.objects.get)(
+                        id=session_id_str
+                    )
+                    logger.debug(f"Using active session {session_id_str} from Redis")
+                else:
+                    # Redis miss - check database for recent active session
+                    logger.debug(
+                        "No session in Redis, checking database for recent session"
+                    )
+
+                    # Look for a session created today or yesterday (to handle UTC boundary)
+                    from datetime import timedelta
+
+                    today = django_timezone.now().date()
+                    yesterday = today - timedelta(days=1)
+
+                    recent_session = await sync_to_async(
+                        lambda: Session.objects.filter(
+                            session_date__in=[today, yesterday]
+                        )
+                        .order_by("-session_date")
+                        .first()
                     )()
 
-                    if not offline_after:
-                        # Stream is still active, use its session
-                        session = await sync_to_async(lambda: latest_online.session)()
-                        if session:
-                            session_id = await sync_to_async(lambda: session.id)()
-                            session_date = await sync_to_async(lambda: session.session_date)()
-                            logger.debug(
-                                f"Using active session {session_id} from {session_date}"
-                            )
-                        else:
-                            logger.warning("Latest stream.online event has no session!")
-
-                if not session:
-                    logger.debug("No active stream session found")
+                    if recent_session:
+                        # Found recent session, populate Redis
+                        session = recent_session
+                        ttl_seconds = 12 * 60 * 60  # 12 hours
+                        await self._redis_client.set(
+                            redis_key, str(session.id), ex=ttl_seconds
+                        )
+                        logger.info(
+                            f"Populated Redis with recent session {session.id} from database"
+                        )
+                    else:
+                        logger.debug("No recent session found in database")
+                        session = None
 
             except Exception as e:
                 logger.error(f"Error finding active session: {e}")
+                session = None
+
+        # Fallback: If no session found and not offline event, create one for current date
+        if not session and event_type != "stream.offline":
+            try:
+                current_date = timezone.now().date()
+
+                session, created = await sync_to_async(Session.objects.get_or_create)(
+                    session_date=current_date
+                )
+                if created:
+                    logger.warning(
+                        f"Created fallback session for {current_date} due to missing active session"
+                    )
+                else:
+                    logger.info(
+                        f"Using existing session for {current_date} as fallback"
+                    )
+
+                # Store in Redis for future events
+                if session:
+                    redis_key = "twitch:active_session"
+                    ttl_seconds = 12 * 60 * 60  # 12 hours
+                    await self._redis_client.set(
+                        redis_key, str(session.id), ex=ttl_seconds
+                    )
+                    logger.info(f"Stored fallback session {session.id} in Redis")
+
+            except Exception as e:
+                logger.error(f"Failed to create fallback session: {e}")
                 session = None
 
         return await sync_to_async(Event.objects.create)(
