@@ -117,7 +117,7 @@ class AudioProcessor:
                 "use_vad": True,
             }
             await self.websocket.send(json.dumps(config))
-            logger.info(f"Sent configuration to WhisperLive server: {config}")
+            logger.info(f"Connected to WhisperLive and sent config for transcription")
 
             # Start listening task
             self.connection_task = asyncio.create_task(self._listen_for_messages())
@@ -199,7 +199,7 @@ class AudioProcessor:
         
         # Log buffer status periodically
         current_time = time.time()
-        if current_time - self.last_process_time > 5.0:  # Log every 5 seconds
+        if current_time - self.last_process_time > 30.0:  # Log every 30 seconds instead of 5
             logger.info(f"Audio buffer: {len(self.buffer.chunks)} chunks, {self.buffer.total_size} bytes, {buffer_duration}ms")
             self.last_process_time = current_time
     
@@ -238,6 +238,7 @@ class AudioProcessor:
                 # Send binary audio data to WhisperLive
                 await self.websocket.send(audio_bytes)
                 logger.info(f"Sent {len(audio_bytes)} bytes ({self.buffer.get_duration_ms()}ms) of buffered audio to WhisperLive")
+                logger.debug(f"Waiting for transcription response...")
             
             # Clear buffer after processing
             self.buffer.clear()

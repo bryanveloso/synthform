@@ -264,6 +264,11 @@ class TwitchEventHandler:
         """Handle prediction end events."""
         await self._create_event_from_payload("channel.prediction.end", payload)
 
+    # Ad break events
+    async def handle_ad_break(self, payload):
+        """Handle ad break events from TwitchIO."""
+        await self._create_event_from_payload("channel.ad_break.begin", payload)
+
     # Charity events
     async def event_charity_campaign_donate(self, payload):
         """Handle charity campaign donation events."""

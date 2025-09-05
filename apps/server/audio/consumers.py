@@ -51,7 +51,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
 
     async def _handle_binary_data(self, data: bytes):
         """Handle binary audio data with header."""
-        logger.info(f"Received binary data: {len(data)} bytes")
+        # Don't log every chunk - there are 100+ per second!
         if len(data) < 28:
             logger.warning("Received binary data too short for header")
             return
@@ -223,9 +223,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
         )
 
         # Process with WhisperLive in real-time
-        logger.info(f"Getting audio processor for session: {self.session.id}")
         processor = await get_audio_processor(str(self.session.id))
-        logger.info(f"Processing audio chunk: {len(audio_data)} bytes")
         await processor.process_chunk(audio_data, sample_rate, channels)
 
         # Also queue for background processing/storage
