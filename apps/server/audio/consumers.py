@@ -211,9 +211,16 @@ class AudioConsumer(AsyncWebsocketConsumer):
             return
 
         # Create chunk record
+        # OBS seems to send microseconds despite the field name suggesting nanoseconds
+        # Check the magnitude to determine the unit
+        if timestamp_ns < 1e12:  # Less than a trillion, likely microseconds
+            timestamp_seconds = timestamp_ns / 1e6
+        else:  # Likely nanoseconds
+            timestamp_seconds = timestamp_ns / 1e9
+            
         chunk = await Chunk.objects.acreate(
             session=self.session,
-            timestamp=datetime.fromtimestamp(timestamp_ns / 1e9, tz=dt_timezone.utc),
+            timestamp=datetime.fromtimestamp(timestamp_seconds, tz=dt_timezone.utc),
             source_id=source_id,
             source_name=source_name,
             data_size=len(audio_data),
