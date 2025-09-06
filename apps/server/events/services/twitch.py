@@ -1891,14 +1891,27 @@ class TwitchEventHandler:
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 session = None
         elif event_type == "stream.offline":
-            # Clear the active session from Redis on stream offline
+            # Keep the session active for 30 minutes after stream.offline
+            # This allows post-stream events (raids, etc.) to be associated with the stream
+            # Also handles errant offline events where stream comes back online
             try:
                 redis_key = "twitch:active_session"
-                await self._redis_client.delete(redis_key)
-                logger.info("Cleared active session from Redis on stream.offline")
-                session = None  # Offline events don't need a session
+                session_id = await self._redis_client.get(redis_key)
+                if session_id:
+                    session = await sync_to_async(Session.objects.filter(id=session_id).first)()
+                    if session:
+                        # Set expiry to 30 minutes from now
+                        ttl_seconds = 30 * 60  # 30 minutes
+                        await self._redis_client.expire(redis_key, ttl_seconds)
+                        logger.info(f"Stream offline but keeping session {session.id} active for {ttl_seconds/60:.0f} more minutes for post-stream events")
+                    else:
+                        logger.warning(f"Session {session_id} from Redis not found in database")
+                        session = None
+                else:
+                    logger.info("No active session in Redis during stream.offline")
+                    session = None
             except Exception as e:
-                logger.error(f"Error clearing Redis session: {e}")
+                logger.error(f"Error handling session during stream.offline: {e}")
                 session = None
         else:
             # For all other events, check Redis first for active session
