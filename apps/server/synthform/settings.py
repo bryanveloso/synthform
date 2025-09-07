@@ -16,6 +16,12 @@ import os
 from pathlib import Path
 
 import environ
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://554e88df517d1b8a1c89a7899abaffb3@o4509979087077376.ingest.us.sentry.io/4509979089174528",
+    send_default_pii=True,
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
