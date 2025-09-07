@@ -18,7 +18,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.session = None
+        self.session_id = None
         self.chunk_timestamps = []  # Track timestamps for sliding window
         self.window_start_time = 0
 
@@ -26,17 +26,17 @@ class AudioConsumer(AsyncWebsocketConsumer):
         # Allow unauthenticated connections for OBS plugins on Tailscale network
         await self.accept()
 
-        # Get existing active session or create new one
-        from .session_manager import get_or_create_active_session
-
-        self.session = await get_or_create_active_session()
-        logger.info(f"Audio WebSocket connected to session: {self.session.id}")
+        # Generate session ID for this connection
+        import uuid
+        self.session_id = str(uuid.uuid4())
+        logger.info(f"Audio WebSocket connected with session: {self.session_id}")
 
     async def disconnect(self, close_code):
-        if self.session:
-            # Don't end session - it persists across WebSocket connections
-            # Only log the disconnection
-            logger.info(f"Audio WebSocket disconnected from session: {self.session.id}")
+        if self.session_id:
+            logger.info(f"Audio WebSocket disconnected from session: {self.session_id}")
+            # Clean up audio processor
+            from .processor import cleanup_audio_processor
+            await cleanup_audio_processor(self.session_id)
 
     async def receive(self, text_data=None, bytes_data=None):
         if bytes_data:
@@ -198,7 +198,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
         audio_data: bytes,
     ):
         """Process incoming audio chunk."""
-        if not self.session:
+        if not self.session_id:
             return
 
         # Apply DoS protection
@@ -207,7 +207,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
             return
 
         # Process with WhisperLive in real-time
-        processor = await get_audio_processor(str(self.session.id))
+        processor = await get_audio_processor(self.session_id)
         await processor.process_chunk(audio_data, sample_rate, channels)
 
 
