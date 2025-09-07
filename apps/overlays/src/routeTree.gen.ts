@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OmnibarRouteImport } from './routes/omnibar'
+import { Route as LimitbreakRouteImport } from './routes/limitbreak'
 import { Route as IndexRouteImport } from './routes/index'
 
 const OmnibarRoute = OmnibarRouteImport.update({
   id: '/omnibar',
   path: '/omnibar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LimitbreakRoute = LimitbreakRouteImport.update({
+  id: '/limitbreak',
+  path: '/limitbreak',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -25,27 +31,31 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/limitbreak': typeof LimitbreakRoute
   '/omnibar': typeof OmnibarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/limitbreak': typeof LimitbreakRoute
   '/omnibar': typeof OmnibarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/limitbreak': typeof LimitbreakRoute
   '/omnibar': typeof OmnibarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/omnibar'
+  fullPaths: '/' | '/limitbreak' | '/omnibar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/omnibar'
-  id: '__root__' | '/' | '/omnibar'
+  to: '/' | '/limitbreak' | '/omnibar'
+  id: '__root__' | '/' | '/limitbreak' | '/omnibar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LimitbreakRoute: typeof LimitbreakRoute
   OmnibarRoute: typeof OmnibarRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/omnibar'
       fullPath: '/omnibar'
       preLoaderRoute: typeof OmnibarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/limitbreak': {
+      id: '/limitbreak'
+      path: '/limitbreak'
+      fullPath: '/limitbreak'
+      preLoaderRoute: typeof LimitbreakRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LimitbreakRoute: LimitbreakRoute,
   OmnibarRoute: OmnibarRoute,
 }
 export const routeTree = rootRouteImport
