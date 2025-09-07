@@ -9,63 +9,35 @@ from django.utils import timezone
 
 from transcriptions.models import Transcription
 
-from .models import Chunk
+from .models import Session
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task
-def process_audio_chunk(chunk_id: str):
-    """Process audio chunk in background and store results."""
-    try:
-        chunk = Chunk.objects.get(id=chunk_id)
-        chunk.processing_started = timezone.now()
-        chunk.save()
-
-        # Note: Real-time processing happens in the WebSocket consumer
-        # This task is for logging, storage, and any post-processing
-
-        logger.info(f"Processed audio chunk {chunk_id} ({chunk.data_size} bytes)")
-
-        chunk.processed = True
-        chunk.save()
-
-        # Broadcast chunk processed event
-        channel_layer = get_channel_layer()
-        if channel_layer:
-            async_to_sync(channel_layer.group_send)(
-                "audio_events",
-                {
-                    "type": "audio_chunk_event",
-                    "timestamp": int(chunk.timestamp.timestamp() * 1000),
-                    "source_id": chunk.source_id,
-                    "source_name": chunk.source_name,
-                    "size": chunk.data_size,
-                },
-            )
-
-    except Chunk.DoesNotExist:
-        logger.error(f"Chunk {chunk_id} not found")
-    except Exception as e:
-        logger.error(f"Error processing audio chunk {chunk_id}: {e}")
 
 
 @shared_task
 def store_transcription(text: str, session_id: str, timestamp: float, duration: float):
     """Store transcription result in database."""
+    from datetime import datetime
+    from datetime import timezone as dt_timezone
+
+    from django.utils import timezone as django_timezone
+    from streams.models import Session as StreamSession
+
     try:
+        # Get or create today's stream session
+        today = django_timezone.now().date()
+        stream_session, _ = StreamSession.objects.get_or_create(session_date=today)
+
         # Create transcription record
         transcription = Transcription.objects.create(
             text=text,
-            timestamp=timezone.datetime.fromtimestamp(
-                timestamp, tz=timezone.datetime.timezone.utc
-            ),
+            timestamp=datetime.fromtimestamp(timestamp, tz=dt_timezone.utc),
+            duration=duration,
             confidence=1.0,  # WhisperLive doesn't provide confidence scores
-            metadata={
-                "session_id": session_id,
-                "duration": duration,
-                "processor": "whisper-live",
-            },
+            session=stream_session,  # Link to the streams.Session via ForeignKey
+            legacy_stream_session_id=session_id,  # Store the audio session ID for reference
         )
 
         logger.info(f"Stored transcription {transcription.id}: {text[:50]}...")
@@ -74,19 +46,6 @@ def store_transcription(text: str, session_id: str, timestamp: float, duration: 
         logger.error(f"Error storing transcription: {e}")
 
 
-@shared_task
-def cleanup_old_audio_chunks(days_old: int = 7):
-    """Clean up old processed audio chunks."""
-    try:
-        cutoff = timezone.now() - timezone.timedelta(days=days_old)
-        deleted_count, _ = Chunk.objects.filter(
-            timestamp__lt=cutoff, processed=True
-        ).delete()
-
-        logger.info(f"Cleaned up {deleted_count} old audio chunks")
-
-    except Exception as e:
-        logger.error(f"Error cleaning up audio chunks: {e}")
 
 
 @shared_task

@@ -37,34 +37,3 @@ class Session(models.Model):
         return f"Session {self.id}"
 
 
-class Chunk(models.Model):
-    """Raw chunk received from OBS."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    session = models.ForeignKey(
-        Session, on_delete=models.CASCADE, related_name="chunks"
-    )
-    timestamp = models.DateTimeField()
-    source_id = models.CharField(max_length=100)
-    source_name = models.CharField(max_length=200)
-    data_size = models.IntegerField()
-
-    # Audio format
-    sample_rate = models.IntegerField()
-    channels = models.IntegerField()
-    bit_depth = models.IntegerField()
-
-    # Processing status
-    processed = models.BooleanField(default=False)
-    processing_started = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["timestamp"]
-        indexes = [
-            models.Index(fields=["session", "timestamp"]),
-            models.Index(fields=["processed"]),
-        ]
-
-    def __str__(self):
-        return f"Chunk {self.id} ({self.source_id})"

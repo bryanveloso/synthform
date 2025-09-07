@@ -4,16 +4,11 @@ import json
 import logging
 import struct
 import time
-from datetime import datetime
-from datetime import timezone as dt_timezone
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
-from django.contrib.auth.models import AnonymousUser
 
-from .models import Chunk
 from .processor import get_audio_processor
-from .tasks import process_audio_chunk
 
 logger = logging.getLogger(__name__)
 
@@ -170,23 +165,24 @@ class AudioConsumer(AsyncWebsocketConsumer):
     def _check_rate_limit(self) -> bool:
         """Basic rate limiting for DoS protection only."""
         current_time = time.time()
-        
+
         # Remove timestamps older than 1 second from the window
         self.chunk_timestamps = [
-            t for t in self.chunk_timestamps 
-            if current_time - t < 1.0
+            t for t in self.chunk_timestamps if current_time - t < 1.0
         ]
-        
+
         # Use a much higher limit - this is only for DoS protection
         # Normal streaming is ~100 chunks/sec, so 1000 gives plenty of headroom
-        dos_protection_limit = 1000  
-        
+        dos_protection_limit = 1000
+
         # Check if we're within the DoS protection limit
         if len(self.chunk_timestamps) >= dos_protection_limit:
             # This should only trigger in attack scenarios
-            logger.warning(f"DoS protection triggered: {len(self.chunk_timestamps)} chunks/second")
+            logger.warning(
+                f"DoS protection triggered: {len(self.chunk_timestamps)} chunks/second"
+            )
             return False
-            
+
         # Add current timestamp to the window
         self.chunk_timestamps.append(current_time)
         return True
@@ -210,31 +206,9 @@ class AudioConsumer(AsyncWebsocketConsumer):
             logger.warning("DoS protection triggered, dropping audio chunk")
             return
 
-        # Create chunk record
-        # OBS seems to send microseconds despite the field name suggesting nanoseconds
-        # Check the magnitude to determine the unit
-        if timestamp_ns < 1e12:  # Less than a trillion, likely microseconds
-            timestamp_seconds = timestamp_ns / 1e6
-        else:  # Likely nanoseconds
-            timestamp_seconds = timestamp_ns / 1e9
-            
-        chunk = await Chunk.objects.acreate(
-            session=self.session,
-            timestamp=datetime.fromtimestamp(timestamp_seconds, tz=dt_timezone.utc),
-            source_id=source_id,
-            source_name=source_name,
-            data_size=len(audio_data),
-            sample_rate=sample_rate,
-            channels=channels,
-            bit_depth=bit_depth,
-        )
-
         # Process with WhisperLive in real-time
         processor = await get_audio_processor(str(self.session.id))
         await processor.process_chunk(audio_data, sample_rate, channels)
-
-        # Also queue for background processing/storage
-        process_audio_chunk.delay(str(chunk.id))
 
 
 class EventsConsumer(AsyncWebsocketConsumer):
