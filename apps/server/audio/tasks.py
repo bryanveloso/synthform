@@ -2,16 +2,11 @@ from __future__ import annotations
 
 import logging
 
-from asgiref.sync import async_to_sync
 from celery import shared_task
-from channels.layers import get_channel_layer
-from django.utils import timezone
 
 from transcriptions.models import Transcription
 
 logger = logging.getLogger(__name__)
-
-
 
 
 @shared_task
@@ -21,6 +16,7 @@ def store_transcription(text: str, session_id: str, timestamp: float, duration: 
     from datetime import timezone as dt_timezone
 
     from django.utils import timezone as django_timezone
+
     from streams.models import Session as StreamSession
 
     try:
@@ -41,7 +37,3 @@ def store_transcription(text: str, session_id: str, timestamp: float, duration: 
 
     except Exception as e:
         logger.error(f"Error storing transcription: {e}")
-
-
-
-

@@ -28,6 +28,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
 
         # Generate session ID for this connection
         import uuid
+
         self.session_id = str(uuid.uuid4())
         logger.info(f"Audio WebSocket connected with session: {self.session_id}")
 
@@ -36,6 +37,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
             logger.info(f"Audio WebSocket disconnected from session: {self.session_id}")
             # Clean up audio processor
             from .processor import cleanup_audio_processor
+
             await cleanup_audio_processor(self.session_id)
 
     async def receive(self, text_data=None, bytes_data=None):
@@ -291,7 +293,7 @@ class CaptionsConsumer(AsyncWebsocketConsumer):
                         "text": event["text"],
                         "confidence": event.get("confidence", 0.95),
                         "is_final": True,
-                        "timestamp": int(event["timestamp"] * 1000),
+                        "timestamp": event["timestamp"],  # Already in milliseconds
                     },
                 }
             )
