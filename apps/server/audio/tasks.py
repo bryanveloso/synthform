@@ -35,7 +35,6 @@ def store_transcription(text: str, session_id: str, timestamp: float, duration: 
             duration=duration,
             confidence=1.0,  # WhisperLive doesn't provide confidence scores
             session=stream_session,  # Link to the streams.Session via ForeignKey
-            legacy_stream_session_id=session_id,  # Store the audio session ID for reference
         )
 
         logger.info(f"Stored transcription {transcription.id}: {text[:50]}...")

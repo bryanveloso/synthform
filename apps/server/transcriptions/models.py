@@ -33,9 +33,6 @@ class Transcription(models.Model):
 
     # Source metadata
     source_file = models.CharField(max_length=255, null=True, blank=True)
-    legacy_stream_session_id = models.CharField(
-        max_length=255, null=True, blank=True, db_index=True
-    )
 
     # Timing
     timestamp = models.DateTimeField(db_index=True)
