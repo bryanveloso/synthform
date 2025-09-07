@@ -122,7 +122,7 @@ class AudioProcessor:
                 "uid": self.client_uid,
                 "language": "en",
                 "task": "transcribe",
-                "model": "base",
+                "model": "medium.en",
                 "use_vad": True,
             }
             await self.websocket.send(json.dumps(config))
@@ -299,8 +299,13 @@ class AudioProcessor:
             if "message" in data:
                 # Server status messages
                 logger.info(f"WhisperLive server: {data['message']}")
+            elif "segments" in data:
+                # WhisperLive sends transcription as segments array
+                for segment in data.get("segments", []):
+                    if segment.get("text", "").strip():
+                        await self._handle_transcription(segment["text"].strip())
             elif "text" in data and data["text"].strip():
-                # Transcription result
+                # Fallback for plain text response
                 await self._handle_transcription(data["text"].strip())
 
         except Exception as e:
