@@ -1898,14 +1898,20 @@ class TwitchEventHandler:
                 redis_key = "twitch:active_session"
                 session_id = await self._redis_client.get(redis_key)
                 if session_id:
-                    session = await sync_to_async(Session.objects.filter(id=session_id).first)()
+                    session = await sync_to_async(
+                        Session.objects.filter(id=session_id).first
+                    )()
                     if session:
                         # Set expiry to 30 minutes from now
                         ttl_seconds = 30 * 60  # 30 minutes
                         await self._redis_client.expire(redis_key, ttl_seconds)
-                        logger.info(f"Stream offline but keeping session {session.id} active for {ttl_seconds/60:.0f} more minutes for post-stream events")
+                        logger.info(
+                            f"Stream offline but keeping session {session.id} active for {ttl_seconds / 60:.0f} more minutes for post-stream events"
+                        )
                     else:
-                        logger.warning(f"Session {session_id} from Redis not found in database")
+                        logger.warning(
+                            f"Session {session_id} from Redis not found in database"
+                        )
                         session = None
                 else:
                     logger.info("No active session in Redis during stream.offline")
