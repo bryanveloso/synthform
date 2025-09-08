@@ -5,10 +5,10 @@ import json
 import logging
 import time
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Callable
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -84,9 +84,10 @@ class AudioProcessor:
         self.max_buffer_size = 10 * 1024 * 1024  # 10MB max buffer size
         self.processing_task = None
         self.last_process_time = 0
-        
-        # Track processed segments to avoid duplicates
-        self.processed_segments = set()  # Stores (start_time, text) tuples
+
+        # Track processed segments to avoid duplicates and handle revisions
+        self.processed_segments = OrderedDict()  # Stores {start_time: text}
+        self.max_processed_segments = 20000
 
     async def start(self, session_id: str = "default"):
         """Initialize the WhisperLive WebSocket connection."""
@@ -179,7 +180,7 @@ class AudioProcessor:
 
         # Clear buffer
         self.buffer.clear()
-        
+
         # Clear processed segments tracking
         self.processed_segments.clear()
 
@@ -311,17 +312,25 @@ class AudioProcessor:
                     text = segment.get("text", "").strip()
                     if not text:
                         continue
-                    
-                    # Create unique identifier using start time and text
-                    segment_id = (segment.get("start", 0), text)
-                    
-                    # Only process segments we haven't seen before
-                    if segment_id not in self.processed_segments:
-                        self.processed_segments.add(segment_id)
-                        await self._handle_transcription(text)
-                        logger.debug(f"Processing new segment: start={segment.get('start', 0)}, text='{text[:30]}...'")
-                    else:
-                        logger.debug(f"Skipping duplicate segment: start={segment.get('start', 0)}")
+
+                    start_time = segment.get("start", 0)
+
+                    # Skip if exact duplicate (same time and text)
+                    if self.processed_segments.get(start_time) == text:
+                        logger.debug(f"Skipping duplicate segment: start={start_time}")
+                        continue
+
+                    # This is a new segment or a revision of a previous one
+                    # Update our tracking and process it
+                    self.processed_segments[start_time] = text
+                    await self._handle_transcription(text, segment_id=start_time)
+                    logger.debug(
+                        f"Processing new/revised segment: start={start_time}, text='{text[:30]}...'"
+                    )
+
+                    # Enforce memory bound: remove oldest entry if we exceed max size
+                    if len(self.processed_segments) > self.max_processed_segments:
+                        self.processed_segments.popitem(last=False)
             elif "text" in data and data["text"].strip():
                 # Fallback for plain text response
                 await self._handle_transcription(data["text"].strip())
@@ -361,7 +370,7 @@ class AudioProcessor:
         indices = np.linspace(0, len(audio) - 1, target_length)
         return np.interp(indices, np.arange(len(audio)), audio)
 
-    async def _handle_transcription(self, text: str):
+    async def _handle_transcription(self, text: str, segment_id: float = None):
         """Handle transcription results from WhisperLive."""
         if not text or not text.strip():
             return
@@ -373,6 +382,7 @@ class AudioProcessor:
             text=text.strip(),
             timestamp=time.time(),
             duration=1.5,  # Approximate chunk duration
+            segment_id=segment_id,  # WhisperLive segment start time
         )
 
         # Call external transcription callback if set
@@ -413,6 +423,7 @@ class AudioProcessor:
                 "timestamp": timestamp_ms,
                 "text": event.text,
                 "duration": event.duration,
+                "segment_id": event.segment_id,
             },
         )
 
@@ -423,6 +434,7 @@ class AudioProcessor:
                 "type": "caption_event",
                 "timestamp": timestamp_ms,
                 "text": event.text,
+                "segment_id": event.segment_id,
             },
         )
 
@@ -430,14 +442,21 @@ class AudioProcessor:
 class TranscriptionEvent:
     """Transcription event object matching original Phononmaser format."""
 
-    def __init__(self, text: str, timestamp: float, duration: float = 1.5):
+    def __init__(
+        self,
+        text: str,
+        timestamp: float,
+        duration: float = 1.5,
+        segment_id: float = None,
+    ):
         self.text = text
         self.timestamp = timestamp
         self.duration = duration
+        self.segment_id = segment_id
 
 
 # Global processor instances per session
-_processors: Dict[str, AudioProcessor] = {}
+_processors: dict[str, AudioProcessor] = {}
 
 
 async def get_audio_processor(session_id: str = "default") -> AudioProcessor:
