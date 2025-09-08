@@ -49,45 +49,29 @@ class ServiceLifecycleASGIApp:
 
     def __init__(self, asgi_app):
         self.asgi_app = asgi_app
-        self._obs_started = False
-        self._shutdown_handlers = []
+        self._services_started = False
 
     async def __call__(self, scope, receive, send):
-        # Start OBS service on first ASGI call
-        if not self._obs_started:
-            self._obs_started = True
-            asyncio.create_task(obs_service.startup())
-            # Register shutdown handler for cleanup
-            self._register_shutdown_handler()
-
         # Handle lifespan events
         if scope["type"] == "lifespan":
             while True:
                 message = await receive()
                 if message["type"] == "lifespan.startup":
+                    # Start services on startup
+                    if not self._services_started:
+                        self._services_started = True
+                        asyncio.create_task(obs_service.startup())
                     await send({"type": "lifespan.startup.complete"})
                 elif message["type"] == "lifespan.shutdown":
                     await self._cleanup()
                     await send({"type": "lifespan.shutdown.complete"})
                     return
         else:
+            # Start services on first non-lifespan request if not started
+            if not self._services_started:
+                self._services_started = True
+                asyncio.create_task(obs_service.startup())
             return await self.asgi_app(scope, receive, send)
-
-    def _register_shutdown_handler(self):
-        """Register cleanup handlers for graceful shutdown."""
-        import atexit
-        import signal
-
-        def sync_cleanup():
-            """Synchronous cleanup wrapper."""
-            asyncio.run(self._cleanup())
-
-        # Register atexit handler
-        atexit.register(sync_cleanup)
-
-        # Register signal handlers for graceful shutdown
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            signal.signal(sig, lambda s, f: sync_cleanup())
 
     async def _cleanup(self):
         """Clean up services on shutdown."""
