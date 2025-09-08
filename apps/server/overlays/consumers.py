@@ -113,13 +113,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             if event_type == "obs.scene.changed":
                 await self._send_message("base", "obs_scene_changed", event_data)
         else:
-            # Only route viewer interactions to timeline and base layers
-            if event_type in self.VIEWER_INTERACTIONS:
+            # Channel point redemptions ONLY go to timeline
+            if event_type == "channel.channel_points_custom_reward_redemption.add":
+                await self._send_message("timeline", "push", event_data)
+            # Other viewer interactions go to timeline, base, and alerts
+            elif event_type in self.VIEWER_INTERACTIONS:
                 await self._send_message("timeline", "push", event_data)
                 await self._send_message("base", "update", event_data)
-
-            # Handle special event types for alerts/ticker
-            if event_type in self.VIEWER_INTERACTIONS:
                 # These are significant events that might trigger alerts or ticker updates
                 await self._send_message("alerts", "push", event_data)
 
