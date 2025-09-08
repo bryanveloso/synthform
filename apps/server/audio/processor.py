@@ -84,6 +84,9 @@ class AudioProcessor:
         self.max_buffer_size = 10 * 1024 * 1024  # 10MB max buffer size
         self.processing_task = None
         self.last_process_time = 0
+        
+        # Track processed segments to avoid duplicates
+        self.processed_segments = set()  # Stores (start_time, text) tuples
 
     async def start(self, session_id: str = "default"):
         """Initialize the WhisperLive WebSocket connection."""
@@ -176,6 +179,9 @@ class AudioProcessor:
 
         # Clear buffer
         self.buffer.clear()
+        
+        # Clear processed segments tracking
+        self.processed_segments.clear()
 
         logger.info("Audio processor stopped")
 
@@ -300,10 +306,22 @@ class AudioProcessor:
                 # Server status messages
                 logger.info(f"WhisperLive server: {data['message']}")
             elif "segments" in data:
-                # WhisperLive sends transcription as segments array
+                # WhisperLive sends cumulative segments array (all from beginning)
                 for segment in data.get("segments", []):
-                    if segment.get("text", "").strip():
-                        await self._handle_transcription(segment["text"].strip())
+                    text = segment.get("text", "").strip()
+                    if not text:
+                        continue
+                    
+                    # Create unique identifier using start time and text
+                    segment_id = (segment.get("start", 0), text)
+                    
+                    # Only process segments we haven't seen before
+                    if segment_id not in self.processed_segments:
+                        self.processed_segments.add(segment_id)
+                        await self._handle_transcription(text)
+                        logger.debug(f"Processing new segment: start={segment.get('start', 0)}, text='{text[:30]}...'")
+                    else:
+                        logger.debug(f"Skipping duplicate segment: start={segment.get('start', 0)}")
             elif "text" in data and data["text"].strip():
                 # Fallback for plain text response
                 await self._handle_transcription(data["text"].strip())
