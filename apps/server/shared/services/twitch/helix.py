@@ -172,11 +172,16 @@ class HelixService:
     async def close(self) -> None:
         """Close the Helix client connection."""
         if self._client:
-            # Client doesn't need explicit closing when not used as context manager
-            self._client = None
-            self._broadcaster = None
-            self._broadcaster_id = None
-            logger.info("Helix service closed")
+            try:
+                # Close the TwitchIO client to properly clean up aiohttp ClientSession
+                await self._client.close()
+            except Exception as e:
+                logger.warning(f"Error closing TwitchIO client: {e}")
+            finally:
+                self._client = None
+                self._broadcaster = None
+                self._broadcaster_id = None
+                logger.info("Helix service closed")
 
 
 # Global instance
