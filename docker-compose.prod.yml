@@ -70,6 +70,19 @@ services:
       - "4343:4343"
     command: uv run python -m shared.services.twitch.service
 
+  celery:
+    build:
+      context: ./apps/server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
+      - REDIS_URL=redis://redis:6379/0
+    command: uv run celery -A synthform worker -l info
+
   overlays:
     build:
       context: ./apps/overlays
