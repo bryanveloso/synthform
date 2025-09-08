@@ -4,7 +4,6 @@ import uuid
 
 from django.db import models
 from django.utils import timezone
-from encrypted_fields import EncryptedTextField
 
 from streams.models import Session
 

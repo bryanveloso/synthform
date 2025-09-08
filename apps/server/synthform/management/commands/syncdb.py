@@ -1,8 +1,11 @@
-from django.core.management.base import BaseCommand
-from django.core.management import call_command
+from __future__ import annotations
+
+import os
 import subprocess
 import tempfile
-import os
+
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
@@ -50,7 +53,7 @@ class Command(BaseCommand):
                 dump_cmd = f"pg_dump --clean --no-owner --no-privileges {table_args}"
             else:
                 # Dump recent data only to avoid huge transfers
-                dump_cmd = f"""pg_dump --clean --no-owner --no-privileges \\
+                dump_cmd = """pg_dump --clean --no-owner --no-privileges \\
                     --table=events_event \\
                     --table=events_member \\
                     --table=events_token \\

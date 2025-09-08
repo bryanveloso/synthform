@@ -102,7 +102,7 @@ class OBSService:
             # Broadcast initial state
             await self._broadcast_current_state()
 
-        except (TimeoutError, ConnectionRefusedError) as e:
+        except (TimeoutError, ConnectionRefusedError):
             # These are expected when OBS is not running - log at INFO level
             logger.info(
                 f"OBS not available at {settings.OBS_HOST}:{settings.OBS_PORT} - will retry"

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from django.conf import settings
 from django.db import connection
 from django.http import HttpRequest
