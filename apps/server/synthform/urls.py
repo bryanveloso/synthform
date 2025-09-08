@@ -23,15 +23,8 @@ from django.urls import path
 
 from .health import health_check
 
-
-def trigger_error(request):
-    division_by_zero = 1 / 0
-
-
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health_check"),
     path("events/", include("events.urls")),
-    # Testing Sentry integration
-    path("sentry-debug/", trigger_error),
 ]
