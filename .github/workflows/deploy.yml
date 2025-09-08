@@ -42,8 +42,8 @@ jobs:
         
         # Server changes (Django app, but not Twitch service)
         if echo "$CHANGED_FILES" | grep -q "apps/server" && ! echo "$CHANGED_FILES" | grep -q "apps/server/events/services/twitch.py"; then
-          echo "Server code changed, rebuilding server container"
-          docker compose -f docker-compose.prod.yml up --build -d server
+          echo "Server code changed, rebuilding server and celery containers"
+          docker compose -f docker-compose.prod.yml up --build -d server celery
         fi
         
         # Twitch service changes
