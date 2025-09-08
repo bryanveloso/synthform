@@ -131,31 +131,9 @@ class TwitchEventHandler:
         """Handle stream online events."""
         await self._create_event_from_payload("stream.online", payload)
 
-        # Session management: Start or continue session
-        from audio.session_manager import cancel_session_timeout
-        from audio.session_manager import get_or_create_active_session
-
-        try:
-            session = await get_or_create_active_session()
-            await cancel_session_timeout(session)
-            logger.info(f"Stream online: Session {session.id} active, timeout canceled")
-        except Exception as e:
-            logger.error(f"Error managing session on stream online: {e}")
-
     async def event_stream_offline(self, payload):
         """Handle stream offline events."""
         await self._create_event_from_payload("stream.offline", payload)
-
-        # Session management: Start timeout countdown
-        from audio.session_manager import get_or_create_active_session
-        from audio.session_manager import start_session_timeout
-
-        try:
-            session = await get_or_create_active_session()
-            await start_session_timeout(session)
-            logger.info(f"Stream offline: Started timeout for session {session.id}")
-        except Exception as e:
-            logger.error(f"Error managing session on stream offline: {e}")
 
     async def event_channel_update(self, payload):
         """Handle channel update events."""
