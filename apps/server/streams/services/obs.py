@@ -11,6 +11,11 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+# Suppress obsws_python connection errors from going to Sentry
+# These are expected when OBS is not running
+obs_logger = logging.getLogger("obsws_python.baseclient")
+obs_logger.setLevel(logging.CRITICAL)  # Only log critical errors to Sentry
+
 
 class OBSService:
     """OBS-WebSocket service for controlling OBS and broadcasting state."""
@@ -97,6 +102,10 @@ class OBSService:
             # Broadcast initial state
             await self._broadcast_current_state()
 
+        except (TimeoutError, ConnectionRefusedError) as e:
+            # These are expected when OBS is not running - log at INFO level
+            logger.info(f"OBS not available at {settings.OBS_HOST}:{settings.OBS_PORT} - will retry")
+            await self._schedule_reconnect()
         except Exception as e:
             logger.error(f"Failed to connect to OBS: {e}")
             await self._schedule_reconnect()
