@@ -343,6 +343,10 @@ class OBSService:
                 "connected": True,
             }
 
+        except json.JSONDecodeError as e:
+            # This happens when OBS returns invalid/empty JSON
+            logger.debug(f"OBS returned invalid JSON: {e}")
+            return {"message": "OBS not connected", "connected": False}
         except Exception as e:
             logger.error(f"Error getting current OBS state: {e}")
             return {"message": "OBS state unavailable", "connected": False}
