@@ -104,7 +104,9 @@ class OBSService:
 
         except (TimeoutError, ConnectionRefusedError) as e:
             # These are expected when OBS is not running - log at INFO level
-            logger.info(f"OBS not available at {settings.OBS_HOST}:{settings.OBS_PORT} - will retry")
+            logger.info(
+                f"OBS not available at {settings.OBS_HOST}:{settings.OBS_PORT} - will retry"
+            )
             await self._schedule_reconnect()
         except Exception as e:
             logger.error(f"Failed to connect to OBS: {e}")
