@@ -161,6 +161,22 @@ class OBSService:
 
         if self._running:
             await self._connect()
+    
+    async def _validate_connection(self) -> bool:
+        """Validate the OBS connection is still alive."""
+        if not self._client_req:
+            return False
+            
+        try:
+            # Try a simple request to check connection
+            self._client_req.get_version()
+            return True
+        except Exception as e:
+            logger.debug(f"OBS connection validation failed: {e}")
+            self._client_req = None
+            self._client_event = None
+            await self._schedule_reconnect()
+            return False
 
     def _register_callbacks(self):
         """Register event callbacks."""
@@ -313,6 +329,11 @@ class OBSService:
                 "obs.streaming.status", self._serialize_event_data(streaming_status)
             )
 
+        except (BrokenPipeError, ConnectionError, OSError) as e:
+            logger.warning(f"Lost connection to OBS during state broadcast: {e}")
+            self._client_req = None
+            self._client_event = None
+            await self._schedule_reconnect()
         except Exception as e:
             logger.error(f"Error broadcasting current state: {e}")
 
@@ -345,11 +366,27 @@ class OBSService:
                 "connected": True,
             }
 
+        except (BrokenPipeError, ConnectionError, OSError) as e:
+            # Connection lost - force reconnection
+            logger.warning(f"OBS connection lost: {e}. Attempting reconnection...")
+            self._client_req = None
+            self._client_event = None
+            await self._schedule_reconnect()
+            return {"message": "OBS reconnecting", "connected": False}
         except json.JSONDecodeError as e:
             # This happens when OBS returns invalid/empty JSON
             logger.debug(f"OBS returned invalid JSON: {e}")
             return {"message": "OBS not connected", "connected": False}
         except Exception as e:
+            # Check if it's a connection-related error
+            error_msg = str(e).lower()
+            if "broken pipe" in error_msg or "connection" in error_msg:
+                logger.warning(f"OBS connection error detected: {e}. Reconnecting...")
+                self._client_req = None
+                self._client_event = None
+                await self._schedule_reconnect()
+                return {"message": "OBS reconnecting", "connected": False}
+            
             logger.error(f"Error getting current OBS state: {e}")
             return {"message": "OBS state unavailable", "connected": False}
 
