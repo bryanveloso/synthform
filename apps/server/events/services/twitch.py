@@ -243,9 +243,22 @@ class TwitchEventHandler:
         await self._create_event_from_payload("channel.prediction.end", payload)
 
     # Ad break events
-    async def handle_ad_break(self, payload):
+    async def event_ad_break(self, payload):
         """Handle ad break events from TwitchIO."""
         await self._create_event_from_payload("channel.ad_break.begin", payload)
+
+    # Goal events
+    async def event_goal_begin(self, payload):
+        """Handle goal begin events."""
+        await self._create_event_from_payload("channel.goal.begin", payload)
+
+    async def event_goal_progress(self, payload):
+        """Handle goal progress events."""
+        await self._create_event_from_payload("channel.goal.progress", payload)
+
+    async def event_goal_end(self, payload):
+        """Handle goal end events."""
+        await self._create_event_from_payload("channel.goal.end", payload)
 
     # Charity events
     async def event_charity_campaign_donate(self, payload):
@@ -254,8 +267,14 @@ class TwitchEventHandler:
             "channel.charity_campaign.donate", payload
         )
 
+    async def event_charity_donation(self, payload):
+        """Handle charity donation events."""
+        await self._create_event_from_payload(
+            "channel.charity_campaign.donate", payload
+        )
+
     # Hype Train events
-    async def event_hype_train(self, payload):
+    async def event_hype_train_begin(self, payload):
         """Handle hype train begin events."""
         await self._create_event_from_payload("channel.hype_train.begin", payload)
 
@@ -284,6 +303,10 @@ class TwitchEventHandler:
     async def event_shoutout_create(self, payload):
         """Handle shoutout create events."""
         await self._create_event_from_payload("channel.shoutout.create", payload)
+
+    async def event_shoutout_receive(self, payload):
+        """Handle shoutout receive events."""
+        await self._create_event_from_payload("channel.shoutout.receive", payload)
 
     # VIP events
     async def event_vip_add(self, payload):

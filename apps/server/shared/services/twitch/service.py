@@ -475,32 +475,32 @@ class TwitchService(twitchio.Client):
     async def event_poll_begin(self, payload):
         """Delegate poll begin events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_poll_begin, payload, "poll_begin"
+            self._event_handler.event_poll_begin, payload, "poll_begin"
         )
 
     async def event_poll_progress(self, payload):
         """Delegate poll progress events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_poll_progress, payload, "poll_progress"
+            self._event_handler.event_poll_progress, payload, "poll_progress"
         )
 
     async def event_poll_end(self, payload):
         """Delegate poll end events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_poll_end, payload, "poll_end"
+            self._event_handler.event_poll_end, payload, "poll_end"
         )
 
     # Prediction event delegation
     async def event_prediction_begin(self, payload):
         """Delegate prediction begin events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_prediction_begin, payload, "prediction_begin"
+            self._event_handler.event_prediction_begin, payload, "prediction_begin"
         )
 
     async def event_prediction_progress(self, payload):
         """Delegate prediction progress events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_prediction_progress,
+            self._event_handler.event_prediction_progress,
             payload,
             "prediction_progress",
         )
@@ -508,26 +508,26 @@ class TwitchService(twitchio.Client):
     async def event_prediction_lock(self, payload):
         """Delegate prediction lock events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_prediction_lock, payload, "prediction_lock"
+            self._event_handler.event_prediction_lock, payload, "prediction_lock"
         )
 
     async def event_prediction_end(self, payload):
         """Delegate prediction end events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_prediction_end, payload, "prediction_end"
+            self._event_handler.event_prediction_end, payload, "prediction_end"
         )
 
     # Hype Train event delegation
     async def event_hype_train(self, payload):
         """Delegate hype train begin events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_hype_train_begin, payload, "hype_train_begin"
+            self._event_handler.event_hype_train_begin, payload, "hype_train_begin"
         )
 
     async def event_hype_train_progress(self, payload):
         """Delegate hype train progress events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_hype_train_progress,
+            self._event_handler.event_hype_train_progress,
             payload,
             "hype_train_progress",
         )
@@ -535,66 +535,66 @@ class TwitchService(twitchio.Client):
     async def event_hype_train_end(self, payload):
         """Delegate hype train end events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_hype_train_end, payload, "hype_train_end"
+            self._event_handler.event_hype_train_end, payload, "hype_train_end"
         )
 
     # Goal event delegation
     async def event_goal_begin(self, payload):
         """Delegate goal begin events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_goal_begin, payload, "goal_begin"
+            self._event_handler.event_goal_begin, payload, "goal_begin"
         )
 
     async def event_goal_progress(self, payload):
         """Delegate goal progress events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_goal_progress, payload, "goal_progress"
+            self._event_handler.event_goal_progress, payload, "goal_progress"
         )
 
     async def event_goal_end(self, payload):
         """Delegate goal end events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_goal_end, payload, "goal_end"
+            self._event_handler.event_goal_end, payload, "goal_end"
         )
 
     # Charity event delegation
     async def event_charity_campaign_donate(self, payload):
         """Delegate charity donation events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_charity_donation, payload, "charity_donation"
+            self._event_handler.event_charity_donation, payload, "charity_donation"
         )
 
     # Shoutout event delegation
     async def event_shoutout_create(self, payload):
         """Delegate shoutout create events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_shoutout_create, payload, "shoutout_create"
+            self._event_handler.event_shoutout_create, payload, "shoutout_create"
         )
 
     async def event_shoutout_receive(self, payload):
         """Delegate shoutout receive events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_shoutout_receive, payload, "shoutout_receive"
+            self._event_handler.event_shoutout_receive, payload, "shoutout_receive"
         )
 
     # VIP event delegation
     async def event_vip_add(self, payload):
         """Delegate VIP add events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_vip_add, payload, "vip_add"
+            self._event_handler.event_vip_add, payload, "vip_add"
         )
 
     async def event_vip_remove(self, payload):
         """Delegate VIP remove events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_vip_remove, payload, "vip_remove"
+            self._event_handler.event_vip_remove, payload, "vip_remove"
         )
 
     # Ad break event delegation
     async def event_ad_break(self, payload):
         """Delegate ad break events to handler."""
         await self._safe_delegate(
-            self._event_handler.handle_ad_break, payload, "ad_break"
+            self._event_handler.event_ad_break, payload, "ad_break"
         )
 
 
