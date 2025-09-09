@@ -472,7 +472,7 @@ class TwitchEventHandler:
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
             "tier": payload.tier,
-            "is_gift": payload.is_gift,
+            "is_gift": payload.gift,
             "broadcaster_user_id": payload.broadcaster.id
             if payload.broadcaster
             else None,
@@ -1865,8 +1865,14 @@ class TwitchEventHandler:
                 redis_key = "twitch:active_session"
                 session_id = await self._redis_client.get(redis_key)
                 if session_id:
+                    # Decode session_id from bytes to string
+                    session_id_str = (
+                        session_id.decode("utf-8")
+                        if isinstance(session_id, bytes)
+                        else session_id
+                    )
                     session = await sync_to_async(
-                        Session.objects.filter(id=session_id).first
+                        Session.objects.filter(id=session_id_str).first
                     )()
                     if session:
                         # Set expiry to 30 minutes from now
@@ -1877,7 +1883,7 @@ class TwitchEventHandler:
                         )
                     else:
                         logger.warning(
-                            f"Session {session_id} from Redis not found in database"
+                            f"Session {session_id_str} from Redis not found in database"
                         )
                         session = None
                 else:
