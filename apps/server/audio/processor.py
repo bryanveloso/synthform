@@ -86,8 +86,11 @@ class AudioProcessor:
         self.last_process_time = 0
 
         # Track processed segments to avoid duplicates and handle revisions
-        self.processed_segments = OrderedDict()  # Stores {start_time: text}
-        self.max_processed_segments = 20000
+        # Stores {start_time: {"text": str, "is_final": bool, "update_count": int}}
+        self.processed_segments = OrderedDict()
+        self.max_processed_segments = (
+            100  # Keep only recent segments (about 2.5 minutes)
+        )
 
     async def start(self, session_id: str = "default"):
         """Initialize the WhisperLive WebSocket connection."""
@@ -308,25 +311,86 @@ class AudioProcessor:
                 logger.info(f"WhisperLive server: {data['message']}")
             elif "segments" in data:
                 # WhisperLive sends cumulative segments array (all from beginning)
-                for segment in data.get("segments", []):
+                segments = data.get("segments", [])
+                if not segments:
+                    return
+
+                # Find the newest segment time to determine what's "old"
+                all_start_times = [
+                    s.get("start", 0) for s in segments if s.get("text", "").strip()
+                ]
+                if not all_start_times:
+                    return
+                newest_segment_time = max(all_start_times)
+
+                # Mark segments as final if they're not the most recent ones
+                # (WhisperLive typically refines the last 1-2 segments)
+                finality_threshold = (
+                    newest_segment_time - 3.0
+                )  # Segments older than 3 seconds are final
+
+                for segment in segments:
                     text = segment.get("text", "").strip()
                     if not text:
                         continue
 
                     start_time = segment.get("start", 0)
 
-                    # Skip if exact duplicate (same time and text)
-                    if self.processed_segments.get(start_time) == text:
-                        logger.debug(f"Skipping duplicate segment: start={start_time}")
+                    # Skip very old segments (likely from previous stream)
+                    if start_time < newest_segment_time - 30:
+                        logger.debug(
+                            f"Skipping old segment: start={start_time}, newest={newest_segment_time}"
+                        )
                         continue
 
-                    # This is a new segment or a revision of a previous one
-                    # Update our tracking and process it
-                    self.processed_segments[start_time] = text
-                    await self._handle_transcription(text, segment_id=start_time)
-                    logger.debug(
-                        f"Processing new/revised segment: start={start_time}, text='{text[:30]}...'"
-                    )
+                    # Determine if this segment should be considered final
+                    is_partial = start_time > finality_threshold
+
+                    # Check if we've already processed this segment
+                    if start_time in self.processed_segments:
+                        existing = self.processed_segments[start_time]
+
+                        # If the existing segment is final, never update it
+                        if existing["is_final"]:
+                            logger.debug(f"Skipping final segment: start={start_time}")
+                            continue
+
+                        # If text hasn't changed, just update finality if needed
+                        if existing["text"] == text:
+                            if not is_partial and not existing["is_final"]:
+                                existing["is_final"] = True
+                                logger.debug(
+                                    f"Marking segment as final: start={start_time}"
+                                )
+                            continue
+
+                        # Text has changed and segment is still partial - update it
+                        existing["text"] = text
+                        existing["update_count"] += 1
+                        existing["is_final"] = not is_partial
+
+                        # Send the update
+                        await self._handle_transcription(
+                            text, segment_id=start_time, is_partial=is_partial
+                        )
+                        logger.debug(
+                            f"Updating {'partial' if is_partial else 'final'} segment: "
+                            f"start={start_time}, updates={existing['update_count']}"
+                        )
+                    else:
+                        # New segment - add and send it
+                        self.processed_segments[start_time] = {
+                            "text": text,
+                            "is_final": not is_partial,
+                            "update_count": 0,
+                        }
+                        await self._handle_transcription(
+                            text, segment_id=start_time, is_partial=is_partial
+                        )
+                        logger.debug(
+                            f"Processing NEW {'partial' if is_partial else 'final'} segment: "
+                            f"start={start_time}, text='{text[:30]}...'"
+                        )
 
                     # Enforce memory bound: remove oldest entry if we exceed max size
                     if len(self.processed_segments) > self.max_processed_segments:
@@ -370,12 +434,16 @@ class AudioProcessor:
         indices = np.linspace(0, len(audio) - 1, target_length)
         return np.interp(indices, np.arange(len(audio)), audio)
 
-    async def _handle_transcription(self, text: str, segment_id: float = None):
+    async def _handle_transcription(
+        self, text: str, segment_id: float = None, is_partial: bool = False
+    ):
         """Handle transcription results from WhisperLive."""
         if not text or not text.strip():
             return
 
-        logger.info(f"Transcription: {text[:50]}...")
+        logger.info(
+            f"Transcription ({'partial' if is_partial else 'final'}): {text[:50]}..."
+        )
 
         # Create transcription event object (matches original Phononmaser format)
         event = TranscriptionEvent(
@@ -383,6 +451,7 @@ class AudioProcessor:
             timestamp=time.time(),
             duration=1.5,  # Approximate chunk duration
             segment_id=segment_id,  # WhisperLive segment start time
+            is_partial=is_partial,
         )
 
         # Call external transcription callback if set
@@ -424,6 +493,7 @@ class AudioProcessor:
                 "text": event.text,
                 "duration": event.duration,
                 "segment_id": event.segment_id,
+                "is_partial": event.is_partial,
             },
         )
 
@@ -435,6 +505,7 @@ class AudioProcessor:
                 "timestamp": timestamp_ms,
                 "text": event.text,
                 "segment_id": event.segment_id,
+                "is_partial": event.is_partial,
             },
         )
 
@@ -448,11 +519,13 @@ class TranscriptionEvent:
         timestamp: float,
         duration: float = 1.5,
         segment_id: float = None,
+        is_partial: bool = False,
     ):
         self.text = text
         self.timestamp = timestamp
         self.duration = duration
         self.segment_id = segment_id
+        self.is_partial = is_partial
 
 
 # Global processor instances per session

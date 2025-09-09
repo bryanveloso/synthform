@@ -292,8 +292,13 @@ class CaptionsConsumer(AsyncWebsocketConsumer):
                     "data": {
                         "text": event["text"],
                         "confidence": event.get("confidence", 0.95),
-                        "is_final": True,
+                        "is_final": not event.get(
+                            "is_partial", False
+                        ),  # Use actual partial state
                         "timestamp": event["timestamp"],  # Already in milliseconds
+                        "segment_id": event.get(
+                            "segment_id"
+                        ),  # Include segment ID for tracking
                     },
                 }
             )
