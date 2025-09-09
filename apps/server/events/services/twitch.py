@@ -1739,9 +1739,10 @@ class TwitchEventHandler:
 
             limit_break_data = {
                 "count": count,
-                "bars": {"bar1": bar1_fill, "bar2": bar2_fill, "bar3": bar3_fill},
-                "is_maxed": is_maxed,
-                "sound_trigger": count >= 100,  # Trigger sound when hitting 100
+                "bar1": bar1_fill,
+                "bar2": bar2_fill,
+                "bar3": bar3_fill,
+                "isMaxed": is_maxed,
             }
 
             # Publish to Redis for overlay consumers
