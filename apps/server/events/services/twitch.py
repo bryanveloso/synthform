@@ -392,13 +392,13 @@ class TwitchEventHandler:
             "reply": {
                 "parent_message_id": payload.reply.parent_message_id,
                 "parent_message_body": payload.reply.parent_message_body,
-                "parent_user_id": payload.reply.parent_user_id,
-                "parent_user_name": payload.reply.parent_user_name,
-                "parent_user_login": payload.reply.parent_user_login,
+                "parent_user_id": payload.reply.parent_user.id,
+                "parent_user_name": payload.reply.parent_user.name,
+                "parent_user_login": payload.reply.parent_user.name,
                 "thread_message_id": payload.reply.thread_message_id,
-                "thread_user_id": payload.reply.thread_user_id,
-                "thread_user_name": payload.reply.thread_user_name,
-                "thread_user_login": payload.reply.thread_user_login,
+                "thread_user_id": payload.reply.thread_user.id,
+                "thread_user_name": payload.reply.thread_user.name,
+                "thread_user_login": payload.reply.thread_user.name,
             }
             if payload.reply
             else None,
@@ -574,7 +574,7 @@ class TwitchEventHandler:
             if payload.chatter
             else None,
             "chatter_is_anonymous": getattr(payload, "chatter_is_anonymous", False),
-            "color": getattr(payload, "color", None),
+            "color": str(payload.colour) if payload.colour else None,
             "badges": [
                 {
                     "set_id": badge.set_id,
@@ -756,34 +756,23 @@ class TwitchEventHandler:
 
     async def _handle_channel_subscription_gift(self, event_type: str, payload):
         """Handle ChannelSubscriptionGift payload with its specific structure."""
-        # Get recipient information from subscription_data instead of using gifter as primary user
-        recipient = (
-            payload.subscription_data.user if payload.subscription_data else None
-        )
-
+        # ChannelSubscriptionGift is for bulk gifts, not individual recipients
+        # The gifter is the primary user
         payload_dict = {
-            # Primary user should be the recipient, not the gifter
-            "user_id": recipient.id if recipient else None,
-            "user_name": recipient.name if recipient else None,
-            "user_login": (await recipient.user()).name if recipient else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if payload.broadcaster
-            else None,
-            "total": payload.total if hasattr(payload, "total") else None,
-            "tier": payload.tier if hasattr(payload, "tier") else None,
+            "user_id": payload.user.id if payload.user else None,
+            "user_name": payload.user.name if payload.user else None,
+            "user_login": payload.user.name if payload.user else None,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "broadcaster_user_login": payload.broadcaster.name,
+            "total": payload.total,
+            "tier": payload.tier,
             "cumulative_total": payload.cumulative_total
             if hasattr(payload, "cumulative_total")
             else None,
             "is_anonymous": payload.is_anonymous
             if hasattr(payload, "is_anonymous")
-            else None,
-            # Keep gifter information for tracking purposes
-            "gifter_id": payload.user.id if payload.user else None,
-            "gifter_name": payload.user.name if payload.user else None,
-            "gifter_login": (await payload.user.user()).name if payload.user else None,
+            else False,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
