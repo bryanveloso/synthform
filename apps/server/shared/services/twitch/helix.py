@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Optional
 
@@ -23,9 +24,22 @@ class HelixService:
         self._client: Optional[twitchio.Client] = None
         self._broadcaster: Optional[twitchio.User] = None
         self._broadcaster_id: Optional[str] = None
+        self._init_lock = asyncio.Lock()
+        self._initialized = False
 
     async def initialize(self) -> bool:
         """Initialize the Helix client with authentication."""
+        async with self._init_lock:
+            if self._initialized and self._client and self._broadcaster:
+                return True
+
+            if self._client:
+                try:
+                    await self._client.close()
+                except Exception:
+                    pass
+                self._client = None
+
         from authentication.services import AuthService
 
         try:
@@ -75,6 +89,7 @@ class HelixService:
                 return False
 
             self._broadcaster = users[0]
+            self._initialized = True
             logger.info(
                 f"Helix service initialized for broadcaster: {self._broadcaster.name} (ID: {self._broadcaster_id})"
             )
@@ -82,6 +97,13 @@ class HelixService:
 
         except Exception as e:
             logger.error(f"Error initializing Helix service: {e}", exc_info=True)
+            if self._client:
+                try:
+                    await self._client.close()
+                except Exception:
+                    pass
+                self._client = None
+            self._initialized = False
             return False
 
     async def get_reward_redemption_count(self, reward_id: str) -> int:
@@ -94,8 +116,8 @@ class HelixService:
             The number of pending redemptions in the queue
         """
         if not self._broadcaster:
-            await self.initialize()
-            if not self._broadcaster:
+            initialized = await self.initialize()
+            if not initialized or not self._broadcaster:
                 raise RuntimeError(
                     "Helix service failed to initialize - cannot fetch reward redemptions"
                 )
@@ -181,6 +203,7 @@ class HelixService:
                 self._client = None
                 self._broadcaster = None
                 self._broadcaster_id = None
+                self._initialized = False
                 logger.info("Helix service closed")
 
 

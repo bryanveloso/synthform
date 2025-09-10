@@ -580,9 +580,7 @@ class TwitchService(twitchio.Client):
     # VIP event delegation
     async def event_vip_add(self, payload):
         """Delegate VIP add events to handler."""
-        await self._safe_delegate(
-            self._event_handler.event_vip_add, payload, "vip_add"
-        )
+        await self._safe_delegate(self._event_handler.event_vip_add, payload, "vip_add")
 
     async def event_vip_remove(self, payload):
         """Delegate VIP remove events to handler."""

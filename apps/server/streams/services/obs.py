@@ -161,12 +161,12 @@ class OBSService:
 
         if self._running:
             await self._connect()
-    
+
     async def _validate_connection(self) -> bool:
         """Validate the OBS connection is still alive."""
         if not self._client_req:
             return False
-            
+
         try:
             # Try a simple request to check connection
             self._client_req.get_version()
@@ -386,7 +386,7 @@ class OBSService:
                 self._client_event = None
                 await self._schedule_reconnect()
                 return {"message": "OBS reconnecting", "connected": False}
-            
+
             logger.error(f"Error getting current OBS state: {e}")
             return {"message": "OBS state unavailable", "connected": False}
 
