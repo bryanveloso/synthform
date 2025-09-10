@@ -99,6 +99,7 @@ class TwitchEventHandler:
             eventsub_.ShoutoutCreate: self._handle_shoutout_create,
         }
 
+    # Public event methods for TwitchIO integration
     async def event_follow(self, payload):
         """Handle channel follow events."""
         await self._create_event_from_payload("channel.follow", payload)
@@ -110,6 +111,14 @@ class TwitchEventHandler:
     async def event_subscription_gift(self, payload):
         """Handle channel subscription gift events."""
         await self._create_event_from_payload("channel.subscription.gift", payload)
+
+    async def event_subscription_end(self, payload):
+        """Handle channel subscription end events."""
+        await self._create_event_from_payload("channel.subscription.end", payload)
+
+    async def event_subscription_message(self, payload):
+        """Handle channel subscription message events."""
+        await self._create_event_from_payload("channel.subscription.message", payload)
 
     async def event_cheer(self, payload):
         """Handle channel cheer events."""
@@ -139,16 +148,6 @@ class TwitchEventHandler:
         """Handle channel update events."""
         await self._create_event_from_payload("channel.update", payload)
 
-    # Additional subscription events
-    async def event_subscription_end(self, payload):
-        """Handle channel subscription end events."""
-        await self._create_event_from_payload("channel.subscription.end", payload)
-
-    async def event_subscription_message(self, payload):
-        """Handle channel subscription message events."""
-        await self._create_event_from_payload("channel.subscription.message", payload)
-
-    # Chat events
     async def event_chat_clear(self, payload):
         """Handle chat clear events."""
         await self._create_event_from_payload("channel.chat.clear", payload)
@@ -171,7 +170,6 @@ class TwitchEventHandler:
         """Handle chat notification events."""
         await self._create_event_from_payload("channel.chat.notification", payload)
 
-    # Channel Points events
     async def event_custom_reward_add(self, payload):
         """Handle channel points reward add events."""
         await self._create_event_from_payload(
@@ -206,13 +204,6 @@ class TwitchEventHandler:
         # Check if this is a limit break reward redemption
         await self._handle_limit_break_update(payload)
 
-    async def event_automatic_redemption_add(self, payload):
-        """Handle automatic redemption add events."""
-        await self._create_event_from_payload(
-            "channel.channel_points_automatic_reward_redemption.add", payload
-        )
-
-    # Poll events
     async def event_poll_begin(self, payload):
         """Handle poll begin events."""
         await self._create_event_from_payload("channel.poll.begin", payload)
@@ -225,7 +216,6 @@ class TwitchEventHandler:
         """Handle poll end events."""
         await self._create_event_from_payload("channel.poll.end", payload)
 
-    # Prediction events
     async def event_prediction_begin(self, payload):
         """Handle prediction begin events."""
         await self._create_event_from_payload("channel.prediction.begin", payload)
@@ -242,38 +232,6 @@ class TwitchEventHandler:
         """Handle prediction end events."""
         await self._create_event_from_payload("channel.prediction.end", payload)
 
-    # Ad break events
-    async def event_ad_break(self, payload):
-        """Handle ad break events from TwitchIO."""
-        await self._create_event_from_payload("channel.ad_break.begin", payload)
-
-    # Goal events
-    async def event_goal_begin(self, payload):
-        """Handle goal begin events."""
-        await self._create_event_from_payload("channel.goal.begin", payload)
-
-    async def event_goal_progress(self, payload):
-        """Handle goal progress events."""
-        await self._create_event_from_payload("channel.goal.progress", payload)
-
-    async def event_goal_end(self, payload):
-        """Handle goal end events."""
-        await self._create_event_from_payload("channel.goal.end", payload)
-
-    # Charity events
-    async def event_charity_campaign_donate(self, payload):
-        """Handle charity campaign donation events."""
-        await self._create_event_from_payload(
-            "channel.charity_campaign.donate", payload
-        )
-
-    async def event_charity_donation(self, payload):
-        """Handle charity donation events."""
-        await self._create_event_from_payload(
-            "channel.charity_campaign.donate", payload
-        )
-
-    # Hype Train events
     async def event_hype_train_begin(self, payload):
         """Handle hype train begin events."""
         await self._create_event_from_payload("channel.hype_train.begin", payload)
@@ -286,7 +244,6 @@ class TwitchEventHandler:
         """Handle hype train end events."""
         await self._create_event_from_payload("channel.hype_train.end", payload)
 
-    # Goal events
     async def event_goal_begin(self, payload):
         """Handle goal begin events."""
         await self._create_event_from_payload("channel.goal.begin", payload)
@@ -299,16 +256,10 @@ class TwitchEventHandler:
         """Handle goal end events."""
         await self._create_event_from_payload("channel.goal.end", payload)
 
-    # Shoutout events
-    async def event_shoutout_create(self, payload):
-        """Handle shoutout create events."""
-        await self._create_event_from_payload("channel.shoutout.create", payload)
+    async def event_ad_break(self, payload):
+        """Handle ad break events."""
+        await self._create_event_from_payload("channel.ad_break.begin", payload)
 
-    async def event_shoutout_receive(self, payload):
-        """Handle shoutout receive events."""
-        await self._create_event_from_payload("channel.shoutout.receive", payload)
-
-    # VIP events
     async def event_vip_add(self, payload):
         """Handle VIP add events."""
         await self._create_event_from_payload("channel.vip.add", payload)
@@ -317,337 +268,114 @@ class TwitchEventHandler:
         """Handle VIP remove events."""
         await self._create_event_from_payload("channel.vip.remove", payload)
 
-    # Ad break events
-    async def event_ad_break(self, payload):
-        """Handle ad break events."""
-        await self._create_event_from_payload("channel.ad_break.begin", payload)
+    async def event_shoutout_create(self, payload):
+        """Handle shoutout create events."""
+        await self._create_event_from_payload("channel.shoutout.create", payload)
 
     async def _create_event_from_payload(self, event_type: str, payload):
         """Dispatcher - route to type-specific handler based on payload class."""
-        try:
-            payload_class = type(payload)
+        payload_class = type(payload)
+        logger.info(
+            f"Processing {event_type} with payload class: {payload_class.__name__}"
+        )
+
+        # Find the appropriate handler for this payload type
+        handler = self.EVENT_HANDLERS.get(payload_class)
+        if handler:
             logger.info(
-                f"Processing {event_type} with payload class: {payload_class.__name__}"
+                f"Found handler for {payload_class.__name__}: {handler.__name__}"
+            )
+            return await handler(event_type, payload)
+        else:
+            logger.error(f"No handler found for payload type: {payload_class.__name__}")
+            logger.error(
+                f"Available handlers: {[cls.__name__ for cls in self.EVENT_HANDLERS.keys()]}"
             )
 
-            # Find the appropriate handler for this payload type
-            handler = self.EVENT_HANDLERS.get(payload_class)
-            if handler:
-                logger.info(
-                    f"Found handler for {payload_class.__name__}: {handler.__name__}"
-                )
-                return await handler(event_type, payload)
-            else:
-                # Log available handlers for debugging
-                available_handlers = list(self.EVENT_HANDLERS.keys())
-                logger.error(
-                    f"No handler found for payload type: {payload_class.__name__}"
-                )
-                logger.error(
-                    f"Available handlers: {[cls.__name__ for cls in available_handlers]}"
-                )
-
-                # Fallback to generic extraction as last resort
-                logger.warning(
-                    f"Using fallback generic extraction for {payload_class.__name__}"
-                )
-                return await self._handle_unknown_payload(event_type, payload)
-
-        except Exception as e:
-            logger.error(f"Error in dispatcher for {event_type}: {e}")
-
-    # Type-specific payload handlers (these will be filled in from the original file)
-    # Due to the length, I'm including a representative sample. The full implementation
-    # would include all the handler methods from the original file.
-
+    # Type-specific payload handlers - trust TwitchIO's structure
     async def _handle_chat_message(self, event_type: str, payload):
-        """Handle ChatMessage payload with its specific structure."""
+        """Handle ChatMessage payload."""
         payload_dict = {
             "id": payload.id,
             "text": payload.text,
             "type": payload.type,
-            "broadcaster_user_id": payload.broadcaster.id
-            if payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if payload.broadcaster
-            else None,
-            "user_id": payload.chatter.id if payload.chatter else None,
-            "user_name": payload.chatter.name if payload.chatter else None,
-            "user_display_name": payload.chatter.display_name
-            if payload.chatter
-            else None,
-            "colour": str(payload.colour) if payload.colour else None,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "user_id": payload.chatter.id,
+            "user_name": payload.chatter.name,
+            "user_display_name": payload.chatter.display_name,
+            "colour": str(payload.colour),
             "badges": [
                 {"set_id": badge.set_id, "id": badge.id, "info": badge.info}
                 for badge in payload.badges
-            ]
-            if payload.badges
-            else [],
+            ],
             "fragments": [
                 {
                     "type": fragment.type,
                     "text": fragment.text,
-                    "cheermote": {
-                        "prefix": fragment.cheermote.prefix,
-                        "bits": fragment.cheermote.bits,
-                        "tier": fragment.cheermote.tier,
-                    }
-                    if hasattr(fragment, "cheermote") and fragment.cheermote
-                    else None,
-                    "emote": {
-                        "id": fragment.emote.id,
-                        "set_id": fragment.emote.set_id,
-                        "format": fragment.emote.format,
-                    }
-                    if hasattr(fragment, "emote") and fragment.emote
-                    else None,
-                    "mention": {
-                        "user_id": fragment.mention.id,
-                        "user_name": fragment.mention.name,
-                        "user_login": fragment.mention.name,
-                    }
-                    if hasattr(fragment, "mention") and fragment.mention
-                    else None,
                 }
                 for fragment in payload.fragments
             ],
-            "reply": {
-                "parent_message_id": payload.reply.parent_message_id,
-                "parent_message_body": payload.reply.parent_message_body,
-                "parent_user_id": payload.reply.parent_user.id,
-                "parent_user_name": payload.reply.parent_user.name,
-                "parent_user_login": payload.reply.parent_user.name,
-                "thread_message_id": payload.reply.thread_message_id,
-                "thread_user_id": payload.reply.thread_user.id,
-                "thread_user_name": payload.reply.thread_user.name,
-                "thread_user_login": payload.reply.thread_user.name,
-            }
-            if payload.reply
-            else None,
-            "cheer": {
-                "bits": payload.cheer.bits,
-            }
-            if payload.cheer
-            else None,
-            "subscriber": getattr(payload.chatter, "subscriber", False)
-            if payload.chatter
-            else False,
-            "moderator": getattr(payload.chatter, "moderator", False)
-            if payload.chatter
-            else False,
-            "broadcaster": getattr(payload.chatter, "broadcaster", False)
-            if payload.chatter
-            else False,
+            "subscriber": payload.chatter.subscriber,
+            "moderator": payload.chatter.moderator,
+            "broadcaster": payload.chatter.broadcaster,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChatMessage: {payload.text[:50]}... from {payload.chatter.display_name if payload.chatter else 'Unknown'}"
+            f"Processed ChatMessage: {payload.text[:50]}... from {payload.chatter.display_name}"
         )
 
-    async def _handle_channel_follow(self, event_type: str, payload):
-        """Handle ChannelFollow payload with its specific structure."""
-        payload_dict = {
-            "user_id": payload.user.id if payload.user else None,
-            "user_name": payload.user.name if payload.user else None,
-            "user_display_name": payload.user.display_name if payload.user else None,
-            "followed_at": payload.followed_at.isoformat()
-            if payload.followed_at
-            else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if payload.broadcaster
-            else None,
-            "timestamp": payload.timestamp.isoformat() if payload.timestamp else None,
-        }
-        member = await self._get_or_create_member_from_payload(payload)
-        event = await self._create_event(event_type, payload_dict, member)
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChannelFollow: {payload.user.display_name or payload.user.name} followed"
-        )
-
-    async def _handle_channel_cheer(self, event_type: str, payload):
-        """Handle ChannelCheer payload with its specific structure."""
-        payload_dict = {
-            "bits": payload.bits,
-            "message": payload.message,
-            "is_anonymous": payload.is_anonymous,
-            "user_id": payload.user.id if payload.user else None,
-            "user_name": payload.user.name if payload.user else None,
-            "broadcaster_user_id": payload.broadcaster.id,
-            "broadcaster_user_name": payload.broadcaster.name,
-        }
-        member = await self._get_or_create_member_from_payload(payload)
-        event = await self._create_event(event_type, payload_dict, member)
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChannelCheer: {payload.bits} bits from {payload.user.name if payload.user else 'Anonymous'}"
-        )
-
-    async def _handle_channel_subscribe(self, event_type: str, payload):
-        """Handle ChannelSubscribe payload with its specific structure."""
-        payload_dict = {
-            "user_id": payload.user.id if payload.user else None,
-            "user_name": payload.user.name if payload.user else None,
-            "tier": payload.tier,
-            "is_gift": payload.gift,
-            "broadcaster_user_id": payload.broadcaster.id
-            if payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if payload.broadcaster
-            else None,
-        }
-        member = await self._get_or_create_member_from_payload(payload)
-        event = await self._create_event(event_type, payload_dict, member)
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChannelSubscribe: {payload.user_name} subscribed (tier {payload.tier})"
-        )
-
-    async def _handle_channel_raid(self, event_type: str, payload):
-        """Handle ChannelRaid payload with its specific structure."""
-        payload_dict = {
-            "from_broadcaster_user_id": payload.from_broadcaster.id,
-            "from_broadcaster_user_name": payload.from_broadcaster.name,
-            "to_broadcaster_user_id": payload.to_broadcaster.id,
-            "to_broadcaster_user_name": payload.to_broadcaster.name,
-            "viewers": payload.viewers,
-        }
-        member = await self._get_or_create_member_from_payload(payload)
-        event = await self._create_event(event_type, payload_dict, member)
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChannelRaid: {payload.from_broadcaster.name} raided with {payload.viewers} viewers"
-        )
-
-    async def _handle_stream_online(self, event_type: str, payload):
-        """Handle StreamOnline payload with its specific structure."""
-        payload_dict = {
-            "id": payload.id,
-            "broadcaster_user_id": payload.broadcaster.id,
-            "broadcaster_user_name": payload.broadcaster.name,
-            "type": payload.type,
-            "started_at": payload.started_at.isoformat()
-            if payload.started_at
-            else None,
-            "game_id": getattr(payload, "game_id", None),
-            "game_name": getattr(payload, "game_name", None),
-        }
-        member = await self._get_or_create_member_from_payload(payload)
-        event = await self._create_event(event_type, payload_dict, member)
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(f"Processed StreamOnline: {payload.broadcaster.name} went live")
-
-    async def _handle_stream_offline(self, event_type: str, payload):
-        """Handle StreamOffline payload with its specific structure."""
-        payload_dict = {
-            "broadcaster_user_id": payload.broadcaster.id,
-            "broadcaster_user_name": payload.broadcaster.name,
-        }
-        member = await self._get_or_create_member_from_payload(payload)
-        event = await self._create_event(event_type, payload_dict, member)
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(f"Processed StreamOffline: {payload.broadcaster.name} went offline")
-
-    async def _handle_unknown_payload(self, event_type: str, payload):
-        """Fallback handler for unknown payload types."""
-        logger.warning(
-            f"Using fallback handler for unknown payload type: {type(payload).__name__}"
-        )
-
-        # Extract basic attributes as fallback
-        payload_dict = {}
-        for attr_name in dir(payload):
-            if attr_name.startswith("_") or callable(getattr(payload, attr_name, None)):
-                continue
-            try:
-                value = getattr(payload, attr_name)
-                if value is not None and isinstance(value, str | int | float | bool):
-                    payload_dict[attr_name] = value
-                elif hasattr(value, "isoformat"):  # datetime
-                    payload_dict[attr_name] = value.isoformat()
-                else:
-                    payload_dict[attr_name] = str(value)
-            except Exception:
-                continue
-
-        member = await self._get_or_create_member_from_payload(payload)
-        event = await self._create_event(event_type, payload_dict, member)
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed unknown payload type {type(payload).__name__} with fallback handler"
-        )
-
-    # Type-specific event handlers - each knows its payload structure
     async def _handle_chat_notification(self, event_type: str, payload):
-        """Handle ChatNotification payload with its specific structure."""
+        """Handle ChatNotification payload."""
         payload_dict = {
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
-            "chatter_user_id": payload.chatter.id if payload.chatter else None,
-            "chatter_user_name": payload.chatter.name if payload.chatter else None,
-            "chatter_user_login": payload.chatter.name if payload.chatter else None,
-            "chatter_display_name": payload.chatter.display_name
-            if payload.chatter
-            else None,
-            "chatter_is_anonymous": getattr(payload, "chatter_is_anonymous", False),
-            "color": str(payload.colour) if payload.colour else None,
+            "chatter_user_id": payload.chatter.id,
+            "chatter_user_name": payload.chatter.name,
+            "chatter_display_name": payload.chatter.display_name,
+            "chatter_is_anonymous": payload.anonymous,
+            "color": str(payload.colour),
             "badges": [
-                {
-                    "set_id": badge.set_id,
-                    "id": badge.id,
-                    "info": getattr(badge, "info", None),
-                }
+                {"set_id": badge.set_id, "id": badge.id, "info": badge.info}
                 for badge in payload.badges
-            ]
-            if hasattr(payload, "badges") and payload.badges
-            else [],
-            "system_message": getattr(payload, "system_message", None),
-            "message_id": getattr(payload, "message_id", None),
+            ],
+            "system_message": payload.system_message,
+            "message_id": payload.id,
             "message": {
-                "text": payload.message.text,
+                "text": payload.text,
                 "fragments": [
-                    {"type": getattr(frag, "type", None), "text": frag.text}
-                    for frag in payload.message.fragments
-                ]
-                if hasattr(payload.message, "fragments") and payload.message.fragments
-                else [],
-            }
-            if hasattr(payload, "message") and payload.message
-            else None,
-            "notice_type": getattr(payload, "notice_type", None),
+                    {"type": frag.type, "text": frag.text} for frag in payload.fragments
+                ],
+            },
+            "notice_type": payload.notice_type,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChatNotification: {getattr(payload, 'notice_type', 'unknown')} from {payload.chatter.display_name if payload.chatter else 'Anonymous'}"
+            f"Processed ChatNotification: {payload.notice_type} from {payload.chatter.display_name}"
         )
 
     async def _handle_chat_message_delete(self, event_type: str, payload):
-        """Handle ChatMessageDelete payload with its specific structure."""
+        """Handle ChatMessageDelete payload."""
         payload_dict = {
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
-            "target_user_id": payload.target_user.id,
-            "target_user_name": payload.target_user.name,
+            "target_user_id": payload.user.id,
+            "target_user_name": payload.user.name,
             "message_id": payload.message_id,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChatMessageDelete: Message from {payload.target_user.name} deleted"
+            f"Processed ChatMessageDelete: Message from {payload.user.name} deleted"
         )
 
     async def _handle_chat_clear(self, event_type: str, payload):
-        """Handle ChannelChatClear payload with its specific structure."""
+        """Handle ChannelChatClear payload."""
         payload_dict = {
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
@@ -660,22 +388,37 @@ class TwitchEventHandler:
         )
 
     async def _handle_chat_clear_user(self, event_type: str, payload):
-        """Handle ChannelChatClearUserMessages payload with its specific structure."""
+        """Handle ChannelChatClearUserMessages payload."""
         payload_dict = {
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
-            "target_user_id": payload.target_user.id,
-            "target_user_name": payload.target_user.name,
+            "target_user_id": payload.user.id,
+            "target_user_name": payload.user.name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelChatClearUserMessages: Messages from {payload.target_user.name} cleared"
+            f"Processed ChannelChatClearUserMessages: Messages from {payload.user.name} cleared"
         )
 
+    async def _handle_channel_follow(self, event_type: str, payload):
+        """Handle ChannelFollow payload."""
+        payload_dict = {
+            "user_id": payload.user.id,
+            "user_name": payload.user.name,
+            "user_display_name": payload.user.display_name,
+            "followed_at": payload.followed_at.isoformat(),
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+        }
+        member = await self._get_or_create_member_from_payload(payload)
+        event = await self._create_event(event_type, payload_dict, member)
+        await self._publish_to_redis(event_type, event, member, payload_dict)
+        logger.info(f"Processed ChannelFollow: {payload.user.display_name} followed")
+
     async def _handle_channel_update(self, event_type: str, payload):
-        """Handle ChannelUpdate payload with its specific structure."""
+        """Handle ChannelUpdate payload."""
         payload_dict = {
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
@@ -683,9 +426,7 @@ class TwitchEventHandler:
             "language": payload.language,
             "category_id": payload.category_id,
             "category_name": payload.category_name,
-            "content_classification_labels": getattr(
-                payload, "content_classification_labels", []
-            ),
+            "content_classification_labels": payload.content_classification_labels,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -694,267 +435,230 @@ class TwitchEventHandler:
             f"Processed ChannelUpdate: {payload.broadcaster.name} updated channel to '{payload.title}' in {payload.category_name}"
         )
 
-    async def _handle_channel_ban(self, event_type: str, payload):
-        """Handle ChannelBan payload with its specific structure."""
+    async def _handle_channel_cheer(self, event_type: str, payload):
+        """Handle ChannelCheer payload."""
         payload_dict = {
+            "bits": payload.bits,
+            "message": payload.message,
+            "is_anonymous": payload.anonymous,
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if payload.broadcaster
-            else None,
-            "moderator_user_id": payload.moderator.id if payload.moderator else None,
-            "moderator_user_name": payload.moderator.name
-            if payload.moderator
-            else None,
-            "reason": payload.reason if hasattr(payload, "reason") else None,
-            "banned_at": payload.banned_at.isoformat()
-            if hasattr(payload, "banned_at") and payload.banned_at
-            else None,
-            "ends_at": payload.ends_at.isoformat()
-            if hasattr(payload, "ends_at") and payload.ends_at
-            else None,
-            "is_permanent": payload.is_permanent
-            if hasattr(payload, "is_permanent")
-            else None,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        ban_type = (
-            "permanently"
-            if payload_dict.get("is_permanent")
-            else f"until {payload_dict.get('ends_at')}"
-        )
+        user_name = "Anonymous" if payload.anonymous else payload.user.name
+        logger.info(f"Processed ChannelCheer: {payload.bits} bits from {user_name}")
+
+    async def _handle_channel_raid(self, event_type: str, payload):
+        """Handle ChannelRaid payload."""
+        payload_dict = {
+            "from_broadcaster_user_id": payload.from_broadcaster.id,
+            "from_broadcaster_user_name": payload.from_broadcaster.name,
+            "to_broadcaster_user_id": payload.to_broadcaster.id,
+            "to_broadcaster_user_name": payload.to_broadcaster.name,
+            "viewers": payload.viewer_count,
+        }
+        member = await self._get_or_create_member_from_payload(payload)
+        event = await self._create_event(event_type, payload_dict, member)
+        await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelBan: {payload_dict.get('user_name')} banned {ban_type} by {payload_dict.get('moderator_user_name')}"
+            f"Processed ChannelRaid: {payload.from_broadcaster.name} raided with {payload.viewer_count} viewers"
+        )
+
+    async def _handle_channel_ban(self, event_type: str, payload):
+        """Handle ChannelBan payload."""
+        payload_dict = {
+            "user_id": payload.user.id,
+            "user_name": payload.user.name,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "moderator_user_id": payload.moderator.id,
+            "moderator_user_name": payload.moderator.name,
+            "reason": payload.reason,
+            "banned_at": payload.banned_at.isoformat(),
+            "ends_at": payload.ends_at.isoformat() if payload.ends_at else None,
+            "is_permanent": payload.permanent,
+        }
+        member = await self._get_or_create_member_from_payload(payload)
+        event = await self._create_event(event_type, payload_dict, member)
+        await self._publish_to_redis(event_type, event, member, payload_dict)
+        ban_type = "permanently" if payload.permanent else f"until {payload.ends_at}"
+        logger.info(
+            f"Processed ChannelBan: {payload.user.name} banned {ban_type} by {payload.moderator.name}"
         )
 
     async def _handle_channel_unban(self, event_type: str, payload):
-        """Handle ChannelUnban payload with its specific structure."""
+        """Handle ChannelUnban payload."""
         payload_dict = {
-            "user_id": payload.user.id if payload.user else None,
-            "user_name": payload.user.name if payload.user else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if payload.broadcaster
-            else None,
-            "moderator_user_id": payload.moderator.id if payload.moderator else None,
-            "moderator_user_name": payload.moderator.name
-            if payload.moderator
-            else None,
+            "user_id": payload.user.id,
+            "user_name": payload.user.name,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "moderator_user_id": payload.moderator.id,
+            "moderator_user_name": payload.moderator.name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelUnban: {payload_dict.get('user_name')} unbanned by {payload_dict.get('moderator_user_name')}"
+            f"Processed ChannelUnban: {payload.user.name} unbanned by {payload.moderator.name}"
+        )
+
+    async def _handle_channel_subscribe(self, event_type: str, payload):
+        """Handle ChannelSubscribe payload."""
+        payload_dict = {
+            "user_id": payload.user.id,
+            "user_name": payload.user.name,
+            "tier": payload.tier,
+            "is_gift": payload.gift,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+        }
+        member = await self._get_or_create_member_from_payload(payload)
+        event = await self._create_event(event_type, payload_dict, member)
+        await self._publish_to_redis(event_type, event, member, payload_dict)
+        logger.info(
+            f"Processed ChannelSubscribe: {payload.user.name} subscribed (tier {payload.tier})"
         )
 
     async def _handle_channel_subscription_end(self, event_type: str, payload):
-        """Handle ChannelSubscriptionEnd payload with its specific structure."""
+        """Handle ChannelSubscriptionEnd payload."""
         payload_dict = {
-            "user_id": payload.user.id if payload.user else None,
-            "user_name": payload.user.name if payload.user else None,
-            "user_login": (await payload.user.user()).name if payload.user else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if payload.broadcaster
-            else None,
-            "tier": payload.tier if hasattr(payload, "tier") else None,
-            "is_gift": payload.is_gift if hasattr(payload, "is_gift") else None,
+            "user_id": payload.user.id,
+            "user_name": payload.user.name,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "tier": payload.tier,
+            "is_gift": payload.gift,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelSubscriptionEnd: {payload_dict.get('user_name')}'s tier {payload_dict.get('tier')} subscription ended"
+            f"Processed ChannelSubscriptionEnd: {payload.user.name}'s tier {payload.tier} subscription ended"
         )
 
     async def _handle_channel_subscription_gift(self, event_type: str, payload):
-        """Handle ChannelSubscriptionGift payload with its specific structure."""
-        # ChannelSubscriptionGift is for bulk gifts, not individual recipients
-        # The gifter is the primary user
+        """Handle ChannelSubscriptionGift payload."""
         payload_dict = {
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
-            "user_login": payload.user.name if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
-            "broadcaster_user_login": payload.broadcaster.name,
             "total": payload.total,
             "tier": payload.tier,
-            "cumulative_total": payload.cumulative_total
-            if hasattr(payload, "cumulative_total")
-            else None,
-            "is_anonymous": payload.is_anonymous
-            if hasattr(payload, "is_anonymous")
-            else False,
+            "cumulative_total": payload.cumulative_total,
+            "is_anonymous": payload.anonymous,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        user_name = (
-            payload_dict.get("user_name")
-            if not payload_dict.get("is_anonymous")
-            else "Anonymous"
-        )
+        user_name = "Anonymous" if payload.anonymous else payload.user.name
         logger.info(
-            f"Processed ChannelSubscriptionGift: {payload_dict.get('total')} subs from {user_name}"
+            f"Processed ChannelSubscriptionGift: {payload.total} subs from {user_name}"
         )
 
     async def _handle_channel_subscription_message(self, event_type: str, payload):
-        """Handle ChannelSubscriptionMessage payload with its specific structure."""
+        """Handle ChannelSubscriptionMessage payload."""
         payload_dict = {
-            "user_id": payload.user.id if payload.user else None,
-            "user_name": payload.user.name if payload.user else None,
-            "user_login": (await payload.user.user()).name if payload.user else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if payload.broadcaster
-            else None,
-            "tier": payload.tier if hasattr(payload, "tier") else None,
-            "message": getattr(payload, "message", None),
-            "cumulative_months": payload.cumulative_months
-            if hasattr(payload, "cumulative_months")
-            else None,
-            "streak_months": payload.streak_months
-            if hasattr(payload, "streak_months")
-            else None,
-            "duration_months": payload.duration_months
-            if hasattr(payload, "duration_months")
-            else None,
+            "user_id": payload.user.id,
+            "user_name": payload.user.name,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "tier": payload.tier,
+            "message": payload.text,
+            "cumulative_months": payload.cumulative_months,
+            "streak_months": payload.streak_months,
+            "duration_months": payload.months,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelSubscriptionMessage: {payload_dict.get('user_name')} resubscribed for {payload_dict.get('cumulative_months')} months"
+            f"Processed ChannelSubscriptionMessage: {payload.user.name} resubscribed for {payload.cumulative_months} months"
         )
 
-    async def _handle_custom_reward_add(self, event_type: str, payload):
-        """Handle ChannelPointsCustomRewardAdd payload with its specific structure."""
-        reward = payload.reward if hasattr(payload, "reward") else payload
+    async def _handle_stream_online(self, event_type: str, payload):
+        """Handle StreamOnline payload."""
         payload_dict = {
-            "id": reward.id if hasattr(reward, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "is_enabled": reward.is_enabled if hasattr(reward, "is_enabled") else None,
-            "is_paused": reward.is_paused if hasattr(reward, "is_paused") else None,
-            "is_in_stock": reward.is_in_stock
-            if hasattr(reward, "is_in_stock")
-            else None,
-            "title": reward.title if hasattr(reward, "title") else None,
-            "cost": reward.cost if hasattr(reward, "cost") else None,
-            "prompt": reward.prompt if hasattr(reward, "prompt") else None,
-            "is_user_input_required": reward.is_user_input_required
-            if hasattr(reward, "is_user_input_required")
-            else None,
-            "should_redemptions_skip_request_queue": reward.should_redemptions_skip_request_queue
-            if hasattr(reward, "should_redemptions_skip_request_queue")
-            else None,
-            "max_per_stream": getattr(reward, "max_per_stream", None),
-            "max_per_user_per_stream": getattr(reward, "max_per_user_per_stream", None),
-            "background_color": getattr(reward, "background_color", None),
-            "image": getattr(reward, "image", None),
-            "default_image": getattr(reward, "default_image", None),
-            "global_cooldown_seconds": getattr(reward, "global_cooldown_seconds", None),
-            "cooldown_expires_at": getattr(reward, "cooldown_expires_at", None),
-            "redemptions_redeemed_current_stream": getattr(
-                reward, "redemptions_redeemed_current_stream", None
-            ),
+            "id": payload.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "type": payload.type,
+            "started_at": payload.started_at.isoformat(),
+        }
+        member = await self._get_or_create_member_from_payload(payload)
+        event = await self._create_event(event_type, payload_dict, member)
+        await self._publish_to_redis(event_type, event, member, payload_dict)
+        logger.info(f"Processed StreamOnline: {payload.broadcaster.name} went live")
+
+    async def _handle_stream_offline(self, event_type: str, payload):
+        """Handle StreamOffline payload."""
+        payload_dict = {
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+        }
+        member = await self._get_or_create_member_from_payload(payload)
+        event = await self._create_event(event_type, payload_dict, member)
+        await self._publish_to_redis(event_type, event, member, payload_dict)
+        logger.info(f"Processed StreamOffline: {payload.broadcaster.name} went offline")
+
+    async def _handle_custom_reward_add(self, event_type: str, payload):
+        """Handle ChannelPointsRewardAdd payload."""
+        payload_dict = {
+            "id": payload.reward.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "title": payload.reward.title,
+            "cost": payload.reward.cost,
+            "prompt": payload.reward.prompt,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPointsCustomRewardAdd: '{payload_dict.get('title')}' reward created for {payload_dict.get('cost')} points"
+            f"Processed ChannelPointsRewardAdd: '{payload.reward.title}' reward created for {payload.reward.cost} points"
         )
 
     async def _handle_custom_reward_update(self, event_type: str, payload):
-        """Handle ChannelPointsCustomRewardUpdate payload with its specific structure."""
-        reward = payload.reward if hasattr(payload, "reward") else payload
+        """Handle ChannelPointsRewardUpdate payload."""
         payload_dict = {
-            "id": reward.id if hasattr(reward, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "is_enabled": reward.is_enabled if hasattr(reward, "is_enabled") else None,
-            "is_paused": reward.is_paused if hasattr(reward, "is_paused") else None,
-            "is_in_stock": reward.is_in_stock
-            if hasattr(reward, "is_in_stock")
-            else None,
-            "title": reward.title if hasattr(reward, "title") else None,
-            "cost": reward.cost if hasattr(reward, "cost") else None,
-            "prompt": reward.prompt if hasattr(reward, "prompt") else None,
-            "is_user_input_required": reward.is_user_input_required
-            if hasattr(reward, "is_user_input_required")
-            else None,
-            "should_redemptions_skip_request_queue": reward.should_redemptions_skip_request_queue
-            if hasattr(reward, "should_redemptions_skip_request_queue")
-            else None,
-            "max_per_stream": getattr(reward, "max_per_stream", None),
-            "max_per_user_per_stream": getattr(reward, "max_per_user_per_stream", None),
-            "background_color": getattr(reward, "background_color", None),
-            "image": getattr(reward, "image", None),
-            "default_image": getattr(reward, "default_image", None),
-            "global_cooldown_seconds": getattr(reward, "global_cooldown_seconds", None),
-            "cooldown_expires_at": getattr(reward, "cooldown_expires_at", None),
-            "redemptions_redeemed_current_stream": getattr(
-                reward, "redemptions_redeemed_current_stream", None
-            ),
+            "id": payload.reward.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "title": payload.reward.title,
+            "cost": payload.reward.cost,
+            "prompt": payload.reward.prompt,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPointsCustomRewardUpdate: '{payload_dict.get('title')}' reward updated"
+            f"Processed ChannelPointsRewardUpdate: '{payload.reward.title}' reward updated"
         )
 
     async def _handle_custom_reward_remove(self, event_type: str, payload):
-        """Handle ChannelPointsCustomRewardRemove payload with its specific structure."""
-        reward = payload.reward if hasattr(payload, "reward") else payload
+        """Handle ChannelPointsRewardRemove payload."""
         payload_dict = {
-            "id": reward.id if hasattr(reward, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "is_enabled": reward.is_enabled if hasattr(reward, "is_enabled") else None,
-            "is_paused": reward.is_paused if hasattr(reward, "is_paused") else None,
-            "is_in_stock": reward.is_in_stock
-            if hasattr(reward, "is_in_stock")
-            else None,
-            "title": reward.title if hasattr(reward, "title") else None,
-            "cost": reward.cost if hasattr(reward, "cost") else None,
-            "prompt": reward.prompt if hasattr(reward, "prompt") else None,
+            "id": payload.reward.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "title": payload.reward.title,
+            "cost": payload.reward.cost,
+            "prompt": payload.reward.prompt,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPointsCustomRewardRemove: '{payload_dict.get('title')}' reward removed"
+            f"Processed ChannelPointsRewardRemove: '{payload.reward.title}' reward removed"
         )
 
     async def _handle_custom_redemption_add(self, event_type: str, payload):
-        """Handle ChannelPointsRedemptionAdd payload with its specific structure."""
+        """Handle ChannelPointsRedemptionAdd payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
@@ -969,9 +673,7 @@ class TwitchEventHandler:
                 "cost": payload.reward.cost,
                 "prompt": payload.reward.prompt,
             },
-            "redeemed_at": payload.redeemed_at.isoformat()
-            if payload.redeemed_at
-            else None,
+            "redeemed_at": payload.redeemed_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -981,7 +683,7 @@ class TwitchEventHandler:
         )
 
     async def _handle_custom_redemption_update(self, event_type: str, payload):
-        """Handle ChannelPointsRedemptionUpdate payload with its specific structure."""
+        """Handle ChannelPointsRedemptionUpdate payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
@@ -996,9 +698,7 @@ class TwitchEventHandler:
                 "cost": payload.reward.cost,
                 "prompt": payload.reward.prompt,
             },
-            "redeemed_at": payload.redeemed_at.isoformat()
-            if payload.redeemed_at
-            else None,
+            "redeemed_at": payload.redeemed_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -1008,161 +708,88 @@ class TwitchEventHandler:
         )
 
     async def _handle_poll_begin(self, event_type: str, payload):
-        """Handle ChannelPollBegin payload with its specific structure."""
+        """Handle ChannelPollBegin payload."""
         payload_dict = {
-            "id": payload.id if hasattr(payload, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "title": payload.title if hasattr(payload, "title") else None,
+            "id": payload.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "title": payload.title,
             "choices": [
                 {
-                    "id": choice.id if hasattr(choice, "id") else None,
-                    "title": choice.title if hasattr(choice, "title") else None,
-                    "votes": choice.votes if hasattr(choice, "votes") else 0,
-                    "channel_points_votes": getattr(choice, "channel_points_votes", 0),
-                    "bits_votes": getattr(choice, "bits_votes", 0),
+                    "id": choice.id,
+                    "title": choice.title,
+                    "votes": choice.votes,
+                    "channel_points_votes": choice.channel_points_votes,
                 }
-                for choice in getattr(payload, "choices", [])
+                for choice in payload.choices
             ],
-            "bits_voting_enabled": payload.bits_voting_enabled
-            if hasattr(payload, "bits_voting_enabled")
-            else None,
-            "bits_per_vote": payload.bits_per_vote
-            if hasattr(payload, "bits_per_vote")
-            else None,
-            "channel_points_voting_enabled": payload.channel_points_voting_enabled
-            if hasattr(payload, "channel_points_voting_enabled")
-            else None,
-            "channel_points_per_vote": payload.channel_points_per_vote
-            if hasattr(payload, "channel_points_per_vote")
-            else None,
-            "started_at": payload.started_at.isoformat()
-            if hasattr(payload, "started_at") and payload.started_at
-            else None,
-            "ends_at": payload.ends_at.isoformat()
-            if hasattr(payload, "ends_at") and payload.ends_at
-            else None,
+            "started_at": payload.started_at.isoformat(),
+            "ends_at": payload.ends_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        choices_count = len(getattr(payload, "choices", []))
         logger.info(
-            f"Processed ChannelPollBegin: '{payload_dict.get('title')}' poll started with {choices_count} choices"
+            f"Processed ChannelPollBegin: '{payload.title}' poll started with {len(payload.choices)} choices"
         )
 
     async def _handle_poll_progress(self, event_type: str, payload):
-        """Handle ChannelPollProgress payload with its specific structure."""
+        """Handle ChannelPollProgress payload."""
         payload_dict = {
-            "id": payload.id if hasattr(payload, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "title": payload.title if hasattr(payload, "title") else None,
+            "id": payload.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "title": payload.title,
             "choices": [
                 {
-                    "id": choice.id if hasattr(choice, "id") else None,
-                    "title": choice.title if hasattr(choice, "title") else None,
-                    "votes": choice.votes if hasattr(choice, "votes") else 0,
-                    "channel_points_votes": getattr(choice, "channel_points_votes", 0),
-                    "bits_votes": getattr(choice, "bits_votes", 0),
+                    "id": choice.id,
+                    "title": choice.title,
+                    "votes": choice.votes,
+                    "channel_points_votes": choice.channel_points_votes,
                 }
-                for choice in getattr(payload, "choices", [])
+                for choice in payload.choices
             ],
-            "bits_voting_enabled": payload.bits_voting_enabled
-            if hasattr(payload, "bits_voting_enabled")
-            else None,
-            "bits_per_vote": payload.bits_per_vote
-            if hasattr(payload, "bits_per_vote")
-            else None,
-            "channel_points_voting_enabled": payload.channel_points_voting_enabled
-            if hasattr(payload, "channel_points_voting_enabled")
-            else None,
-            "channel_points_per_vote": payload.channel_points_per_vote
-            if hasattr(payload, "channel_points_per_vote")
-            else None,
-            "started_at": payload.started_at.isoformat()
-            if hasattr(payload, "started_at") and payload.started_at
-            else None,
-            "ends_at": payload.ends_at.isoformat()
-            if hasattr(payload, "ends_at") and payload.ends_at
-            else None,
+            "started_at": payload.started_at.isoformat(),
+            "ends_at": payload.ends_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        choices = getattr(payload, "choices", [])
-        total_votes = sum(getattr(choice, "votes", 0) for choice in choices)
+        total_votes = sum(choice.votes for choice in payload.choices)
         logger.info(
-            f"Processed ChannelPollProgress: '{payload_dict.get('title')}' poll progress with {total_votes} total votes"
+            f"Processed ChannelPollProgress: '{payload.title}' poll progress with {total_votes} total votes"
         )
 
     async def _handle_poll_end(self, event_type: str, payload):
-        """Handle ChannelPollEnd payload with its specific structure."""
+        """Handle ChannelPollEnd payload."""
         payload_dict = {
-            "id": payload.id if hasattr(payload, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "title": payload.title if hasattr(payload, "title") else None,
+            "id": payload.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "title": payload.title,
             "choices": [
                 {
-                    "id": choice.id if hasattr(choice, "id") else None,
-                    "title": choice.title if hasattr(choice, "title") else None,
-                    "votes": choice.votes if hasattr(choice, "votes") else 0,
-                    "channel_points_votes": getattr(choice, "channel_points_votes", 0),
-                    "bits_votes": getattr(choice, "bits_votes", 0),
+                    "id": choice.id,
+                    "title": choice.title,
+                    "votes": choice.votes,
+                    "channel_points_votes": choice.channel_points_votes,
                 }
-                for choice in getattr(payload, "choices", [])
+                for choice in payload.choices
             ],
-            "bits_voting_enabled": payload.bits_voting_enabled
-            if hasattr(payload, "bits_voting_enabled")
-            else None,
-            "bits_per_vote": payload.bits_per_vote
-            if hasattr(payload, "bits_per_vote")
-            else None,
-            "channel_points_voting_enabled": payload.channel_points_voting_enabled
-            if hasattr(payload, "channel_points_voting_enabled")
-            else None,
-            "channel_points_per_vote": payload.channel_points_per_vote
-            if hasattr(payload, "channel_points_per_vote")
-            else None,
-            "status": payload.status if hasattr(payload, "status") else None,
-            "started_at": payload.started_at.isoformat()
-            if hasattr(payload, "started_at") and payload.started_at
-            else None,
-            "ended_at": payload.ended_at.isoformat()
-            if hasattr(payload, "ended_at") and payload.ended_at
-            else None,
+            "status": payload.status,
+            "started_at": payload.started_at.isoformat(),
+            "ended_at": payload.ended_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        choices = getattr(payload, "choices", [])
-        winning_choice = (
-            max(choices, key=lambda c: getattr(c, "votes", 0)) if choices else None
-        )
-        winner_info = (
-            f" - Winner: '{getattr(winning_choice, 'title', '')}' with {getattr(winning_choice, 'votes', 0)} votes"
-            if winning_choice
-            else ""
-        )
+        winning_choice = max(payload.choices, key=lambda c: c.votes)
         logger.info(
-            f"Processed ChannelPollEnd: '{payload_dict.get('title')}' poll ended with status {payload_dict.get('status')}{winner_info}"
+            f"Processed ChannelPollEnd: '{payload.title}' poll ended - Winner: '{winning_choice.title}' with {winning_choice.votes} votes"
         )
 
     async def _handle_prediction_begin(self, event_type: str, payload):
-        """Handle ChannelPredictionBegin payload with its specific structure."""
+        """Handle ChannelPredictionBegin payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
@@ -1172,30 +799,14 @@ class TwitchEventHandler:
                 {
                     "id": outcome.id,
                     "title": outcome.title,
-                    "color": outcome.color,
+                    "color": outcome.colour,
                     "users": outcome.users,
                     "channel_points": outcome.channel_points,
-                    "top_predictors": [
-                        {
-                            "user_id": p.user.id,
-                            "user_name": p.user.name,
-                            "user_login": (await p.user.user()).name
-                            if p.user
-                            else None,
-                            "channel_points_used": p.channel_points_used,
-                            "channel_points_won": p.channel_points_won,
-                        }
-                        for p in outcome.top_predictors
-                    ]
-                    if outcome.top_predictors
-                    else [],
                 }
                 for outcome in payload.outcomes
             ],
-            "started_at": payload.started_at.isoformat()
-            if payload.started_at
-            else None,
-            "locks_at": payload.locks_at.isoformat() if payload.locks_at else None,
+            "started_at": payload.started_at.isoformat(),
+            "locks_at": payload.locks_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -1205,7 +816,7 @@ class TwitchEventHandler:
         )
 
     async def _handle_prediction_progress(self, event_type: str, payload):
-        """Handle ChannelPredictionProgress payload with its specific structure."""
+        """Handle ChannelPredictionProgress payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
@@ -1215,30 +826,14 @@ class TwitchEventHandler:
                 {
                     "id": outcome.id,
                     "title": outcome.title,
-                    "color": outcome.color,
+                    "color": outcome.colour,
                     "users": outcome.users,
                     "channel_points": outcome.channel_points,
-                    "top_predictors": [
-                        {
-                            "user_id": p.user.id,
-                            "user_name": p.user.name,
-                            "user_login": (await p.user.user()).name
-                            if p.user
-                            else None,
-                            "channel_points_used": p.channel_points_used,
-                            "channel_points_won": p.channel_points_won,
-                        }
-                        for p in outcome.top_predictors
-                    ]
-                    if outcome.top_predictors
-                    else [],
                 }
                 for outcome in payload.outcomes
             ],
-            "started_at": payload.started_at.isoformat()
-            if payload.started_at
-            else None,
-            "locks_at": payload.locks_at.isoformat() if payload.locks_at else None,
+            "started_at": payload.started_at.isoformat(),
+            "locks_at": payload.locks_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -1250,7 +845,7 @@ class TwitchEventHandler:
         )
 
     async def _handle_prediction_lock(self, event_type: str, payload):
-        """Handle ChannelPredictionLock payload with its specific structure."""
+        """Handle ChannelPredictionLock payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
@@ -1260,30 +855,14 @@ class TwitchEventHandler:
                 {
                     "id": outcome.id,
                     "title": outcome.title,
-                    "color": outcome.color,
+                    "color": outcome.colour,
                     "users": outcome.users,
                     "channel_points": outcome.channel_points,
-                    "top_predictors": [
-                        {
-                            "user_id": p.user.id,
-                            "user_name": p.user.name,
-                            "user_login": (await p.user.user()).name
-                            if p.user
-                            else None,
-                            "channel_points_used": p.channel_points_used,
-                            "channel_points_won": p.channel_points_won,
-                        }
-                        for p in outcome.top_predictors
-                    ]
-                    if outcome.top_predictors
-                    else [],
                 }
                 for outcome in payload.outcomes
             ],
-            "started_at": payload.started_at.isoformat()
-            if payload.started_at
-            else None,
-            "locked_at": payload.locked_at.isoformat() if payload.locked_at else None,
+            "started_at": payload.started_at.isoformat(),
+            "locked_at": payload.locked_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -1293,7 +872,7 @@ class TwitchEventHandler:
         )
 
     async def _handle_prediction_end(self, event_type: str, payload):
-        """Handle ChannelPredictionEnd payload with its specific structure."""
+        """Handle ChannelPredictionEnd payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
@@ -1303,43 +882,22 @@ class TwitchEventHandler:
                 {
                     "id": outcome.id,
                     "title": outcome.title,
-                    "color": outcome.color,
+                    "color": outcome.colour,
                     "users": outcome.users,
                     "channel_points": outcome.channel_points,
-                    "top_predictors": [
-                        {
-                            "user_id": p.user.id,
-                            "user_name": p.user.name,
-                            "user_login": (await p.user.user()).name
-                            if p.user
-                            else None,
-                            "channel_points_used": p.channel_points_used,
-                            "channel_points_won": p.channel_points_won,
-                        }
-                        for p in outcome.top_predictors
-                    ]
-                    if outcome.top_predictors
-                    else [],
                 }
                 for outcome in payload.outcomes
             ],
             "status": payload.status,
-            "started_at": payload.started_at.isoformat()
-            if payload.started_at
-            else None,
-            "ended_at": payload.ended_at.isoformat() if payload.ended_at else None,
+            "started_at": payload.started_at.isoformat(),
+            "ended_at": payload.ended_at.isoformat(),
             "winning_outcome_id": payload.winning_outcome_id,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        winning_outcome = (
-            next(
-                (o for o in payload.outcomes if o.id == payload.winning_outcome_id),
-                None,
-            )
-            if payload.winning_outcome_id
-            else None
+        winning_outcome = next(
+            (o for o in payload.outcomes if o.id == payload.winning_outcome_id), None
         )
         winner_info = f" - Winner: '{winning_outcome.title}'" if winning_outcome else ""
         logger.info(
@@ -1347,7 +905,7 @@ class TwitchEventHandler:
         )
 
     async def _handle_hype_train_begin(self, event_type: str, payload):
-        """Handle HypeTrainBegin payload with its specific structure."""
+        """Handle HypeTrainBegin payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
@@ -1355,38 +913,9 @@ class TwitchEventHandler:
             "total": payload.total,
             "progress": payload.progress,
             "goal": payload.goal,
-            "top_contributions": [
-                {
-                    "user_id": contrib.user.id,
-                    "user_name": contrib.user.name,
-                    "user_login": (await contrib.user.user()).name
-                    if contrib.user
-                    else None,
-                    "type": contrib.type,
-                    "total": contrib.total,
-                }
-                for contrib in payload.top_contributions
-            ]
-            if payload.top_contributions
-            else [],
-            "last_contribution": {
-                "user_id": payload.last_contribution.user.id,
-                "user_name": payload.last_contribution.user.name,
-                "user_login": (await payload.last_contribution.user.user()).name
-                if payload.last_contribution and payload.last_contribution.user
-                else None,
-                "type": payload.last_contribution.type,
-                "total": payload.last_contribution.total,
-            }
-            if payload.last_contribution
-            else None,
             "level": payload.level,
-            "started_at": payload.started_at.isoformat()
-            if payload.started_at
-            else None,
-            "expires_at": payload.expires_at.isoformat()
-            if payload.expires_at
-            else None,
+            "started_at": payload.started_at.isoformat(),
+            "expires_at": payload.expires_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -1396,7 +925,7 @@ class TwitchEventHandler:
         )
 
     async def _handle_hype_train_progress(self, event_type: str, payload):
-        """Handle HypeTrainProgress payload with its specific structure."""
+        """Handle HypeTrainProgress payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
@@ -1404,38 +933,9 @@ class TwitchEventHandler:
             "total": payload.total,
             "progress": payload.progress,
             "goal": payload.goal,
-            "top_contributions": [
-                {
-                    "user_id": contrib.user.id,
-                    "user_name": contrib.user.name,
-                    "user_login": (await contrib.user.user()).name
-                    if contrib.user
-                    else None,
-                    "type": contrib.type,
-                    "total": contrib.total,
-                }
-                for contrib in payload.top_contributions
-            ]
-            if payload.top_contributions
-            else [],
-            "last_contribution": {
-                "user_id": payload.last_contribution.user.id,
-                "user_name": payload.last_contribution.user.name,
-                "user_login": (await payload.last_contribution.user.user()).name
-                if payload.last_contribution and payload.last_contribution.user
-                else None,
-                "type": payload.last_contribution.type,
-                "total": payload.last_contribution.total,
-            }
-            if payload.last_contribution
-            else None,
             "level": payload.level,
-            "started_at": payload.started_at.isoformat()
-            if payload.started_at
-            else None,
-            "expires_at": payload.expires_at.isoformat()
-            if payload.expires_at
-            else None,
+            "started_at": payload.started_at.isoformat(),
+            "expires_at": payload.expires_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -1445,34 +945,16 @@ class TwitchEventHandler:
         )
 
     async def _handle_hype_train_end(self, event_type: str, payload):
-        """Handle HypeTrainEnd payload with its specific structure."""
+        """Handle HypeTrainEnd payload."""
         payload_dict = {
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
             "total": payload.total,
             "level": payload.level,
-            "top_contributions": [
-                {
-                    "user_id": contrib.user.id,
-                    "user_name": contrib.user.name,
-                    "user_login": (await contrib.user.user()).name
-                    if contrib.user
-                    else None,
-                    "type": contrib.type,
-                    "total": contrib.total,
-                }
-                for contrib in payload.top_contributions
-            ]
-            if payload.top_contributions
-            else [],
-            "started_at": payload.started_at.isoformat()
-            if payload.started_at
-            else None,
-            "ended_at": payload.ended_at.isoformat() if payload.ended_at else None,
-            "cooldown_ends_at": payload.cooldown_ends_at.isoformat()
-            if payload.cooldown_ends_at
-            else None,
+            "started_at": payload.started_at.isoformat(),
+            "ended_at": payload.ended_at.isoformat(),
+            "cooldown_until": payload.cooldown_until.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -1482,234 +964,131 @@ class TwitchEventHandler:
         )
 
     async def _handle_goal_begin(self, event_type: str, payload):
-        """Handle GoalBegin payload with its specific structure."""
+        """Handle GoalBegin payload."""
         payload_dict = {
-            "id": payload.id if hasattr(payload, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "type": payload.type if hasattr(payload, "type") else None,
-            "description": payload.description
-            if hasattr(payload, "description")
-            else None,
-            "current_amount": payload.current_amount
-            if hasattr(payload, "current_amount")
-            else None,
-            "target_amount": payload.target_amount
-            if hasattr(payload, "target_amount")
-            else None,
-            "started_at": payload.started_at.isoformat()
-            if hasattr(payload, "started_at") and payload.started_at
-            else None,
+            "id": payload.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "type": payload.type,
+            "description": payload.description,
+            "current_amount": payload.current_amount,
+            "target_amount": payload.target_amount,
+            "started_at": payload.started_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed GoalBegin: {payload_dict.get('type')} goal '{payload_dict.get('description')}' started - {payload_dict.get('current_amount')}/{payload_dict.get('target_amount')}"
+            f"Processed GoalBegin: {payload.type} goal '{payload.description}' started - {payload.current_amount}/{payload.target_amount}"
         )
 
     async def _handle_goal_progress(self, event_type: str, payload):
-        """Handle GoalProgress payload with its specific structure."""
+        """Handle GoalProgress payload."""
         payload_dict = {
-            "id": payload.id if hasattr(payload, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "type": payload.type if hasattr(payload, "type") else None,
-            "description": payload.description
-            if hasattr(payload, "description")
-            else None,
-            "current_amount": payload.current_amount
-            if hasattr(payload, "current_amount")
-            else None,
-            "target_amount": payload.target_amount
-            if hasattr(payload, "target_amount")
-            else None,
-            "started_at": payload.started_at.isoformat()
-            if hasattr(payload, "started_at") and payload.started_at
-            else None,
+            "id": payload.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "type": payload.type,
+            "description": payload.description,
+            "current_amount": payload.current_amount,
+            "target_amount": payload.target_amount,
+            "started_at": payload.started_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed GoalProgress: {payload_dict.get('type')} goal '{payload_dict.get('description')}' - {payload_dict.get('current_amount')}/{payload_dict.get('target_amount')}"
+            f"Processed GoalProgress: {payload.type} goal '{payload.description}' - {payload.current_amount}/{payload.target_amount}"
         )
 
     async def _handle_goal_end(self, event_type: str, payload):
-        """Handle GoalEnd payload with its specific structure."""
+        """Handle GoalEnd payload."""
         payload_dict = {
-            "id": payload.id if hasattr(payload, "id") else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "type": payload.type if hasattr(payload, "type") else None,
-            "description": payload.description
-            if hasattr(payload, "description")
-            else None,
-            "is_achieved": payload.is_achieved
-            if hasattr(payload, "is_achieved")
-            else None,
-            "current_amount": payload.current_amount
-            if hasattr(payload, "current_amount")
-            else None,
-            "target_amount": payload.target_amount
-            if hasattr(payload, "target_amount")
-            else None,
-            "started_at": payload.started_at.isoformat()
-            if hasattr(payload, "started_at") and payload.started_at
-            else None,
-            "ended_at": payload.ended_at.isoformat()
-            if hasattr(payload, "ended_at") and payload.ended_at
-            else None,
+            "id": payload.id,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "type": payload.type,
+            "description": payload.description,
+            "is_achieved": payload.is_achieved,
+            "current_amount": payload.current_amount,
+            "target_amount": payload.target_amount,
+            "started_at": payload.started_at.isoformat(),
+            "ended_at": payload.ended_at.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        status = "achieved" if payload_dict.get("is_achieved") else "ended"
+        status = "achieved" if payload.is_achieved else "ended"
         logger.info(
-            f"Processed GoalEnd: {payload_dict.get('type')} goal '{payload_dict.get('description')}' {status} - {payload_dict.get('current_amount')}/{payload_dict.get('target_amount')}"
+            f"Processed GoalEnd: {payload.type} goal '{payload.description}' {status} - {payload.current_amount}/{payload.target_amount}"
         )
 
     async def _handle_ad_break_begin(self, event_type: str, payload):
-        """Handle ChannelAdBreakBegin payload with its specific structure."""
+        """Handle ChannelAdBreakBegin payload."""
         payload_dict = {
-            "duration_seconds": payload.duration_seconds
-            if hasattr(payload, "duration_seconds")
-            else None,
-            "started_at": payload.started_at.isoformat()
-            if hasattr(payload, "started_at") and payload.started_at
-            else None,
-            "is_automatic": payload.is_automatic
-            if hasattr(payload, "is_automatic")
-            else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "requester_user_id": payload.requester.id
-            if hasattr(payload, "requester") and payload.requester
-            else None,
-            "requester_user_name": payload.requester.name
-            if hasattr(payload, "requester") and payload.requester
-            else None,
+            "duration_seconds": payload.duration,
+            "started_at": payload.started_at.isoformat(),
+            "is_automatic": payload.automatic,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "requester_user_id": payload.requester.id,
+            "requester_user_name": payload.requester.name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         ad_type = (
-            "automatic"
-            if payload_dict.get("is_automatic")
-            else f"manual by {payload_dict.get('requester_user_name')}"
+            "automatic" if payload.automatic else f"manual by {payload.requester.name}"
         )
         logger.info(
-            f"Processed ChannelAdBreakBegin: {payload_dict.get('duration_seconds')}s {ad_type} ad break started"
+            f"Processed ChannelAdBreakBegin: {payload.duration}s {ad_type} ad break started"
         )
 
     async def _handle_vip_add(self, event_type: str, payload):
-        """Handle ChannelVIPAdd payload with its specific structure."""
+        """Handle ChannelVIPAdd payload."""
         payload_dict = {
-            "user_id": payload.user.id
-            if hasattr(payload, "user") and payload.user
-            else None,
-            "user_name": payload.user.name
-            if hasattr(payload, "user") and payload.user
-            else None,
-            "user_login": (await payload.user.user()).name
-            if hasattr(payload, "user") and payload.user
-            else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
+            "user_id": payload.user.id,
+            "user_name": payload.user.name,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChannelVIPAdd: {payload_dict.get('user_name')} added as VIP"
-        )
+        logger.info(f"Processed ChannelVIPAdd: {payload.user.name} added as VIP")
 
     async def _handle_vip_remove(self, event_type: str, payload):
-        """Handle ChannelVIPRemove payload with its specific structure."""
+        """Handle ChannelVIPRemove payload."""
         payload_dict = {
-            "user_id": payload.user.id
-            if hasattr(payload, "user") and payload.user
-            else None,
-            "user_name": payload.user.name
-            if hasattr(payload, "user") and payload.user
-            else None,
-            "user_login": (await payload.user.user()).name
-            if hasattr(payload, "user") and payload.user
-            else None,
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
+            "user_id": payload.user.id,
+            "user_name": payload.user.name,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChannelVIPRemove: {payload_dict.get('user_name')} removed as VIP"
-        )
+        logger.info(f"Processed ChannelVIPRemove: {payload.user.name} removed as VIP")
 
     async def _handle_shoutout_create(self, event_type: str, payload):
-        """Handle ShoutoutCreate payload with its specific structure."""
+        """Handle ShoutoutCreate payload."""
         payload_dict = {
-            "broadcaster_user_id": payload.broadcaster.id
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "broadcaster_user_name": payload.broadcaster.name
-            if hasattr(payload, "broadcaster") and payload.broadcaster
-            else None,
-            "to_broadcaster_user_id": payload.to_broadcaster.id
-            if hasattr(payload, "to_broadcaster") and payload.to_broadcaster
-            else None,
-            "to_broadcaster_user_name": payload.to_broadcaster.name
-            if hasattr(payload, "to_broadcaster") and payload.to_broadcaster
-            else None,
-            "moderator_user_id": payload.moderator.id
-            if hasattr(payload, "moderator") and payload.moderator
-            else None,
-            "moderator_user_name": payload.moderator.name
-            if hasattr(payload, "moderator") and payload.moderator
-            else None,
-            "viewer_count": payload.viewer_count
-            if hasattr(payload, "viewer_count")
-            else None,
-            "started_at": payload.started_at.isoformat()
-            if hasattr(payload, "started_at") and payload.started_at
-            else None,
-            "cooldown_ends_at": payload.cooldown_ends_at.isoformat()
-            if hasattr(payload, "cooldown_ends_at") and payload.cooldown_ends_at
-            else None,
-            "target_cooldown_ends_at": payload.target_cooldown_ends_at.isoformat()
-            if hasattr(payload, "target_cooldown_ends_at")
-            and payload.target_cooldown_ends_at
-            else None,
+            "broadcaster_user_id": payload.broadcaster.id,
+            "broadcaster_user_name": payload.broadcaster.name,
+            "to_broadcaster_user_id": payload.to_broadcaster.id,
+            "to_broadcaster_user_name": payload.to_broadcaster.name,
+            "moderator_user_id": payload.moderator.id,
+            "moderator_user_name": payload.moderator.name,
+            "viewer_count": payload.viewer_count,
+            "started_at": payload.started_at.isoformat(),
+            "cooldown_until": payload.cooldown_until.isoformat(),
+            "target_cooldown_until": payload.target_cooldown_until.isoformat(),
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ShoutoutCreate: {payload_dict.get('broadcaster_user_name')} shouted out {payload_dict.get('to_broadcaster_user_name')} to {payload_dict.get('viewer_count')} viewers"
+            f"Processed ShoutoutCreate: {payload.broadcaster.name} shouted out {payload.to_broadcaster.name} to {payload.viewer_count} viewers"
         )
 
     async def _handle_limit_break_update(self, payload):
@@ -1718,11 +1097,7 @@ class TwitchEventHandler:
         THROW_REWARD_ID = "5685d03e-80c2-4640-ba06-566fb8bbc4ce"
 
         # Check if this event is for our target reward
-        reward_id = None
-        if hasattr(payload, "reward") and hasattr(payload.reward, "id"):
-            reward_id = payload.reward.id
-
-        if reward_id != THROW_REWARD_ID:
+        if payload.reward.id != THROW_REWARD_ID:
             return  # Not the reward we care about
 
         try:
@@ -1746,8 +1121,7 @@ class TwitchEventHandler:
             }
 
             # Publish to Redis for overlay consumers
-            redis_conn = redis.from_url(settings.REDIS_URL)
-            await redis_conn.publish(
+            await self._redis_client.publish(
                 "events:limitbreak",
                 json.dumps(
                     {
@@ -1757,7 +1131,6 @@ class TwitchEventHandler:
                     }
                 ),
             )
-            await redis_conn.close()
 
             logger.info(
                 f"Limit break update: {count} redemptions, bars: {bar1_fill:.2f}/{bar2_fill:.2f}/{bar3_fill:.2f}, maxed: {is_maxed}"
@@ -1804,10 +1177,11 @@ class TwitchEventHandler:
             logger.error(f"Error publishing to Redis: {e}")
 
     async def _get_or_create_member_from_payload(self, payload) -> Member | None:
-        """Extract Member information from EventSub payload using proper TwitchIO object-based access."""
+        """Extract Member information from EventSub payload using TwitchIO object-based access."""
+        # TwitchIO event payloads have different user attributes based on event type
+        # Try each in order of priority, handling None for anonymous events
         user_obj = None
 
-        # Determine the primary user object based on priority
         if hasattr(payload, "user") and payload.user:
             user_obj = payload.user
         elif hasattr(payload, "chatter") and payload.chatter:
@@ -1817,21 +1191,16 @@ class TwitchEventHandler:
         elif hasattr(payload, "broadcaster") and payload.broadcaster:
             user_obj = payload.broadcaster
 
-        if user_obj:
-            twitch_id = str(getattr(user_obj, "id", ""))
-            username = getattr(user_obj, "login", getattr(user_obj, "name", None))
-            display_name = getattr(
-                user_obj, "display_name", getattr(user_obj, "name", None)
-            )
-        else:
-            return None
+        if not user_obj:
+            return None  # Anonymous event with no user info
 
-        if not twitch_id:
-            return None
+        twitch_id = str(user_obj.id)
+        username = user_obj.name
+        display_name = user_obj.display_name
 
         # Use update_or_create to avoid race conditions
         defaults = {
-            "username": username or "",
+            "username": username,
             "display_name": display_name or username or f"User_{twitch_id}",
         }
 
