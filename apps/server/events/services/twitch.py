@@ -443,8 +443,10 @@ class TwitchEventHandler:
             "is_anonymous": payload.anonymous,
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
+            "user_display_name": payload.user.display_name if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
+            "broadcaster_user_display_name": payload.broadcaster.display_name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -457,8 +459,10 @@ class TwitchEventHandler:
         payload_dict = {
             "from_broadcaster_user_id": payload.from_broadcaster.id,
             "from_broadcaster_user_name": payload.from_broadcaster.name,
+            "from_broadcaster_user_display_name": payload.from_broadcaster.display_name,
             "to_broadcaster_user_id": payload.to_broadcaster.id,
             "to_broadcaster_user_name": payload.to_broadcaster.name,
+            "to_broadcaster_user_display_name": payload.to_broadcaster.display_name,
             "viewers": payload.viewer_count,
         }
         member = await self._get_or_create_member_from_payload(payload)
@@ -512,10 +516,12 @@ class TwitchEventHandler:
         payload_dict = {
             "user_id": payload.user.id,
             "user_name": payload.user.name,
+            "user_display_name": payload.user.display_name,
             "tier": payload.tier,
             "is_gift": payload.gift,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
+            "broadcaster_user_display_name": payload.broadcaster.display_name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -546,8 +552,10 @@ class TwitchEventHandler:
         payload_dict = {
             "user_id": payload.user.id if payload.user else None,
             "user_name": payload.user.name if payload.user else None,
+            "user_display_name": payload.user.display_name if payload.user else None,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
+            "broadcaster_user_display_name": payload.broadcaster.display_name,
             "total": payload.total,
             "tier": payload.tier,
             "cumulative_total": payload.cumulative_total,
@@ -566,13 +574,16 @@ class TwitchEventHandler:
         payload_dict = {
             "user_id": payload.user.id,
             "user_name": payload.user.name,
+            "user_display_name": payload.user.display_name,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
+            "broadcaster_user_display_name": payload.broadcaster.display_name,
             "tier": payload.tier,
             "message": payload.text,
             "cumulative_months": payload.cumulative_months,
             "streak_months": payload.streak_months,
             "duration_months": payload.months,
+            "emotes": payload.emotes,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
@@ -663,8 +674,10 @@ class TwitchEventHandler:
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
+            "broadcaster_user_display_name": payload.broadcaster.display_name,
             "user_id": payload.user.id,
             "user_name": payload.user.name,
+            "user_display_name": payload.user.display_name,
             "user_input": payload.user_input,
             "status": payload.status,
             "reward": {
@@ -688,8 +701,10 @@ class TwitchEventHandler:
             "id": payload.id,
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
+            "broadcaster_user_display_name": payload.broadcaster.display_name,
             "user_id": payload.user.id,
             "user_name": payload.user.name,
+            "user_display_name": payload.user.display_name,
             "user_input": payload.user_input,
             "status": payload.status,
             "reward": {
