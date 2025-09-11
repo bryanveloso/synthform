@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Optiker K";
+  src: url("/fonts/optiker-k.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-sage: #bbf4b0;
   --color-periwinkle: #928add;
@@ -15,29 +23,47 @@
   --color-ink: #0d0a11;
   --color-chalk: #efefef;
   --color-graphite: #939393;
-  --color-shadow: #23292f;
-  --color-onyx: #1a1f23;
+
+  /* Shark Palette */
+  --color-shark-40: #f3f5f6;
+  --color-shark-80: #e8ebed;
+  --color-shark-120: #dce0e5;
+  --color-shark-160: #d0d6dc;
+  --color-shark-200: #c5ccd3;
+  --color-shark-240: #b9c2ca;
+  --color-shark-280: #aeb8c2;
+  --color-shark-320: #a2adb9;
+  --color-shark-360: #96a3b0;
+  --color-shark-400: #8b99a7;
+  --color-shark-440: #7f8f9f;
+  --color-shark-480: #738596;
+  --color-shark-520: #697a8c;
+  --color-shark-560: #607080;
+  --color-shark-600: #586674;
+  --color-shark-640: #4f5c69;
+  --color-shark-680: #46525d;
+  --color-shark-720: #3d4751;
+  --color-shark-760: #353d46;
+  --color-shark-800: #2c333a;
+  --color-shark-840: #23292f;
+  --color-shark-880: #1a1f23;
+  --color-shark-920: #121417;
+  --color-shark-960: #090a0c;
 
   /* Custom dimensions */
   --height-canvas: 1080px;
   --width-canvas: 1920px;
+
+  /* Typography */
+  --font-caps: "Optiker K", system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
   font-weight: 400;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
 }

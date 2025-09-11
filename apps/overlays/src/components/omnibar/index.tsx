@@ -5,11 +5,11 @@ import { Timeline } from './timeline'
 
 export const Omnibar = () => {
   return (
-    <div>
-      <Base />
-      <Alerts />
-      <LimitBreak />
+    <>
+      {/* <Base /> */}
+      {/* <Alerts /> */}
+      {/* <LimitBreak /> */}
       <Timeline />
-    </div>
+    </>
   )
 }
