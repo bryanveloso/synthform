@@ -11,6 +11,7 @@ type MessageTypes =
   | 'alert:show'
   | 'alerts:sync'
   | 'alerts:push'
+  | 'limitbreak:executed'
   | 'limitbreak:sync'
   | 'limitbreak:update'
 

@@ -1106,6 +1106,56 @@ class TwitchEventHandler:
 
             count = await helix_service.get_reward_redemption_count(THROW_REWARD_ID)
 
+            # Check for limit break execution (bulk fulfillment)
+            # Detect the FIRST fulfillment when queue was at 100 (maxed)
+            if payload.status == "fulfilled":
+                # Get the previous count to see if we're coming from a maxed state
+                previous_count_str = await self._redis_client.get(
+                    "limitbreak:previous_count"
+                )
+                previous_count = int(previous_count_str) if previous_count_str else 0
+
+                # If previous count was maxed (100+) and we're getting fulfillments,
+                # this is the start of the limit break execution
+                if previous_count >= 100:
+                    # Check if we've already sent an execution event recently
+                    last_execution = await self._redis_client.get(
+                        "limitbreak:last_execution"
+                    )
+                    current_time = timezone.now().timestamp()
+
+                    # 60 second window - no way chat rebuilds to 100 that fast
+                    if (
+                        not last_execution
+                        or (current_time - float(last_execution)) > 60
+                    ):
+                        # Send limit break execution event immediately on first fulfillment
+                        await self._redis_client.publish(
+                            "events:limitbreak",
+                            json.dumps(
+                                {
+                                    "event_type": "limitbreak.executed",
+                                    "data": {
+                                        "previous_count": previous_count,
+                                        "current_count": count,
+                                    },
+                                    "timestamp": timezone.now().isoformat(),
+                                }
+                            ),
+                        )
+                        # Store execution timestamp with 60 second TTL
+                        await self._redis_client.set(
+                            "limitbreak:last_execution", str(current_time), ex=60
+                        )
+                        logger.info(
+                            f"Limit break EXECUTED! Detected bulk fulfillment starting from {previous_count} redemptions"
+                        )
+
+            # Store current count for next comparison (with 5 minute TTL)
+            await self._redis_client.set(
+                "limitbreak:previous_count", str(count), ex=300
+            )
+
             # Calculate limit break state (3 bars: 33/66/100)
             bar1_fill = min(count / 33, 1.0)
             bar2_fill = min(max(count - 33, 0) / 33, 1.0) if count > 33 else 0

@@ -103,6 +103,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         if event_type == "limitbreak.update":
             await self._send_message("limitbreak", "update", event_data.get("data", {}))
             return
+        elif event_type == "limitbreak.executed":
+            await self._send_message(
+                "limitbreak", "executed", event_data.get("data", {})
+            )
+            return
 
         # Handle OBS events differently
         if source == "obs":

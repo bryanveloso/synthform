@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type FC, type PropsWithChildren } from 're
 
 import { useServer } from '@/hooks/use-server'
 
-const MESSAGE_TYPES = ['limitbreak:sync', 'limitbreak:update'] as const
+const MESSAGE_TYPES = ['limitbreak:sync', 'limitbreak:update', 'limitbreak:executed'] as const
 
 interface LimitBreakData {
   count: number
@@ -13,16 +13,16 @@ interface LimitBreakData {
 }
 
 const Bar: FC<PropsWithChildren> = ({ children }) => {
-  return <div className="relative h-3 w-12 bg-[#1E3246]">{children}</div>
+  return <div className="relative h-3 w-16 overflow-hidden rounded-xs bg-[#1E3246]">{children}</div>
 }
 
-const Progress: FC<{ bar: number; isMaxed: boolean }> = ({ bar, isMaxed }) => {
+const Progress: FC<{ bar: number; isFilled: boolean }> = ({ bar, isFilled }) => {
   return (
     <div
       style={{
         width: `${bar * 100}%`,
         height: '100%',
-        backgroundColor: isMaxed ? '#ff6b6b' : '#4ecdc4',
+        backgroundColor: isFilled ? '#ffff08' : '#0096ff',
         transition: 'width 0.3s ease',
       }}
     />
@@ -33,10 +33,12 @@ export const LimitBreak = () => {
   const { data, isConnected } = useServer(MESSAGE_TYPES)
   const [limitBreakData, setLimitBreakData] = useState<LimitBreakData | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
+  const executionAudioRef = useRef<HTMLAudioElement>(null)
   const previousIsMaxedRef = useRef<boolean>(false)
 
   const limitBreakSync = data['limitbreak:sync']
   const limitBreakUpdate = data['limitbreak:update']
+  const limitBreakExecuted = data['limitbreak:executed']
 
   useEffect(() => {
     if (limitBreakSync) {
@@ -64,6 +66,16 @@ export const LimitBreak = () => {
     }
   }, [limitBreakUpdate])
 
+  // Handle limit break execution
+  useEffect(() => {
+    if (limitBreakExecuted && executionAudioRef.current) {
+      executionAudioRef.current.volume = 0.3 // Set appropriate volume
+      executionAudioRef.current.play().catch((error) => {
+        console.warn('Could not play limit break execution sound:', error)
+      })
+    }
+  }, [limitBreakExecuted])
+
   if (!limitBreakData) {
     return (
       <div>
@@ -76,28 +88,28 @@ export const LimitBreak = () => {
     )
   }
 
-  const { count, bar1, bar2, bar3, isMaxed } = limitBreakData
+  const { count, bar1, bar2, bar3 } = limitBreakData
 
   return (
     <div>
-      <audio ref={audioRef} preload="auto" style={{ display: 'none' }}>
+      <div className="flex items-center justify-center gap-2">
+        <Bar>
+          <Progress bar={bar1} isFilled={bar1 >= 1} />
+        </Bar>
+        <Bar>
+          <Progress bar={bar2} isFilled={bar2 >= 1} />
+        </Bar>
+        <Bar>
+          <Progress bar={bar3} isFilled={bar3 >= 1} />
+        </Bar>
+        <div className="font-sans font-bold text-[#0096ff]">{count}</div>
+      </div>
+      <audio ref={audioRef} preload="auto" className="hidden">
         <source src="/sounds/limit-break.mp3" type="audio/mpeg" />
       </audio>
-      <div>
-        {/* <div>Limit Break ({count}/100)</div> */}
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <Bar>
-            <Progress bar={bar1} isMaxed={isMaxed} />
-          </Bar>
-          <Bar>
-            <Progress bar={bar2} isMaxed={isMaxed} />
-          </Bar>
-          <Bar>
-            <Progress bar={bar3} isMaxed={isMaxed} />
-          </Bar>
-        </div>
-        {/* {isMaxed && <div style={{ color: '#ff6b6b', fontWeight: 'bold', marginTop: '4px' }}>LIMIT BREAK READY!</div>} */}
-      </div>
+      <audio ref={executionAudioRef} preload="auto" className="hidden">
+        <source src="/sounds/limit-break-executed.mp3" type="audio/mpeg" />
+      </audio>
     </div>
   )
 }
