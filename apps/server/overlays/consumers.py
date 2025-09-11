@@ -25,7 +25,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         "channel.subscription.gift",
         "channel.subscription.message",
         "channel.cheer",
-        "channel.channel_points_custom_reward_redemption",
+        "channel.channel_points_custom_reward_redemption.add",
         "channel.raid",
     ]
 
