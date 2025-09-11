@@ -379,7 +379,11 @@ class OBSService:
         except Exception as e:
             # Check if it's a connection-related error
             error_msg = str(e).lower()
-            if "broken pipe" in error_msg or "connection" in error_msg or "errno 32" in error_msg:
+            if (
+                "broken pipe" in error_msg
+                or "connection" in error_msg
+                or "errno 32" in error_msg
+            ):
                 logger.info(f"OBS disconnected: {e}. Will reconnect when available.")
                 self._client_req = None
                 self._client_event = None
