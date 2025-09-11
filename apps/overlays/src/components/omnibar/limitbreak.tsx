@@ -54,6 +54,7 @@ export const LimitBreak = () => {
 
       // Play sound when transitioning from not maxed to maxed
       if (!previousIsMaxed && newIsMaxed && audioRef.current) {
+        audioRef.current.volume = 0.2
         audioRef.current.play().catch((error) => {
           console.warn('Could not play limit break sound:', error)
         })
