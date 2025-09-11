@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OmnibarRouteImport } from './routes/omnibar'
 import { Route as LimitbreakRouteImport } from './routes/limitbreak'
+import { Route as CoworkingRouteImport } from './routes/coworking'
 import { Route as IndexRouteImport } from './routes/index'
 
 const OmnibarRoute = OmnibarRouteImport.update({
@@ -23,6 +24,11 @@ const LimitbreakRoute = LimitbreakRouteImport.update({
   path: '/limitbreak',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CoworkingRoute = CoworkingRouteImport.update({
+  id: '/coworking',
+  path: '/coworking',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,30 +37,34 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/coworking': typeof CoworkingRoute
   '/limitbreak': typeof LimitbreakRoute
   '/omnibar': typeof OmnibarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/coworking': typeof CoworkingRoute
   '/limitbreak': typeof LimitbreakRoute
   '/omnibar': typeof OmnibarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/coworking': typeof CoworkingRoute
   '/limitbreak': typeof LimitbreakRoute
   '/omnibar': typeof OmnibarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/limitbreak' | '/omnibar'
+  fullPaths: '/' | '/coworking' | '/limitbreak' | '/omnibar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/limitbreak' | '/omnibar'
-  id: '__root__' | '/' | '/limitbreak' | '/omnibar'
+  to: '/' | '/coworking' | '/limitbreak' | '/omnibar'
+  id: '__root__' | '/' | '/coworking' | '/limitbreak' | '/omnibar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CoworkingRoute: typeof CoworkingRoute
   LimitbreakRoute: typeof LimitbreakRoute
   OmnibarRoute: typeof OmnibarRoute
 }
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LimitbreakRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/coworking': {
+      id: '/coworking'
+      path: '/coworking'
+      fullPath: '/coworking'
+      preLoaderRoute: typeof CoworkingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CoworkingRoute: CoworkingRoute,
   LimitbreakRoute: LimitbreakRoute,
   OmnibarRoute: OmnibarRoute,
 }
