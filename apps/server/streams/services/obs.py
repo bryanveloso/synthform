@@ -367,8 +367,7 @@ class OBSService:
             }
 
         except (BrokenPipeError, ConnectionError, OSError) as e:
-            # Connection lost - force reconnection
-            logger.warning(f"OBS connection lost: {e}. Attempting reconnection...")
+            logger.info(f"OBS disconnected: {e}. Will reconnect when available.")
             self._client_req = None
             self._client_event = None
             await self._schedule_reconnect()
@@ -380,14 +379,14 @@ class OBSService:
         except Exception as e:
             # Check if it's a connection-related error
             error_msg = str(e).lower()
-            if "broken pipe" in error_msg or "connection" in error_msg:
-                logger.warning(f"OBS connection error detected: {e}. Reconnecting...")
+            if "broken pipe" in error_msg or "connection" in error_msg or "errno 32" in error_msg:
+                logger.info(f"OBS disconnected: {e}. Will reconnect when available.")
                 self._client_req = None
                 self._client_event = None
                 await self._schedule_reconnect()
                 return {"message": "OBS reconnecting", "connected": False}
 
-            logger.error(f"Error getting current OBS state: {e}")
+            logger.error(f"Unexpected error getting OBS state: {e}")
             return {"message": "OBS state unavailable", "connected": False}
 
     # Control methods
