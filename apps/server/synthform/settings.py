@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     # Core Applications
     "audio",
     "authentication",
+    "campaigns",
     "events",
     "overlays",
     "streams",

@@ -18,6 +18,7 @@ from asgiref.sync import sync_to_async  # noqa: E402
 from django.conf import settings  # noqa: E402
 from django.utils import timezone  # noqa: E402
 
+from campaigns.services import campaign_service  # noqa: E402
 from events.models import Event  # noqa: E402
 from events.models import Member  # noqa: E402
 
@@ -450,6 +451,16 @@ class TwitchEventHandler:
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
+
+        # Track campaign metrics for bits
+        active_campaign = await campaign_service.get_active_campaign()
+        if active_campaign:
+            campaign_result = await campaign_service.process_bits(
+                active_campaign, bits=payload.bits
+            )
+            if campaign_result:
+                payload_dict["campaign_data"] = campaign_result
+
         await self._publish_to_redis(event_type, event, member, payload_dict)
         user_name = "Anonymous" if payload.anonymous else payload.user.name
         logger.info(f"Processed ChannelCheer: {payload.bits} bits from {user_name}")
@@ -525,6 +536,27 @@ class TwitchEventHandler:
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
+
+        # Track campaign metrics
+        active_campaign = await campaign_service.get_active_campaign()
+        if active_campaign:
+            campaign_result = await campaign_service.process_subscription(
+                active_campaign, tier=payload.tier, is_gift=payload.gift
+            )
+
+            # Add campaign data to payload for Redis
+            if campaign_result:
+                payload_dict["campaign_data"] = campaign_result
+
+                # If a milestone was unlocked, publish special event
+                if "milestone_unlocked" in campaign_result:
+                    await self._publish_to_redis(
+                        "campaign.milestone.unlocked",
+                        event,
+                        member,
+                        campaign_result["milestone_unlocked"],
+                    )
+
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
             f"Processed ChannelSubscribe: {payload.user.name} subscribed (tier {payload.tier})"
@@ -563,6 +595,29 @@ class TwitchEventHandler:
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
+
+        # Track campaign metrics - process each gift sub
+        active_campaign = await campaign_service.get_active_campaign()
+        if active_campaign:
+            milestones_unlocked = []
+            for _ in range(payload.total):
+                campaign_result = await campaign_service.process_subscription(
+                    active_campaign, tier=payload.tier, is_gift=True
+                )
+
+                # Collect any milestones that were unlocked
+                if campaign_result and "milestone_unlocked" in campaign_result:
+                    milestones_unlocked.append(campaign_result["milestone_unlocked"])
+
+            # Add campaign data to payload
+            if milestones_unlocked:
+                payload_dict["milestones_unlocked"] = milestones_unlocked
+                # Publish milestone unlock events
+                for milestone in milestones_unlocked:
+                    await self._publish_to_redis(
+                        "campaign.milestone.unlocked", event, member, milestone
+                    )
+
         await self._publish_to_redis(event_type, event, member, payload_dict)
         user_name = "Anonymous" if payload.anonymous else payload.user.name
         logger.info(
@@ -587,6 +642,14 @@ class TwitchEventHandler:
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
+
+        # Track campaign metrics for resubs
+        active_campaign = await campaign_service.get_active_campaign()
+        if active_campaign:
+            campaign_result = await campaign_service.process_resub(active_campaign)
+            if campaign_result:
+                payload_dict["campaign_data"] = campaign_result
+
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
             f"Processed ChannelSubscriptionMessage: {payload.user.name} resubscribed for {payload.cumulative_months} months"
