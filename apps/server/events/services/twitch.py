@@ -1178,11 +1178,16 @@ class TwitchEventHandler:
         if payload.reward.id != THROW_REWARD_ID:
             return  # Not the reward we care about
 
+        logger.info(
+            f"🎯 Limit Break: Processing {payload.status} redemption by {payload.user.name}"
+        )
+
         try:
             # Get current queue count from helix service
             from shared.services.twitch.helix import helix_service
 
             count = await helix_service.get_reward_redemption_count(THROW_REWARD_ID)
+            logger.info(f"🎯 Limit Break: Current queue count = {count}")
 
             # Check for limit break execution (bulk fulfillment)
             # Detect the FIRST fulfillment when queue was at 100 (maxed)
@@ -1192,6 +1197,10 @@ class TwitchEventHandler:
                     "limitbreak:previous_count"
                 )
                 previous_count = int(previous_count_str) if previous_count_str else 0
+
+                logger.info(
+                    f"🎯 Limit Break: Previous count = {previous_count}, Current count = {count}"
+                )
 
                 # If previous count was maxed (100+) and we're getting fulfillments,
                 # this is the start of the limit break execution

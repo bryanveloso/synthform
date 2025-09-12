@@ -101,9 +101,15 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Handle limit break events
         if event_type == "limitbreak.update":
+            logger.info(
+                f"🎯 WebSocket: Sending limitbreak:update to overlay - {event_data.get('data', {})}"
+            )
             await self._send_message("limitbreak", "update", event_data.get("data", {}))
             return
         elif event_type == "limitbreak.executed":
+            logger.info(
+                f"🔊 WebSocket: Sending limitbreak:executed to overlay - {event_data.get('data', {})}"
+            )
             await self._send_message(
                 "limitbreak", "executed", event_data.get("data", {})
             )
