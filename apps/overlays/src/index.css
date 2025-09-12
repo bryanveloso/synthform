@@ -1,8 +1,9 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+@import '@fontsource-variable/alexandria';
 
 @font-face {
-  font-family: "Optiker K";
-  src: url("/fonts/optiker-k.woff2") format("woff2");
+  font-family: 'Optiker K';
+  src: url('/fonts/optiker-k.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -55,7 +56,8 @@
   --width-canvas: 1920px;
 
   /* Typography */
-  --font-caps: "Optiker K", system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-sans: 'Alexandria Variable', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-caps: 'Optiker K', system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
 :root {
