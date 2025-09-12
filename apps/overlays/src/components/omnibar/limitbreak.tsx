@@ -35,10 +35,14 @@ export const LimitBreak = () => {
   const audioRef = useRef<HTMLAudioElement>(null)
   const executionAudioRef = useRef<HTMLAudioElement>(null)
   const previousIsMaxedRef = useRef<boolean>(false)
+  const lastExecutionEventRef = useRef<any>(null)
 
   const limitBreakSync = data['limitbreak:sync']
   const limitBreakUpdate = data['limitbreak:update']
   const limitBreakExecuted = data['limitbreak:executed']
+  
+  // Debug logging
+  console.log('LimitBreak render - executed event:', limitBreakExecuted)
 
   useEffect(() => {
     if (limitBreakSync) {
@@ -56,7 +60,7 @@ export const LimitBreak = () => {
 
       // Play sound when transitioning from not maxed to maxed
       if (!previousIsMaxed && newIsMaxed && audioRef.current) {
-        audioRef.current.volume = 0.2
+        audioRef.current.volume = 0.1
         audioRef.current.play().catch((error) => {
           console.warn('Could not play limit break sound:', error)
         })
@@ -68,11 +72,24 @@ export const LimitBreak = () => {
 
   // Handle limit break execution
   useEffect(() => {
-    if (limitBreakExecuted && executionAudioRef.current) {
-      executionAudioRef.current.volume = 0.3 // Set appropriate volume
-      executionAudioRef.current.play().catch((error) => {
-        console.warn('Could not play limit break execution sound:', error)
-      })
+    if (limitBreakExecuted && limitBreakExecuted !== lastExecutionEventRef.current) {
+      console.log('🔊 NEW Limit break executed event received!', limitBreakExecuted)
+      lastExecutionEventRef.current = limitBreakExecuted
+
+      if (executionAudioRef.current) {
+        console.log('🔊 Audio ref exists, attempting to play...')
+        executionAudioRef.current.volume = 0.1
+        executionAudioRef.current
+          .play()
+          .then(() => {
+            console.log('🔊 Limit break execution sound played successfully!')
+          })
+          .catch((error) => {
+            console.error('🔊 Could not play limit break execution sound:', error)
+          })
+      } else {
+        console.error('🔊 Audio ref is null!')
+      }
     }
   }, [limitBreakExecuted])
 
