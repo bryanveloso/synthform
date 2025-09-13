@@ -51,8 +51,9 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         await self.pubsub.subscribe("events:twitch")
         await self.pubsub.subscribe("events:obs")
         await self.pubsub.subscribe("events:limitbreak")
+        await self.pubsub.subscribe("events:music")
         logger.info(
-            "Subscribed to Redis events:twitch, events:obs, and events:limitbreak channels"
+            "Subscribed to Redis events:twitch, events:obs, events:limitbreak, and events:music channels"
         )
 
         # Start Redis message listener
@@ -76,7 +77,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 )
                 if message:
                     try:
+                        logger.info(
+                            f"📨 Received Redis message on channel: {message.get('channel')}"
+                        )
                         event_data = json.loads(message["data"])
+                        logger.info(
+                            f"📨 Event type: {event_data.get('event_type')}, Source: {event_data.get('source')}"
+                        )
                         await self._route_live_event(event_data)
                     except (json.JSONDecodeError, KeyError) as e:
                         logger.error(f"Error processing Redis message: {e}")
@@ -113,6 +120,20 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             await self._send_message(
                 "limitbreak", "executed", event_data.get("data", {})
             )
+            return
+
+        # Handle music events
+        if event_type == "music.update":
+            logger.info(
+                f"🎵 WebSocket: Sending music:update to overlay - {event_data.get('data', {})}"
+            )
+            await self._send_message("music", "update", event_data.get("data", {}))
+            return
+        elif event_type == "music.sync":
+            logger.info(
+                f"🎵 WebSocket: Sending music:sync to overlay - {event_data.get('data', {})}"
+            )
+            await self._send_message("music", "sync", event_data.get("data", {}))
             return
 
         # Handle OBS events differently
@@ -168,6 +189,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             limit_break_state
             or {"count": 0, "bar1": 0, "bar2": 0, "bar3": 0, "isMaxed": False},
         )
+
+        # Music layer - get current music state from Redis
+        music_state = await self._get_music_state()
+        if music_state:
+            await self._send_message("music", "sync", music_state)
 
     async def _send_message(self, layer: str, verb: str, payload: dict | list) -> None:
         """Send formatted message to overlay client."""
@@ -361,6 +387,25 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             logger.error(f"Error getting limit break state: {e}")
             # Return a fallback state instead of None to ensure the message is sent
             return {"count": 0, "bar1": 0, "bar2": 0, "bar3": 0, "isMaxed": False}
+
+    async def _get_music_state(self) -> dict | None:
+        """Get current music state from Rainwave service."""
+        try:
+            from events.services.rainwave import rainwave_service
+
+            # Get the current track from the service
+            if rainwave_service.current_track:
+                logger.info(
+                    f"Sending initial music state: {rainwave_service.current_track.get('title')}"
+                )
+                return rainwave_service.current_track
+            else:
+                logger.info("No current track in Rainwave service")
+                return None
+
+        except Exception as e:
+            logger.error(f"Error getting music state: {e}")
+            return None
 
     async def receive(self, text_data: str) -> None:
         """Handle messages from overlay clients (currently unused)."""

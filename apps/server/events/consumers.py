@@ -105,3 +105,55 @@ class EventConsumer(AsyncWebsocketConsumer):
 
         except json.JSONDecodeError:
             logger.warning(f"Received invalid JSON from overlay client: {text_data}")
+
+
+class MusicAgentConsumer(AsyncWebsocketConsumer):
+    """WebSocket consumer for music agents (Apple Music, etc.) to send updates."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.redis = None
+        self.agent_type = None
+
+    async def connect(self):
+        """Accept WebSocket connection from music agent."""
+        await self.accept()
+        logger.info("Music agent connected")
+
+        # Connect to Redis for broadcasting
+        from django.conf import settings
+
+        self.redis = redis.from_url(settings.REDIS_URL)
+
+    async def disconnect(self, close_code):
+        """Clean up when agent disconnects."""
+        logger.info(f"Music agent disconnected with code: {close_code}")
+
+        if self.redis:
+            await self.redis.close()
+
+    async def receive(self, text_data):
+        """Handle music updates from agents."""
+        try:
+            data = json.loads(text_data)
+
+            # Identify agent type from first message or data
+            if "agent_type" in data:
+                self.agent_type = data["agent_type"]
+                logger.info(f"Music agent identified as: {self.agent_type}")
+                return
+
+            # Process music update
+            from .services.music import music_service
+
+            if data.get("source") == "apple" or self.agent_type == "apple":
+                music_service.process_apple_music_update(data)
+            elif data.get("source") == "rainwave" or self.agent_type == "rainwave":
+                music_service.process_rainwave_update(data)
+            else:
+                logger.warning(f"Unknown music source: {data.get('source')}")
+
+        except json.JSONDecodeError:
+            logger.warning(f"Received invalid JSON from music agent: {text_data}")
+        except Exception as e:
+            logger.error(f"Error processing music agent update: {e}")
