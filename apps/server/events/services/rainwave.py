@@ -54,16 +54,27 @@ class RainwaveService:
         """Fetch current track info from Rainwave API.
 
         Returns:
-            Dict with track info or None if fetch fails
+            Dict with track info or None if fetch fails or user not tuned in
         """
         try:
             async with httpx.AsyncClient() as client:
-                # Rainwave info endpoint doesn't require auth for basic info
+                # Include auth to get user tuned_in status
                 response = await client.get(
-                    f"{self.base_url}/info", params={"sid": self.station_id}
+                    f"{self.base_url}/info",
+                    params={
+                        "sid": self.station_id,
+                        "user_id": self.user_id,
+                        "key": self.api_key,
+                    },
                 )
                 response.raise_for_status()
                 data = response.json()
+
+                # Check if user is actually tuned in
+                user_info = data.get("user", {})
+                if not user_info.get("tuned_in", False):
+                    logger.debug("User not tuned in to Rainwave, skipping update")
+                    return None
 
                 if "sched_current" in data:
                     current = data["sched_current"]
@@ -133,12 +144,23 @@ class RainwaveService:
             f"🎵 Starting Rainwave monitoring for station: {self.station_name} (ID: {self.station_id})"
         )
 
+        was_tuned_in = False
+
         while True:
             try:
                 track_info = await self.get_current_info()
 
                 if track_info:
-                    if track_info["id"] != self.last_track_id:
+                    # User is tuned in and we have track info
+                    if not was_tuned_in:
+                        # Just tuned in, send current track
+                        logger.info(f"🎵 User tuned in to Rainwave")
+                        was_tuned_in = True
+                        self.last_track_id = track_info["id"]
+                        self.current_track = track_info
+                        self.broadcast_update(track_info)
+                    elif track_info["id"] != self.last_track_id:
+                        # Track changed while tuned in
                         self.last_track_id = track_info["id"]
                         self.current_track = track_info
                         logger.info(
@@ -150,7 +172,20 @@ class RainwaveService:
                             f"Rainwave: Same track playing - {track_info['title']}"
                         )
                 else:
-                    logger.warning("Failed to fetch Rainwave track info")
+                    # User not tuned in or failed to fetch
+                    if was_tuned_in:
+                        # User just tuned out, clear the music display
+                        logger.info("🎵 User tuned out of Rainwave")
+                        was_tuned_in = False
+                        self.current_track = None
+                        self.last_track_id = None
+                        # Send a clear signal
+                        clear_signal = {
+                            "source": "rainwave",
+                            "tuned_in": False,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                        self.music_service.process_rainwave_update(clear_signal)
 
             except Exception as e:
                 logger.error(f"Error in Rainwave monitoring loop: {e}")
