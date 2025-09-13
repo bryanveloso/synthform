@@ -1,11 +1,7 @@
-import { useState, useEffect } from 'react'
-
-import { useServer } from '@/hooks/use-server'
+import { useTimeline } from '@/hooks/use-timeline'
 import type { TimelineEvent } from '@/types/events'
 
 import { Cheer, Follow, Subscription, SubscriptionGift, SubscriptionMessage, RedemptionAdd, Raid } from './item'
-
-const MESSAGE_TYPES = ['timeline:sync', 'timeline:push'] as const
 
 const getType = (event: TimelineEvent) => {
   switch (event.type) {
@@ -29,24 +25,7 @@ const getType = (event: TimelineEvent) => {
 }
 
 export const Timeline = () => {
-  const { data } = useServer(MESSAGE_TYPES)
-  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
-
-  const timelinePush = data['timeline:push']
-  const timelineSync = data['timeline:sync']
-
-  useEffect(() => {
-    if (timelineSync) {
-      const events: TimelineEvent[] = Array.isArray(timelineSync) ? timelineSync : [timelineSync]
-      setTimelineEvents(events)
-    }
-  }, [timelineSync])
-
-  useEffect(() => {
-    if (timelinePush) {
-      setTimelineEvents((prev) => [timelinePush as TimelineEvent, ...prev])
-    }
-  }, [timelinePush])
+  const { events: timelineEvents } = useTimeline(10)
 
   return (
     <div className="bg-shark-960 absolute right-0 bottom-0 left-0 h-12 w-full p-1 text-xs text-white">

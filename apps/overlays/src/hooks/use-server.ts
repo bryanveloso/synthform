@@ -14,6 +14,8 @@ type MessageTypes =
   | 'limitbreak:executed'
   | 'limitbreak:sync'
   | 'limitbreak:update'
+  | 'music:sync'
+  | 'music:update'
 
 interface ServerMessage {
   type: string;
@@ -33,7 +35,9 @@ class ServerConnection {
 
   private getWebSocketUrl(): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = import.meta.env.VITE_WS_HOST || (window.location.hostname === 'localhost' ? 'localhost' : 'saya')
+    // In development, connect to localhost Docker container
+    const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === 'zelan'
+    const host = import.meta.env.VITE_WS_HOST || (isDev ? 'localhost' : 'saya')
     const port = import.meta.env.VITE_WS_PORT || '7175'
     return `${protocol}//${host}:${port}/ws/overlay/`;
   }
