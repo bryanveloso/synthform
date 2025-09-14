@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useServer } from './use-server'
+
 import type { TimelineEvent } from '@/types/events'
+
+import { useServer } from './use-server'
 
 const MESSAGE_TYPES = ['timeline:sync', 'timeline:push'] as const
 
@@ -25,19 +27,19 @@ function transformEvent(rawEvent: RawEvent): TimelineEvent {
   if (rawEvent.type && rawEvent.type.includes('.') && rawEvent.data) {
     return rawEvent as TimelineEvent
   }
-  
+
   // Transform raw event from Redis
   const source = rawEvent.source || 'twitch'
   const eventType = rawEvent.event_type || rawEvent.type || ''
-  
+
   return {
     id: rawEvent.event_id || rawEvent.id || `${Date.now()}`,
     type: `${source}.${eventType}` as any,
     data: {
       timestamp: rawEvent.timestamp || new Date().toISOString(),
       payload: rawEvent.payload || {},
-      user_name: rawEvent.username || rawEvent.payload?.user_name || 'Unknown'
-    }
+      user_name: rawEvent.username || rawEvent.payload?.user_name || 'Unknown',
+    },
   }
 }
 
@@ -76,6 +78,6 @@ export function useTimeline(maxEvents: number = 10) {
     addTestEvent: (event: RawEvent) => {
       const transformed = transformEvent(event)
       setEvents((prev) => [transformed, ...prev].slice(0, maxEvents))
-    }
+    },
   }
 }

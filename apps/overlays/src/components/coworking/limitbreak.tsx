@@ -1,42 +1,39 @@
 import { useEffect, useRef, type FC, type PropsWithChildren } from 'react'
 
 import { useLimitbreak } from '@/hooks/use-limitbreak'
+import { cn } from '@/lib/utils'
 
 const Bar: FC<PropsWithChildren> = ({ children }) => {
-  return <div className="relative h-3 w-16 overflow-hidden rounded-xs bg-[#1E3246]">{children}</div>
+  return (
+    <div className="outline-shark-520 border-shark-920 bg-shark-840 relative h-3 w-20 overflow-hidden rounded-xs border-2 outline-2">
+      {children}
+    </div>
+  )
 }
 
 const Progress: FC<{ bar: number; isFilled: boolean }> = ({ bar, isFilled }) => {
   return (
     <div
-      style={{
-        width: `${bar * 100}%`,
-        height: '100%',
-        backgroundColor: isFilled ? '#ffff08' : '#0096ff',
-        transition: 'width 0.3s ease',
-      }}
+      className={cn(
+        'h-full bg-gradient-to-r',
+        isFilled ? 'from-[#ff8416] via-[#ffff08] to-[#ff8416]' : 'from-[#0096ff] via-[#4adfff] to-[#ffffff]',
+        'ease transition-all duration-300',
+      )}
+      style={{ width: `${bar * 100}%` }}
     />
   )
 }
 
 export const LimitBreak = () => {
-  const { 
-    data,
-    count,
-    progress,
-    filledBars,
-    hasJustMaxed,
-    hasJustExecuted,
-    isConnected 
-  } = useLimitbreak()
-  
+  const { data, count, progress, filledBars, hasJustMaxed, hasJustExecuted, isConnected } = useLimitbreak()
+
   const audioRef = useRef<HTMLAudioElement>(null)
   const executionAudioRef = useRef<HTMLAudioElement>(null)
 
   // Play sound when limit break becomes maxed
   useEffect(() => {
     if (hasJustMaxed && audioRef.current) {
-      audioRef.current.volume = 0.1
+      audioRef.current.volume = 0.075
       audioRef.current.play().catch((error) => {
         console.warn('Could not play limit break sound:', error)
       })
@@ -46,7 +43,7 @@ export const LimitBreak = () => {
   // Play sound when limit break is executed
   useEffect(() => {
     if (hasJustExecuted && executionAudioRef.current) {
-      executionAudioRef.current.volume = 0.1
+      executionAudioRef.current.volume = 0.075
       executionAudioRef.current
         .play()
         .then(() => {
@@ -61,7 +58,7 @@ export const LimitBreak = () => {
   if (!data) {
     return (
       <div>
-        <div>Limit Break: {isConnected ? 'Waiting for data...' : 'Disconnected'}</div>
+        {/* <div>Limit Break: {isConnected ? 'Waiting for data...' : 'Disconnected'}</div> */}
       </div>
     )
   }
@@ -69,8 +66,11 @@ export const LimitBreak = () => {
   const { bar1, bar2, bar3 } = data
 
   return (
-    <div>
-      <div className="flex items-center justify-center gap-2">
+    <div className="pr-[26px] pl-6">
+      <div className="flex items-center justify-center gap-3">
+        <div className="font-caps text-shark-120 flex items-center gap-1 text-2xl">
+          {count}
+        </div>
         <Bar>
           <Progress bar={bar1} isFilled={filledBars.bar1} />
         </Bar>
@@ -80,7 +80,6 @@ export const LimitBreak = () => {
         <Bar>
           <Progress bar={bar3} isFilled={filledBars.bar3} />
         </Bar>
-        <div className="font-sans font-bold text-[#0096ff]">{count}</div>
       </div>
       <audio ref={audioRef} preload="auto" className="hidden">
         <source src="/sounds/limit-break.mp3" type="audio/mpeg" />
