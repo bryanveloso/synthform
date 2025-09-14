@@ -1,3 +1,6 @@
+import { useEffect, useRef } from 'react'
+import { useGSAP } from '@gsap/react'
+import { gsap } from 'gsap'
 import { useTimeline } from '@/hooks/use-timeline'
 import { cn } from '@/lib/utils'
 import type { TimelineEvent } from '@/types/events'
@@ -27,11 +30,52 @@ const getType = (event: TimelineEvent) => {
 
 export const Timeline = () => {
   const { events: timelineEvents, isStale } = useTimeline(15)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const eventRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const animatedEvents = useRef<Set<string>>(new Set())
 
-  console.log('Timeline events:', timelineEvents)
+  // Cleanup refs on unmount
+  useEffect(() => {
+    return () => {
+      eventRefs.current.clear()
+      animatedEvents.current.clear()
+    }
+  }, [])
+
+  // Animate new events as they appear
+  useGSAP(() => {
+    const elementsToAnimate: HTMLElement[] = []
+
+    timelineEvents.forEach((event) => {
+      const element = eventRefs.current.get(event.id)
+
+      // Only animate if this event hasn't been animated yet
+      if (element && !animatedEvents.current.has(event.id)) {
+        elementsToAnimate.push(element)
+        animatedEvents.current.add(event.id)
+      }
+    })
+
+    // Batch animate all new elements with stagger
+    if (elementsToAnimate.length > 0) {
+      gsap.fromTo(elementsToAnimate,
+        { x: -50, opacity: 0, scale: 0.95 },
+        { x: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'power3.out', stagger: 0.05 }
+      )
+    }
+
+    // Clean up refs for removed events
+    const currentEventIds = new Set(timelineEvents.map(e => e.id))
+    animatedEvents.current.forEach(id => {
+      if (!currentEventIds.has(id)) {
+        eventRefs.current.delete(id)
+        animatedEvents.current.delete(id)
+      }
+    })
+  }, [timelineEvents])
 
   return (
-    <div className="relative overflow-x-hidden">
+    <div ref={containerRef} className="relative overflow-x-hidden" data-timeline>
       <div className="to-shark-960 absolute right-0 z-10 h-full w-48 bg-gradient-to-r from-transparent"></div>
       <div className="flex items-center gap-2 pl-6">
         <div className="from-shark-880 to-shark-920 rounded-sm bg-gradient-to-b p-2 inset-ring-1 inset-ring-white/5 outline-1">
@@ -59,7 +103,12 @@ export const Timeline = () => {
           return (
             <div
               key={event.id}
-              className={cn(`font-sans text-sm text-white`, isStale(event) ? 'opacity-50' : 'opacity-100')}>
+              ref={(el) => {
+                if (el) eventRefs.current.set(event.id, el)
+              }}
+              className={cn(`font-sans text-sm text-white`, isStale(event) ? 'opacity-50' : 'opacity-100')}
+              style={{ opacity: 0 }} // Start invisible for animation
+            >
               {component}
             </div>
           )

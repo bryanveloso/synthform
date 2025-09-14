@@ -1,18 +1,30 @@
+import { useEffect, useRef } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useGSAP } from '@gsap/react'
 
 import { Canvas } from '@/components/ui/canvas'
 import { Circle, Frame } from '@/components/ui/window'
 import { LimitBreak } from '@/components/coworking/limitbreak'
 import { Timeline } from '@/components/coworking/timeline'
+import { animateOverlayEntrance } from '@/lib/animations'
 
 export const Route = createFileRoute('/coworking')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Animate entire overlay on mount
+  useGSAP(() => {
+    if (containerRef.current) {
+      animateOverlayEntrance(containerRef.current)
+    }
+  }, [])
+
   return (
     <Canvas>
-      <div className="grid grid-rows-[auto_48px]">
+      <div ref={containerRef} className="grid grid-rows-[auto_48px]">
         {/* Main Content */}
         <div className="grid grid-cols-[1fr_492px_auto] gap-3 p-6">
           <div className="flex flex-col gap-3">
