@@ -1,4 +1,5 @@
 import { useTimeline } from '@/hooks/use-timeline'
+import { cn } from '@/lib/utils'
 import type { TimelineEvent } from '@/types/events'
 
 import { Cheer, Follow, Subscription, SubscriptionGift, SubscriptionMessage, RedemptionAdd, Raid } from './item'
@@ -25,13 +26,15 @@ const getType = (event: TimelineEvent) => {
 }
 
 export const Timeline = () => {
-  const { events: timelineEvents } = useTimeline(15)
+  const { events: timelineEvents, isStale } = useTimeline(15)
+
+  console.log('Timeline events:', timelineEvents)
 
   return (
-    <div className="overflow-x-hidden relative ">
-      <div className='absolute right-0 bg-gradient-to-r from-transparent to-shark-960 w-48 h-full'></div>
-      <div className="flex gap-2 items-center pl-6">
-        <div className='inset-ring-1 inset-ring-white/5 outline-1 p-2 rounded-sm bg-gradient-to-b from-shark-880 to-shark-920'>
+    <div className="relative overflow-x-hidden">
+      <div className="to-shark-960 absolute right-0 z-10 h-full w-48 bg-gradient-to-r from-transparent"></div>
+      <div className="flex items-center gap-2 pl-6">
+        <div className="from-shark-880 to-shark-920 rounded-sm bg-gradient-to-b p-2 inset-ring-1 inset-ring-white/5 outline-1">
           <svg
             version="1.1"
             id="Arrow-Right-1--Streamline-Streamline-3.0"
@@ -54,7 +57,9 @@ export const Timeline = () => {
           if (!component) return null
 
           return (
-            <div key={event.id} className="font-sans text-sm text-white">
+            <div
+              key={event.id}
+              className={cn(`font-sans text-sm text-white`, isStale(event) ? 'opacity-50' : 'opacity-100')}>
               {component}
             </div>
           )

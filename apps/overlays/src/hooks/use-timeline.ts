@@ -70,9 +70,17 @@ export function useTimeline(maxEvents: number = 10) {
     }
   }, [timelinePush, maxEvents])
 
+  const isStale = (event: TimelineEvent) => {
+    const eventTime = new Date(event.data.timestamp).getTime()
+    const ageInMs = Date.now() - eventTime
+    const ageInHours = ageInMs / (1000 * 60 * 60)
+    return ageInHours > 24
+  }
+
   return {
     events,
     isConnected,
+    isStale,
     // Expose utilities if needed
     clearEvents: () => setEvents([]),
     addTestEvent: (event: RawEvent) => {

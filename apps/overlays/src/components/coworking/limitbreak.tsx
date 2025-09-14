@@ -66,11 +66,9 @@ export const LimitBreak = () => {
   const { bar1, bar2, bar3 } = data
 
   return (
-    <div className="pr-[26px] pl-6">
+    <div className="pr-[26px]">
       <div className="flex items-center justify-center gap-3">
-        <div className="font-caps text-shark-120 flex items-center gap-1 text-2xl">
-          {count}
-        </div>
+        <div className="font-caps text-shark-120 flex items-center gap-1 text-2xl">{count}</div>
         <Bar>
           <Progress bar={bar1} isFilled={filledBars.bar1} />
         </Bar>
