@@ -347,7 +347,24 @@ class TwitchEventHandler:
             "message": {
                 "text": payload.text,
                 "fragments": [
-                    {"type": frag.type, "text": frag.text} for frag in payload.fragments
+                    {
+                        "type": frag.type,
+                        "text": frag.text,
+                        # Handle emote data if present
+                        "emote": {
+                            "id": frag.emote.id
+                            if hasattr(frag, "emote") and frag.emote
+                            else None,
+                            "set_id": frag.emote.emote_set_id
+                            if hasattr(frag, "emote")
+                            and frag.emote
+                            and hasattr(frag.emote, "emote_set_id")
+                            else None,
+                        }
+                        if hasattr(frag, "emote") and frag.emote
+                        else None,
+                    }
+                    for frag in payload.fragments
                 ],
             },
             "notice_type": payload.notice_type,
@@ -638,7 +655,16 @@ class TwitchEventHandler:
             "cumulative_months": payload.cumulative_months,
             "streak_months": payload.streak_months,
             "duration_months": payload.months,
-            "emotes": payload.emotes,
+            "emotes": [
+                {
+                    "id": emote.id,
+                    "begin": emote.begin,
+                    "end": emote.end,
+                }
+                for emote in (payload.emotes or [])
+            ]
+            if payload.emotes
+            else [],
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
