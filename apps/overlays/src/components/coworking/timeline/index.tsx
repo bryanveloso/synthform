@@ -36,9 +36,11 @@ export const Timeline = () => {
 
   // Cleanup refs on unmount
   useEffect(() => {
+    const refs = eventRefs.current
+    const animated = animatedEvents.current
     return () => {
-      eventRefs.current.clear()
-      animatedEvents.current.clear()
+      refs.clear()
+      animated.clear()
     }
   }, [])
 

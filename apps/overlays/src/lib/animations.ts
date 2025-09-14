@@ -1,5 +1,116 @@
 import { gsap } from 'gsap'
 
+// Create a scoped animation controller for any overlay that needs orchestration
+// This orchestrates multiple animation types on the same page
+export const createAnimationController = () => {
+  // Main timeline for sequential animations
+  const masterTimeline = gsap.timeline({
+    paused: false,
+    defaults: { ease: 'power3.out' }
+  })
+
+  // Queue for pending animations
+  const animationQueue = {
+    alerts: [] as Array<() => gsap.core.Timeline>,
+    timeline: [] as Array<() => gsap.core.Timeline>
+  }
+
+  let isProcessingAlert = false
+
+  const processNextAnimation = () => {
+    // Alerts have priority
+    if (animationQueue.alerts.length > 0 && !isProcessingAlert) {
+      isProcessingAlert = true
+      const alertFn = animationQueue.alerts.shift()!
+      const alertAnim = alertFn()
+
+      alertAnim.eventCallback('onComplete', () => {
+        isProcessingAlert = false
+        processNextAnimation() // Check for more animations
+      })
+      return
+    }
+
+    // Process timeline events when no alerts are active
+    if (animationQueue.timeline.length > 0 && !isProcessingAlert) {
+      const timelineFn = animationQueue.timeline.shift()!
+      timelineFn() // These can run immediately
+
+      // Process more if available
+      if (animationQueue.timeline.length > 0) {
+        gsap.delayedCall(0.1, processNextAnimation)
+      }
+    }
+  }
+
+  return {
+    masterTimeline,
+
+    // Queue an alert with its corresponding timeline event
+    queueEventWithAlert: (alertElement: HTMLElement, timelineElement: HTMLElement, alertDuration = 5) => {
+      // Queue the alert
+      animationQueue.alerts.push(() => {
+        return gsap.timeline()
+          .fromTo(alertElement,
+            { scale: 0, opacity: 0, y: -20 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.3, ease: 'back.out(2)' }
+          )
+          .to(alertElement, {}, `+=${alertDuration}`)  // Hold
+          .to(alertElement, { scale: 0, opacity: 0, y: -20, duration: 0.2 })
+      })
+
+      // Queue the timeline event to appear AFTER the alert
+      animationQueue.timeline.push(() => {
+        return gsap.timeline().fromTo(timelineElement,
+          { x: -50, opacity: 0, scale: 0.95 },
+          { x: 0, opacity: 1, scale: 1, duration: 0.5 }
+        )
+      })
+
+      processNextAnimation()
+    },
+
+    // Add just a timeline event (no alert)
+    queueTimelineEvent: (element: HTMLElement) => {
+      animationQueue.timeline.push(() => {
+        return gsap.timeline().fromTo(element,
+          { x: -50, opacity: 0, scale: 0.95 },
+          { x: 0, opacity: 1, scale: 1, duration: 0.5 }
+        )
+      })
+
+      if (!isProcessingAlert) {
+        processNextAnimation()
+      }
+    },
+
+    // Limit break execution - dramatic pause
+    executeLimitBreak: (element: HTMLElement) => {
+      // Clear all queues during limit break
+      animationQueue.alerts = []
+      animationQueue.timeline = []
+      isProcessingAlert = true
+
+      const execution = gsap.timeline()
+        .to(element, { scale: 1.2, duration: 0.1 })
+        .to(element, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.3)' })
+        .call(() => {
+          isProcessingAlert = false
+          processNextAnimation()
+        })
+
+      return execution
+    },
+
+    // Clean up on unmount
+    destroy: () => {
+      masterTimeline.kill()
+      animationQueue.alerts = []
+      animationQueue.timeline = []
+    }
+  }
+}
+
 // Timeline item entrance - slides in from left
 export const animateTimelineEntry = (element: HTMLElement, delay: number = 0) => {
   return gsap.fromTo(element,
@@ -110,7 +221,7 @@ export const animateOverlayEntrance = (container: HTMLElement) => {
   return tl
 }
 
-// Alert/notification style animation
+// Alert/notification style animation - standalone version for simple use cases
 export const animateAlert = (element: HTMLElement) => {
   return gsap.timeline()
     .fromTo(element,
@@ -145,7 +256,7 @@ export const animateCount = (element: HTMLElement, from: number, to: number, dur
 
 // Simple entrance animation for individual components
 export const animateComponentEntrance = (element: HTMLElement, direction: 'up' | 'down' | 'left' | 'right' = 'up') => {
-  const from: any = { opacity: 0 }
+  const from: gsap.TweenVars = { opacity: 0 }
 
   switch (direction) {
     case 'up':
