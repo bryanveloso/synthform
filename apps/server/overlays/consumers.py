@@ -212,6 +212,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             latest_event = (
                 await Event.objects.select_related("member")
                 .filter(event_type__in=self.VIEWER_INTERACTIONS)
+                .order_by("-timestamp")
                 .afirst()
             )
             if latest_event:
@@ -243,9 +244,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         try:
             events = []
-            async for event in Event.objects.select_related("member").filter(
-                event_type__in=self.VIEWER_INTERACTIONS
-            )[:limit]:
+            async for event in (
+                Event.objects.select_related("member")
+                .filter(event_type__in=self.VIEWER_INTERACTIONS)
+                .order_by("-timestamp")[:limit]
+            ):
                 events.append(
                     {
                         "id": str(event.id),
