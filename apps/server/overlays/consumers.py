@@ -20,6 +20,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
     # Timeline-worthy viewer interactions
     VIEWER_INTERACTIONS = [
+        "channel.chat.notification",
         "channel.follow",
         "channel.subscribe",
         "channel.subscription.gift",
