@@ -6,6 +6,7 @@ import type {
   CheerEvent,
   ChannelPointsRedemptionEvent,
   ChannelRaidEvent,
+  ChatNotificationEvent,
 } from '@/types/events'
 import type { FC, PropsWithChildren } from 'react'
 
@@ -83,3 +84,86 @@ export const Raid = ({ event }: { event: ChannelRaidEvent }) => (
     <div className="font-caps text-shark-680 text-base whitespace-nowrap">Raid</div>
   </Item>
 )
+
+// Mega component for handling all chat notification events
+export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) => {
+  const payload = event.data.payload
+  const { notice_type, chatter_display_name, chatter_user_name } = payload
+
+  switch (notice_type) {
+    case 'sub':
+      return (
+        <Item>
+          <div>{chatter_display_name || chatter_user_name}</div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">New Sub</div>
+        </Item>
+      )
+
+    case 'resub':
+      return (
+        <Item>
+          <div>{chatter_display_name || chatter_user_name}</div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">
+            {payload.resub?.cumulative_months || '?'} Months
+          </div>
+        </Item>
+      )
+
+    case 'sub_gift':
+      return (
+        <Item>
+          <div>{payload.sub_gift?.recipient_user_name || 'Someone'}</div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">Gift Sub</div>
+        </Item>
+      )
+
+    case 'community_sub_gift':
+      return (
+        <Item>
+          <div>
+            {chatter_display_name || chatter_user_name} × {payload.community_sub_gift?.total || '?'}
+          </div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">Gift</div>
+        </Item>
+      )
+
+    case 'raid':
+      return (
+        <Item>
+          <div>
+            {payload.raid?.user_name || chatter_display_name || chatter_user_name} + {payload.raid?.viewer_count || '?'}
+          </div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">Raid</div>
+        </Item>
+      )
+
+    case 'bits_badge_tier':
+      return (
+        <Item>
+          <div>{chatter_display_name || chatter_user_name}</div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">
+            Bits Badge {payload.bits_badge_tier?.tier || ''}
+          </div>
+        </Item>
+      )
+
+    case 'charity_donation':
+      return (
+        <Item>
+          <div>{chatter_display_name || chatter_user_name}</div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">
+            ${payload.charity_donation?.amount.value || '?'} Charity
+          </div>
+        </Item>
+      )
+
+    default:
+      // Fallback for unknown notice types
+      return (
+        <Item>
+          <div>{chatter_display_name || chatter_user_name}</div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">{notice_type}</div>
+        </Item>
+      )
+  }
+}

@@ -5,9 +5,15 @@ import { useTimeline } from '@/hooks/use-timeline'
 import { cn } from '@/lib/utils'
 import type { TimelineEvent } from '@/types/events'
 
-import { Cheer, Follow, Subscription, SubscriptionGift, SubscriptionMessage, RedemptionAdd, Raid } from './item'
+import { Cheer, Follow, Subscription, SubscriptionGift, SubscriptionMessage, RedemptionAdd, Raid, ChatNotification } from './item'
+import type { ChatNotificationEvent } from '@/types/events'
 
 const getType = (event: TimelineEvent) => {
+  // Check if this is a chat notification event (has notice_type in payload)
+  if ('payload' in event.data && 'notice_type' in event.data.payload) {
+    return <ChatNotification event={event as ChatNotificationEvent} />
+  }
+
   switch (event.type) {
     case 'twitch.channel.follow':
       return <Follow event={event} />

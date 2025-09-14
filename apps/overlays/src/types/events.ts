@@ -166,6 +166,115 @@ export interface ChannelRaidEvent extends BaseEvent<ChannelRaidPayload> {
   }
 }
 
+// Chat Notification Event (consolidated events from Twitch)
+export interface ChatNotificationPayload {
+  broadcaster_user_id: string
+  broadcaster_user_name: string
+  chatter_user_id: string
+  chatter_user_name: string
+  chatter_display_name: string
+  chatter_is_anonymous: boolean
+  color: string
+  badges: Array<{
+    set_id: string
+    id: string
+    info: string
+  }>
+  system_message: string
+  message_id: string
+  message: {
+    text: string
+    fragments: Array<{
+      type: string
+      text: string
+      emote?: {
+        id: string | null
+        set_id: string | null
+      } | null
+    }>
+  }
+  notice_type: string
+  // Type-specific data fields (only one will be populated based on notice_type)
+  sub?: {
+    sub_tier: string
+    is_prime: boolean
+    duration_months: number
+  }
+  resub?: {
+    cumulative_months: number
+    duration_months: number
+    streak_months: number | null
+    sub_tier: string
+    is_prime: boolean
+    is_gift: boolean
+    gifter_is_anonymous?: boolean | null
+    gifter_user_id?: string | null
+    gifter_user_name?: string | null
+    gifter_user_login?: string | null
+  }
+  sub_gift?: {
+    duration_months: number
+    cumulative_total: number | null
+    recipient_user_id: string
+    recipient_user_name: string
+    recipient_user_login: string
+    sub_tier: string
+    community_gift_id?: string | null
+  }
+  community_sub_gift?: {
+    id: string
+    total: number
+    sub_tier: string
+    cumulative_total: number | null
+  }
+  gift_paid_upgrade?: {
+    is_anonymous: boolean
+    gifter_user_id?: string | null
+    gifter_user_name?: string | null
+    gifter_user_login?: string | null
+  }
+  prime_paid_upgrade?: {
+    sub_tier: string
+  }
+  raid?: {
+    user_id: string
+    user_name: string
+    user_login: string
+    viewer_count: number
+    profile_image_url: string
+  }
+  unraid?: Record<string, never>
+  pay_it_forward?: {
+    is_anonymous: boolean
+    gifter_user_id?: string | null
+    gifter_user_name?: string | null
+    gifter_user_login?: string | null
+  }
+  announcement?: {
+    color: string
+  }
+  bits_badge_tier?: {
+    tier: number
+  }
+  charity_donation?: {
+    charity_name: string
+    amount: {
+      value: number
+      decimal_places: number
+      currency: string
+    }
+  }
+}
+
+export interface ChatNotificationEvent extends BaseEvent<ChatNotificationPayload> {
+  type: string // Dynamic based on notice_type mapping
+  data: {
+    timestamp: string
+    payload: ChatNotificationPayload
+    user_name: string
+  }
+}
+
 // Union type for all timeline events
 export type TimelineEvent =
   | ChannelFollowEvent
@@ -175,6 +284,7 @@ export type TimelineEvent =
   | CheerEvent
   | ChannelPointsRedemptionEvent
   | ChannelRaidEvent
+  | ChatNotificationEvent
 
 // Type guard functions
 export function isFollowEvent(event: TimelineEvent): event is ChannelFollowEvent {

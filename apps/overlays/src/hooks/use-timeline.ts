@@ -30,7 +30,27 @@ function transformEvent(rawEvent: RawEvent): TimelineEvent {
 
   // Transform raw event from Redis
   const source = rawEvent.source || 'twitch'
-  const eventType = rawEvent.event_type || rawEvent.type || ''
+  let eventType = rawEvent.event_type || rawEvent.type || ''
+
+  // Handle consolidated chat.notification events from Twitch
+  // These come through with a notice_type that tells us the real event type
+  if (eventType === 'channel.chat.notification' && rawEvent.payload?.notice_type) {
+    const noticeTypeMap: Record<string, string> = {
+      'sub': 'channel.subscribe',
+      'resub': 'channel.subscription.message',
+      'sub_gift': 'channel.subscription.gift',
+      'community_sub_gift': 'channel.subscription.gift',
+      'gift_paid_upgrade': 'channel.subscription.gift',
+      'prime_paid_upgrade': 'channel.subscribe',
+      'raid': 'channel.raid',
+      'unraid': 'channel.raid',
+      'pay_it_forward': 'channel.subscription.gift',
+      'announcement': 'channel.announcement',
+      'bits_badge_tier': 'channel.cheer',
+      'charity_donation': 'channel.charity_donation',
+    }
+    eventType = noticeTypeMap[rawEvent.payload.notice_type] || eventType
+  }
 
   return {
     id: rawEvent.event_id || rawEvent.id || `${Date.now()}`,
