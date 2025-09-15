@@ -174,7 +174,7 @@ export interface ChatNotificationPayload {
   chatter_user_name: string
   chatter_display_name: string
   chatter_is_anonymous: boolean
-  color: string
+  colour: string
   badges: Array<{
     set_id: string
     id: string
@@ -193,81 +193,196 @@ export interface ChatNotificationPayload {
       } | null
     }>
   }
-  notice_type: string
+  notice_type:
+    | 'sub'
+    | 'resub'
+    | 'sub_gift'
+    | 'community_sub_gift'
+    | 'gift_paid_upgrade'
+    | 'prime_paid_upgrade'
+    | 'pay_it_forward'
+    | 'raid'
+    | 'unraid'
+    | 'announcement'
+    | 'bits_badge_tier'
+    | 'charity_donation'
+    | 'shared_chat_sub'
+    | 'shared_chat_resub'
+    | 'shared_chat_sub_gift'
+    | 'shared_chat_community_sub_gift'
+    | 'shared_chat_gift_paid_upgrade'
+    | 'shared_chat_prime_paid_upgrade'
+    | 'shared_chat_raid'
+    | 'shared_chat_pay_it_forward'
+    | 'shared_chat_announcement'
+    | string // Allow other notice types we might not know about
   // Type-specific data fields (only one will be populated based on notice_type)
+  // These match TwitchIO's actual field names after serialization
   sub?: {
-    sub_tier: string
-    is_prime: boolean
-    duration_months: number
+    tier: string  // "1000", "2000", or "3000"
+    prime: boolean
+    months: number
   }
   resub?: {
+    tier: string  // "1000", "2000", or "3000"
+    prime: boolean
+    gift: boolean
+    months: number
     cumulative_months: number
-    duration_months: number
     streak_months: number | null
-    sub_tier: string
-    is_prime: boolean
-    is_gift: boolean
-    gifter_is_anonymous?: boolean | null
-    gifter_user_id?: string | null
-    gifter_user_name?: string | null
-    gifter_user_login?: string | null
+    anonymous?: boolean | null
+    gifter?: {  // PartialUser object
+      id: string
+      name: string
+      display_name: string
+      login: string
+    } | null
   }
   sub_gift?: {
-    duration_months: number
+    tier: string  // "1000", "2000", or "3000"
+    months: number
     cumulative_total: number | null
-    recipient_user_id: string
-    recipient_user_name: string
-    recipient_user_login: string
-    sub_tier: string
-    community_gift_id?: string | null
+    community_gift_id: string | null
+    recipient: {  // PartialUser object
+      id: string
+      name: string
+      display_name: string
+      login: string
+    }
   }
   community_sub_gift?: {
-    id: string
+    tier: string  // "1000", "2000", or "3000"
     total: number
-    sub_tier: string
     cumulative_total: number | null
+    id: string
   }
   gift_paid_upgrade?: {
-    is_anonymous: boolean
-    gifter_user_id?: string | null
-    gifter_user_name?: string | null
-    gifter_user_login?: string | null
+    anonymous: boolean
+    gifter?: {  // PartialUser object
+      id: string
+      name: string
+      display_name: string
+      login: string
+    } | null
   }
   prime_paid_upgrade?: {
-    sub_tier: string
+    tier: string  // "1000", "2000", or "3000"
   }
   raid?: {
-    user_id: string
-    user_name: string
-    user_login: string
+    user: {  // PartialUser object
+      id: string
+      name: string
+      display_name: string
+      login: string
+    }
     viewer_count: number
-    profile_image_url: string
+    profile_image: {  // Asset object
+      url: string
+    }
   }
-  unraid?: Record<string, never>
+  unraid?: null  // Always null
   pay_it_forward?: {
-    is_anonymous: boolean
-    gifter_user_id?: string | null
-    gifter_user_name?: string | null
-    gifter_user_login?: string | null
+    anonymous: boolean
+    gifter?: {  // PartialUser object
+      id: string
+      name: string
+      display_name: string
+      login: string
+    } | null
   }
   announcement?: {
-    color: string
+    colour: string  // TwitchIO uses British spelling
   }
   bits_badge_tier?: {
     tier: number
   }
   charity_donation?: {
-    charity_name: string
-    amount: {
+    name: string
+    amount: {  // CharityValues object
       value: number
       decimal_places: number
       currency: string
     }
   }
+  // Shared chat variants (same structure as their non-shared counterparts)
+  shared_sub?: {
+    tier: string
+    prime: boolean
+    months: number
+  }
+  shared_resub?: {
+    tier: string
+    prime: boolean
+    gift: boolean
+    months: number
+    cumulative_months: number
+    streak_months: number | null
+    anonymous?: boolean | null
+    gifter?: {
+      id: string
+      name: string
+      display_name: string
+      login: string
+    } | null
+  }
+  shared_sub_gift?: {
+    tier: string
+    months: number
+    cumulative_total: number | null
+    community_gift_id: string | null
+    recipient: {
+      id: string
+      name: string
+      display_name: string
+      login: string
+    }
+  }
+  shared_community_sub_gift?: {
+    tier: string
+    total: number
+    cumulative_total: number | null
+    id: string
+  }
+  shared_gift_paid_upgrade?: {
+    anonymous: boolean
+    gifter?: {
+      id: string
+      name: string
+      display_name: string
+      login: string
+    } | null
+  }
+  shared_prime_paid_upgrade?: {
+    tier: string
+  }
+  shared_raid?: {
+    user: {
+      id: string
+      name: string
+      display_name: string
+      login: string
+    }
+    viewer_count: number
+    profile_image: {
+      url: string
+    }
+  }
+  shared_pay_it_forward?: {
+    anonymous: boolean
+    gifter?: {
+      id: string
+      name: string
+      display_name: string
+      login: string
+    } | null
+  }
+  shared_announcement?: {
+    colour: string
+  }
 }
 
 export interface ChatNotificationEvent extends BaseEvent<ChatNotificationPayload> {
-  type: string // Dynamic based on notice_type mapping
+  type: 'twitch.channel.chat.notification'
   data: {
     timestamp: string
     payload: ChatNotificationPayload
@@ -313,4 +428,8 @@ export function isPointsRedemptionEvent(event: TimelineEvent): event is ChannelP
 
 export function isRaidEvent(event: TimelineEvent): event is ChannelRaidEvent {
   return event.type === 'twitch.channel.raid'
+}
+
+export function isChatNotificationEvent(event: TimelineEvent): event is ChatNotificationEvent {
+  return event.type === 'twitch.channel.chat.notification'
 }
