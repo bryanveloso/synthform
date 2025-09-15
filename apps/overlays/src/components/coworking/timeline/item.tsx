@@ -112,8 +112,12 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
     case 'sub_gift':
       return (
         <Item>
-          <div>{payload.sub_gift?.recipient_user_name || 'Someone'}</div>
-          <div className="font-caps text-shark-680 text-base whitespace-nowrap">Gift Sub</div>
+          <div>
+            {payload.sub_gift?.recipient?.display_name ||
+             payload.sub_gift?.recipient?.name ||
+             'Unknown'}
+          </div>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">Gift</div>
         </Item>
       )
 
@@ -131,7 +135,10 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
       return (
         <Item>
           <div>
-            {payload.raid?.user_name || chatter_display_name || chatter_user_name} + {payload.raid?.viewer_count || '?'}
+            {payload.raid?.user?.display_name ||
+             payload.raid?.user?.name ||
+             chatter_display_name ||
+             chatter_user_name} + {payload.raid?.viewer_count || '?'}
           </div>
           <div className="font-caps text-shark-680 text-base whitespace-nowrap">Raid</div>
         </Item>

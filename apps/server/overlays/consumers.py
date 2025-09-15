@@ -20,8 +20,16 @@ class OverlayConsumer(AsyncWebsocketConsumer):
     """WebSocket consumer for overlay communication."""
 
     # Timeline-worthy viewer interactions
+    # Now we only use channel.chat.notification for the timeline to avoid duplicates
+    TIMELINE_EVENTS = [
+        "channel.chat.notification",  # Consolidated event that includes subs, raids, etc.
+        "channel.follow",  # Still separate as it doesn't appear in chat.notification
+        "channel.cheer",  # Still separate as it doesn't appear in chat.notification
+    ]
+
+    # Keep the old list for other uses (like base layer)
     VIEWER_INTERACTIONS = [
-        "channel.chat.notification",  # Will be filtered by notice_type
+        "channel.chat.notification",
         "channel.follow",
         "channel.subscribe",
         "channel.subscription.gift",
@@ -87,8 +95,9 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         await self.pubsub.subscribe("events:obs")
         await self.pubsub.subscribe("events:limitbreak")
         await self.pubsub.subscribe("events:music")
+        await self.pubsub.subscribe("events:status")
         logger.info(
-            "Subscribed to Redis events:twitch, events:obs, events:limitbreak, and events:music channels"
+            "Subscribed to Redis events:twitch, events:obs, events:limitbreak, events:music, and events:status channels"
         )
 
         # Start Redis message listener
@@ -171,6 +180,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             await self._send_message("music", "sync", event_data.get("data", {}))
             return
 
+        # Handle status events
+        if event_type == "status.update":
+            logger.info(
+                f"📍 WebSocket: Sending status:update to overlay - {event_data.get('data', {})}"
+            )
+            await self._send_message("status", "update", event_data.get("data", {}))
+            return
+
         # Handle OBS events differently
         if source == "obs":
             # OBS events go to OBS state layer for real-time state updates
@@ -180,11 +197,24 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             if event_type == "obs.scene.changed":
                 await self._send_message("base", "obs_scene_changed", event_data)
         else:
-            # Other viewer interactions go to timeline, base, and alerts
+            # Send timeline-worthy events to timeline
+            if event_type in [
+                "channel.chat.notification",
+                "channel.follow",
+                "channel.cheer",
+            ]:
+                # For chat.notification, check if it's a timeline-worthy notice type
+                if event_type == "channel.chat.notification":
+                    notice_type = event_data.get("data", {}).get("notice_type", "")
+                    if notice_type in self.TIMELINE_NOTICE_TYPES:
+                        await self._send_message("timeline", "push", event_data)
+                else:
+                    # Follow and cheer events always go to timeline
+                    await self._send_message("timeline", "push", event_data)
+
+            # All viewer interactions still go to base and alerts for other uses
             if event_type in self.VIEWER_INTERACTIONS:
-                await self._send_message("timeline", "push", event_data)
                 await self._send_message("base", "update", event_data)
-                # These are significant events that might trigger alerts or ticker updates
                 await self._send_message("alerts", "push", event_data)
 
     async def _send_initial_state(self) -> None:
@@ -226,6 +256,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         music_state = await self._get_music_state()
         if music_state:
             await self._send_message("music", "sync", music_state)
+
+        # Status layer - get current status
+        status_state = await self._get_status_state()
+        if status_state:
+            await self._send_message("status", "sync", status_state)
 
     async def _send_message(self, layer: str, verb: str, payload: dict | list) -> None:
         """Send formatted message to overlay client."""
@@ -279,19 +314,18 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         from events.models import Event
 
         try:
-            # First pass: collect all events and identify chat notifications
-            raw_events = []
-            chat_notification_keys = set()  # Track chat.notification events for dedup
+            events = []
 
-            # Fetch extra events to account for duplicates and filtered announcements
+            # Fetch events using TIMELINE_EVENTS to avoid duplicates
+            # We now only show channel.chat.notification, follow, and cheer events
             async for event in (
                 Event.objects.select_related("member")
-                .filter(event_type__in=self.VIEWER_INTERACTIONS)
-                .order_by("-timestamp")[: limit * 3]
+                .filter(event_type__in=self.TIMELINE_EVENTS)
+                .order_by("-timestamp")[
+                    : limit * 2
+                ]  # Fetch extra to account for filtered events
             ):
-                raw_events.append(event)
-
-                # Track chat.notification events for deduplication
+                # For channel.chat.notification, filter by notice_type
                 if event.event_type == "channel.chat.notification":
                     notice_type = event.payload.get("notice_type", "")
 
@@ -299,100 +333,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     if notice_type not in self.TIMELINE_NOTICE_TYPES:
                         continue
 
-                    # Build dedup key based on notice_type and timestamp
-                    # For most events, include username for accuracy
-                    # For raids, use the raiding broadcaster's ID
-                    if notice_type == "raid":
-                        # Raids: use raiding broadcaster ID + timestamp
-                        raid_data = event.payload.get("raid", {})
-                        if isinstance(raid_data, dict):
-                            raider_id = (
-                                raid_data.get("user", {}).get("id", "")
-                                if isinstance(raid_data.get("user"), dict)
-                                else ""
-                            )
-                        else:
-                            raider_id = ""
-                        time_key = event.timestamp.isoformat()[:19]
-                        chat_notification_keys.add(f"raid:{raider_id}:{time_key}")
-                    else:
-                        # Other events: use username + timestamp for better accuracy
-                        user_key = (
-                            event.payload.get("chatter_user_name", "")
-                            or event.username
-                            or ""
-                        )
-                        time_key = event.timestamp.isoformat()[:19]
-                        chat_notification_keys.add(
-                            f"{notice_type}:{user_key}:{time_key}"
-                        )
-
-            # Second pass: build final event list with deduplication
-            events = []
-            for event in raw_events:
-                # Skip excluded notice types
-                if event.event_type == "channel.chat.notification":
-                    notice_type = event.payload.get("notice_type", "")
-                    if notice_type not in self.TIMELINE_NOTICE_TYPES:
-                        continue
-
-                # Check if this is a legacy event that has a chat.notification duplicate
-                if event.event_type in [
-                    "channel.subscribe",
-                    "channel.subscription.message",
-                    "channel.subscription.gift",
-                    "channel.raid",
-                ]:
-                    # Map legacy event types to notice_type values
-                    notice_type_map = {
-                        "channel.subscribe": "sub",
-                        "channel.subscription.message": "resub",
-                        "channel.subscription.gift": "community_sub_gift",
-                        "channel.raid": "raid",
-                    }
-
-                    notice_type = notice_type_map.get(event.event_type, "")
-
-                    # Check timestamp within 2-second window
-                    timestamp = event.timestamp
-                    found_duplicate = False
-
-                    # Special handling for raids (raider ID + timestamp matching)
-                    if event.event_type == "channel.raid":
-                        # Get the raiding broadcaster's ID from the legacy event
-                        raider_id = event.payload.get("from_broadcaster_user_id", "")
-                        for delta in range(-2, 3):  # -2 to +2 seconds
-                            time_with_delta = (
-                                timestamp + timedelta(seconds=delta)
-                            ).isoformat()[:19]
-                            dedup_key = f"raid:{raider_id}:{time_with_delta}"
-                            if dedup_key in chat_notification_keys:
-                                found_duplicate = True
-                                logger.debug(
-                                    f"Skipping duplicate raid from {raider_id} at {time_with_delta} - "
-                                    f"have chat.notification"
-                                )
-                                break
-                    else:
-                        # Other events: include username in matching
-                        user_key = event.username or ""
-                        for delta in range(-2, 3):  # -2 to +2 seconds
-                            time_with_delta = (
-                                timestamp + timedelta(seconds=delta)
-                            ).isoformat()[:19]
-                            dedup_key = f"{notice_type}:{user_key}:{time_with_delta}"
-                            if dedup_key in chat_notification_keys:
-                                found_duplicate = True
-                                logger.debug(
-                                    f"Skipping duplicate {event.event_type} for {user_key} - "
-                                    f"have chat.notification with notice_type={notice_type}"
-                                )
-                                break
-
-                    if found_duplicate:
-                        continue
-
-                # Add event to final list
+                # Add event to the list
                 try:
                     events.append(
                         {
@@ -563,6 +504,32 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error getting music state: {e}")
             return None
+
+    async def _get_status_state(self) -> dict | None:
+        """Get current stream status."""
+        from streams.models import Status
+
+        try:
+            # Get the most recent status
+            status = await Status.objects.order_by("-created_at").afirst()
+            if status:
+                return {
+                    "status": status.status,
+                    "message": status.message,
+                    "updated_at": status.updated_at.isoformat(),
+                }
+            return {
+                "status": "online",
+                "message": "",
+                "updated_at": None,
+            }
+        except Exception as e:
+            logger.error(f"Error getting status state: {e}")
+            return {
+                "status": "online",
+                "message": "",
+                "updated_at": None,
+            }
 
     async def receive(self, text_data: str) -> None:
         """Handle messages from overlay clients (currently unused)."""
