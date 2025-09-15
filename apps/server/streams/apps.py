@@ -9,5 +9,5 @@ class StreamsConfig(AppConfig):
 
     def ready(self):
         """Initialize the OBS service when Django starts."""
-        from . import services  # noqa: F401
+        from . import signals  # noqa: F401
         from .services.obs import obs_service  # noqa: F401
