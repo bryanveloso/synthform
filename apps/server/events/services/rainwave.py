@@ -213,10 +213,6 @@ class RainwaveService:
                             f"🎵 Rainwave track changed: {track_info['title']} by {track_info['artist']}"
                         )
                         self.broadcast_update(track_info)
-                    else:
-                        logger.debug(
-                            f"Rainwave: Same track playing - {track_info['title']}"
-                        )
                 else:
                     # User not tuned in or failed to fetch
                     if was_tuned_in:

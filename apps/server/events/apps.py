@@ -35,6 +35,11 @@ class EventsConfig(AppConfig):
             logger.info("⏭️ Skipping background services (management command detected)")
             return
 
+        # Don't start background services in the TwitchIO container
+        if os.environ.get("DISABLE_BACKGROUND_SERVICES") == "true":
+            logger.info("⏭️ Background services disabled by environment variable")
+            return
+
         # If we get here, we're likely running as a server
         logger.info("🚀 Starting background services...")
         # Start background services in a separate thread to avoid blocking

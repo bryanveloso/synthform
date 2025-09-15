@@ -66,6 +66,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
       - REDIS_URL=redis://redis:6379/0
+      - DISABLE_BACKGROUND_SERVICES=true
     ports:
       - "4343:4343"
     command: uv run python -m shared.services.twitch.service
