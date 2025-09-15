@@ -2,8 +2,8 @@
 export default {
   plugins: ['prettier-plugin-tailwindcss'],
   bracketSameLine: true,
-  printWidth: 120,
+  printWidth: 100,
   singleQuote: true,
   semi: false,
   trailingComma: 'all',
-};
+}
