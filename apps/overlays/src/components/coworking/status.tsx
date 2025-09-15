@@ -1,7 +1,7 @@
-import { useStatus } from '@/hooks/use-status'
 import { cn } from '@/lib/utils'
+import { useStatus } from '@/hooks/use-status'
 
-const statusConfig = {
+const STATUSES = {
   online: {
     color: 'from-lime to-lime/50',
     textColor: 'text-lime',
@@ -18,13 +18,13 @@ const statusConfig = {
     defaultMessage: 'busy',
   },
   brb: {
-    color: 'from-sky-500 to-sky-500/50',
-    textColor: 'text-sky-500',
-    defaultMessage: 'be right back',
+    color: 'from-sky to-sky/50',
+    textColor: 'text-sky',
+    defaultMessage: 'taking a break',
   },
   focus: {
-    color: 'from-purple-500 to-purple-500/50',
-    textColor: 'text-purple-500',
+    color: 'from-royal to-royal/50',
+    textColor: 'text-royal',
     defaultMessage: 'in focus mode',
   },
 }
@@ -33,7 +33,7 @@ export function Status() {
   const { status } = useStatus()
 
   // Default to online if status is not in config
-  const config = statusConfig[status.status] || statusConfig.online
+  const config = STATUSES[status.status] || STATUSES.online
   const displayMessage = status.message || config.defaultMessage
 
   return (
@@ -44,9 +44,8 @@ export function Status() {
         <div
           className={cn(
             'outline-shark-920 size-3.5 rounded-full bg-radial-[at_50%_25%] outline-4',
-            config.color
-          )}
-        ></div>
+            config.color,
+          )}></div>
       </div>
       <div className="from-shark-880 to-shark-920 text-shark-240 flex-1 rounded-r-lg bg-gradient-to-b p-3 font-sans text-shadow-sm/50">
         Bryan is currently{' '}
