@@ -397,22 +397,55 @@ class TwitchEventHandler:
             "shared_announcement",  # Shared chat announcement
         ]
 
+        def serialize_twitchio_object(obj):
+            """Safely serialize TwitchIO objects to dict."""
+            if obj is None:
+                return None
+
+            # Handle primitive types
+            if isinstance(obj, (str, int, float, bool, dict, list)):
+                return obj
+
+            # Handle TwitchIO objects
+            result = {}
+
+            # Check if object uses __slots__ (common in TwitchIO)
+            if hasattr(obj, "__slots__"):
+                for slot in obj.__slots__:
+                    try:
+                        attr_value = getattr(obj, slot)
+                        if attr_value is not None:
+                            # Recursively serialize nested objects
+                            if hasattr(attr_value, "__slots__") or hasattr(
+                                attr_value, "__dict__"
+                            ):
+                                result[slot] = serialize_twitchio_object(attr_value)
+                            else:
+                                result[slot] = attr_value
+                    except AttributeError:
+                        # Slot exists but not set
+                        continue
+            # Fallback to __dict__ for regular objects
+            elif hasattr(obj, "__dict__"):
+                for key, value in obj.__dict__.items():
+                    if not key.startswith("_") and value is not None:
+                        if hasattr(value, "__slots__") or hasattr(value, "__dict__"):
+                            result[key] = serialize_twitchio_object(value)
+                        else:
+                            result[key] = value
+            else:
+                # If neither __slots__ nor __dict__, convert to string
+                return str(obj)
+
+            return result if result else str(obj)
+
         for field in notice_fields:
             if hasattr(payload, field):
                 field_value = getattr(payload, field)
-                if field_value is not None and hasattr(field_value, "__dict__"):
-                    # Recursively serialize the object and any nested objects
-                    field_dict = {}
-                    for key, val in vars(field_value).items():
-                        if val is not None and hasattr(val, "__dict__"):
-                            # Nested object (like PartialUser or Asset), serialize it too
-                            field_dict[key] = vars(val)
-                        else:
-                            field_dict[key] = val
-                    payload_dict[field] = field_dict
+                if field_value is not None:
+                    payload_dict[field] = serialize_twitchio_object(field_value)
                 else:
-                    # Store primitive value or None as-is
-                    payload_dict[field] = field_value
+                    payload_dict[field] = None
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
