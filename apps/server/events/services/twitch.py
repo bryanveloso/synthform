@@ -369,6 +369,50 @@ class TwitchEventHandler:
             },
             "notice_type": payload.notice_type,
         }
+
+        # Add notice-type specific data if present
+        # These fields contain the detailed information for each notice type
+        notice_fields = [
+            "sub",  # New subscription data
+            "resub",  # Resubscription data
+            "sub_gift",  # Gift subscription data
+            "community_sub_gift",  # Community gift data
+            "gift_paid_upgrade",  # Gift upgrade data
+            "prime_paid_upgrade",  # Prime upgrade data
+            "raid",  # Raid data
+            "unraid",  # Unraid data (always None but we capture it)
+            "pay_it_forward",  # Pay it forward data
+            "announcement",  # Announcement data
+            "bits_badge_tier",  # Bits badge data
+            "charity_donation",  # Charity donation data
+            # Shared chat variants (for multi-channel streaming)
+            "shared_sub",  # Shared chat subscription
+            "shared_resub",  # Shared chat resubscription
+            "shared_sub_gift",  # Shared chat gift subscription
+            "shared_community_sub_gift",  # Shared chat community gift
+            "shared_gift_paid_upgrade",  # Shared chat gift upgrade
+            "shared_prime_paid_upgrade",  # Shared chat prime upgrade
+            "shared_raid",  # Shared chat raid
+            "shared_pay_it_forward",  # Shared chat pay it forward
+            "shared_announcement",  # Shared chat announcement
+        ]
+
+        for field in notice_fields:
+            if hasattr(payload, field):
+                field_value = getattr(payload, field)
+                if field_value is not None and hasattr(field_value, "__dict__"):
+                    # Recursively serialize the object and any nested objects
+                    field_dict = {}
+                    for key, val in vars(field_value).items():
+                        if val is not None and hasattr(val, "__dict__"):
+                            # Nested object (like PartialUser or Asset), serialize it too
+                            field_dict[key] = vars(val)
+                        else:
+                            field_dict[key] = val
+                    payload_dict[field] = field_dict
+                else:
+                    # Store primitive value or None as-is
+                    payload_dict[field] = field_value
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)

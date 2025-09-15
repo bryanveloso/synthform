@@ -113,6 +113,7 @@ class Event(models.Model):
         return (
             self.payload.get("user_login")
             or self.payload.get("user_name")
+            or self.payload.get("chatter_user_name")
             or self.payload.get("username", "")
         )
 

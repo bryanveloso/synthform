@@ -299,14 +299,33 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     if notice_type not in self.TIMELINE_NOTICE_TYPES:
                         continue
 
-                    # Build dedup key: notice_type + username + timestamp (truncated to seconds)
-                    user_key = (
-                        event.payload.get("chatter_user_name", "")
-                        or event.username
-                        or ""
-                    )
-                    time_key = event.timestamp.isoformat()[:19]  # Truncate to seconds
-                    chat_notification_keys.add(f"{notice_type}:{user_key}:{time_key}")
+                    # Build dedup key based on notice_type and timestamp
+                    # For most events, include username for accuracy
+                    # For raids, use the raiding broadcaster's ID
+                    if notice_type == "raid":
+                        # Raids: use raiding broadcaster ID + timestamp
+                        raid_data = event.payload.get("raid", {})
+                        if isinstance(raid_data, dict):
+                            raider_id = (
+                                raid_data.get("user", {}).get("id", "")
+                                if isinstance(raid_data.get("user"), dict)
+                                else ""
+                            )
+                        else:
+                            raider_id = ""
+                        time_key = event.timestamp.isoformat()[:19]
+                        chat_notification_keys.add(f"raid:{raider_id}:{time_key}")
+                    else:
+                        # Other events: use username + timestamp for better accuracy
+                        user_key = (
+                            event.payload.get("chatter_user_name", "")
+                            or event.username
+                            or ""
+                        )
+                        time_key = event.timestamp.isoformat()[:19]
+                        chat_notification_keys.add(
+                            f"{notice_type}:{user_key}:{time_key}"
+                        )
 
             # Second pass: build final event list with deduplication
             events = []
@@ -333,23 +352,42 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     }
 
                     notice_type = notice_type_map.get(event.event_type, "")
-                    user_key = event.username or ""
 
                     # Check timestamp within 2-second window
                     timestamp = event.timestamp
                     found_duplicate = False
-                    for delta in range(-2, 3):  # -2 to +2 seconds
-                        time_with_delta = (
-                            timestamp + timedelta(seconds=delta)
-                        ).isoformat()[:19]
-                        dedup_key = f"{notice_type}:{user_key}:{time_with_delta}"
-                        if dedup_key in chat_notification_keys:
-                            found_duplicate = True
-                            logger.debug(
-                                f"Skipping duplicate {event.event_type} for {user_key} - "
-                                f"have chat.notification with notice_type={notice_type}"
-                            )
-                            break
+
+                    # Special handling for raids (raider ID + timestamp matching)
+                    if event.event_type == "channel.raid":
+                        # Get the raiding broadcaster's ID from the legacy event
+                        raider_id = event.payload.get("from_broadcaster_user_id", "")
+                        for delta in range(-2, 3):  # -2 to +2 seconds
+                            time_with_delta = (
+                                timestamp + timedelta(seconds=delta)
+                            ).isoformat()[:19]
+                            dedup_key = f"raid:{raider_id}:{time_with_delta}"
+                            if dedup_key in chat_notification_keys:
+                                found_duplicate = True
+                                logger.debug(
+                                    f"Skipping duplicate raid from {raider_id} at {time_with_delta} - "
+                                    f"have chat.notification"
+                                )
+                                break
+                    else:
+                        # Other events: include username in matching
+                        user_key = event.username or ""
+                        for delta in range(-2, 3):  # -2 to +2 seconds
+                            time_with_delta = (
+                                timestamp + timedelta(seconds=delta)
+                            ).isoformat()[:19]
+                            dedup_key = f"{notice_type}:{user_key}:{time_with_delta}"
+                            if dedup_key in chat_notification_keys:
+                                found_duplicate = True
+                                logger.debug(
+                                    f"Skipping duplicate {event.event_type} for {user_key} - "
+                                    f"have chat.notification with notice_type={notice_type}"
+                                )
+                                break
 
                     if found_duplicate:
                         continue
