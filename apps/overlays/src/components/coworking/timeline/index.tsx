@@ -5,16 +5,23 @@ import { useTimeline } from '@/hooks/use-timeline'
 import { cn } from '@/lib/utils'
 import type { TimelineEvent } from '@/types/events'
 
-import { Cheer, Follow, Subscription, SubscriptionGift, SubscriptionMessage, RedemptionAdd, Raid, ChatNotification } from './item'
-import type { ChatNotificationEvent } from '@/types/events'
+import {
+  Cheer,
+  Follow,
+  Subscription,
+  SubscriptionGift,
+  SubscriptionMessage,
+  RedemptionAdd,
+  Raid,
+  ChatNotification,
+} from './item'
 
 const getType = (event: TimelineEvent) => {
-  // Check if this is a chat notification event (has notice_type in payload)
-  if ('payload' in event.data && 'notice_type' in event.data.payload) {
-    return <ChatNotification event={event as ChatNotificationEvent} />
-  }
-
   switch (event.type) {
+    case 'twitch.channel.chat.notification':
+      return <ChatNotification event={event} />
+    case 'twitch.channel.cheer':
+      return <Cheer event={event} />
     case 'twitch.channel.follow':
       return <Follow event={event} />
     case 'twitch.channel.subscribe':
@@ -23,14 +30,12 @@ const getType = (event: TimelineEvent) => {
       return <SubscriptionGift event={event} />
     case 'twitch.channel.subscription.message':
       return <SubscriptionMessage event={event} />
-    case 'twitch.channel.cheer':
-      return <Cheer event={event} />
-    case 'twitch.channel.channel_points_custom_reward_redemption.add':
-      return <RedemptionAdd event={event} />
     case 'twitch.channel.raid':
       return <Raid event={event} />
+    case 'twitch.channel.channel_points_custom_reward_redemption.add':
+      return <RedemptionAdd event={event} />
     default:
-      return null
+      return <div>Unhandled Event Type: {(event as TimelineEvent).type}</div>
   }
 }
 
@@ -66,15 +71,16 @@ export const Timeline = () => {
 
     // Batch animate all new elements with stagger
     if (elementsToAnimate.length > 0) {
-      gsap.fromTo(elementsToAnimate,
+      gsap.fromTo(
+        elementsToAnimate,
         { x: -50, opacity: 0, scale: 0.95 },
-        { x: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'power3.out', stagger: 0.05 }
+        { x: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'power3.out', stagger: 0.05 },
       )
     }
 
     // Clean up refs for removed events
-    const currentEventIds = new Set(timelineEvents.map(e => e.id))
-    animatedEvents.current.forEach(id => {
+    const currentEventIds = new Set(timelineEvents.map((e) => e.id))
+    animatedEvents.current.forEach((id) => {
       if (!currentEventIds.has(id)) {
         eventRefs.current.delete(id)
         animatedEvents.current.delete(id)
@@ -114,7 +120,10 @@ export const Timeline = () => {
               ref={(el) => {
                 if (el) eventRefs.current.set(event.id, el)
               }}
-              className={cn(`font-sans text-sm text-white`, isStale(event) ? 'opacity-50' : 'opacity-100')}
+              className={cn(
+                `font-sans text-sm text-white`,
+                isStale(event) ? 'opacity-50' : 'opacity-100',
+              )}
               style={{ opacity: 0 }} // Start invisible for animation
             >
               {component}

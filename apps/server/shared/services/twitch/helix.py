@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Optional
 
+import redis.asyncio as redis
 import twitchio
 from django.conf import settings
 
@@ -26,12 +28,39 @@ class HelixService:
         self._broadcaster_id: Optional[str] = None
         self._init_lock = asyncio.Lock()
         self._initialized = False
+        self._redis: Optional[redis.Redis] = None
+        self._last_init_attempt = 0
+        self._init_backoff = 1  # Start with 1 second backoff
+        self._max_backoff = 60  # Max 60 seconds between retries
+
+    async def _get_redis(self) -> Optional[redis.Redis]:
+        """Get or create Redis connection for caching."""
+        if not self._redis:
+            try:
+                self._redis = redis.from_url(settings.REDIS_URL)
+                await self._redis.ping()
+            except Exception as e:
+                logger.warning(f"Could not connect to Redis for caching: {e}")
+                self._redis = None
+        return self._redis
 
     async def initialize(self) -> bool:
-        """Initialize the Helix client with authentication."""
+        """Initialize the Helix client with authentication, with retry logic."""
         async with self._init_lock:
             if self._initialized and self._client and self._broadcaster:
                 return True
+
+            # Check if we should retry based on backoff
+            current_time = time.time()
+            if self._last_init_attempt > 0:
+                time_since_last = current_time - self._last_init_attempt
+                if time_since_last < self._init_backoff:
+                    logger.debug(
+                        f"Waiting {self._init_backoff - time_since_last:.1f}s before retry"
+                    )
+                    return False
+
+            self._last_init_attempt = current_time
 
             if self._client:
                 try:
@@ -90,6 +119,10 @@ class HelixService:
 
             self._broadcaster = users[0]
             self._initialized = True
+
+            # Reset backoff on successful initialization
+            self._init_backoff = 1
+
             logger.info(
                 f"Helix service initialized for broadcaster: {self._broadcaster.name} (ID: {self._broadcaster_id})"
             )
@@ -104,6 +137,10 @@ class HelixService:
                     pass
                 self._client = None
             self._initialized = False
+
+            # Increase backoff for next retry (exponential backoff)
+            self._init_backoff = min(self._init_backoff * 2, self._max_backoff)
+
             return False
 
     async def get_reward_redemption_count(self, reward_id: str) -> int:
@@ -115,12 +152,44 @@ class HelixService:
         Returns:
             The number of pending redemptions in the queue
         """
+        # Try to get from cache first
+        cache_key = f"limitbreak:count:{reward_id}"
+        redis_conn = await self._get_redis()
+
+        if redis_conn:
+            try:
+                cached_value = await redis_conn.get(cache_key)
+                if cached_value is not None:
+                    cached_count = int(cached_value)
+                    logger.debug(f"Using cached redemption count: {cached_count}")
+                    # Return cached value while we try to update in background
+                    asyncio.create_task(
+                        self._update_count_in_background(reward_id, cache_key)
+                    )
+                    return cached_count
+            except Exception as e:
+                logger.warning(f"Error reading from cache: {e}")
+
+        # If not cached or cache failed, try to fetch from API
         if not self._broadcaster:
             initialized = await self.initialize()
             if not initialized or not self._broadcaster:
-                raise RuntimeError(
-                    "Helix service failed to initialize - cannot fetch reward redemptions"
-                )
+                # Can't initialize, try to return last known value from cache
+                if redis_conn:
+                    try:
+                        cached_value = await redis_conn.get(f"{cache_key}:fallback")
+                        if cached_value is not None:
+                            fallback_count = int(cached_value)
+                            logger.warning(
+                                f"Using fallback cached count: {fallback_count}"
+                            )
+                            return fallback_count
+                    except Exception:
+                        pass
+
+                # No cache available, return 0 as safe default
+                logger.error("Helix service unavailable and no cached value")
+                return 0
 
         try:
             # Fetch the custom reward using the User object's method
@@ -138,6 +207,21 @@ class HelixService:
                 count += 1
 
             logger.debug(f"Reward {reward_id} has {count} pending redemptions")
+
+            # Cache the result
+            if redis_conn:
+                try:
+                    # Cache for configured TTL
+                    cache_ttl = getattr(settings, "HELIX_CACHE_TTL", 30)
+                    fallback_ttl = getattr(settings, "HELIX_CACHE_FALLBACK_TTL", 3600)
+                    await redis_conn.set(cache_key, str(count), ex=cache_ttl)
+                    # Also set a longer-lived fallback cache
+                    await redis_conn.set(
+                        f"{cache_key}:fallback", str(count), ex=fallback_ttl
+                    )
+                except Exception as e:
+                    logger.warning(f"Error caching redemption count: {e}")
+
             return count
 
         except Exception as e:
@@ -145,7 +229,58 @@ class HelixService:
                 f"Error fetching reward redemption count for {reward_id}: {e}",
                 exc_info=True,
             )
-            raise  # Propagate the error for proper handling
+
+            # Try to return cached value on error
+            if redis_conn:
+                try:
+                    cached_value = await redis_conn.get(f"{cache_key}:fallback")
+                    if cached_value is not None:
+                        fallback_count = int(cached_value)
+                        logger.warning(
+                            f"API error, using fallback cached count: {fallback_count}"
+                        )
+                        return fallback_count
+                except Exception:
+                    pass
+
+            # Return 0 as safe default
+            return 0
+
+    async def _update_count_in_background(self, reward_id: str, cache_key: str) -> None:
+        """Background task to update the redemption count."""
+        try:
+            # Only update if we're initialized
+            if not self._broadcaster:
+                return
+
+            # Fetch fresh count from API
+            rewards = await self._broadcaster.fetch_custom_rewards(ids=[reward_id])
+            if not rewards:
+                return
+
+            reward = rewards[0]
+            count = 0
+            async for _redemption in reward.fetch_redemptions(status="UNFULFILLED"):
+                count += 1
+
+            # Update cache
+            redis_conn = await self._get_redis()
+            if redis_conn:
+                cache_ttl = getattr(settings, "HELIX_CACHE_TTL", 30)
+                fallback_ttl = getattr(settings, "HELIX_CACHE_FALLBACK_TTL", 3600)
+                await redis_conn.set(cache_key, str(count), ex=cache_ttl)
+                await redis_conn.set(
+                    f"{cache_key}:fallback", str(count), ex=fallback_ttl
+                )
+
+            logger.debug(
+                f"Background update: Reward {reward_id} has {count} redemptions"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Background update failed for reward {reward_id}: {e}", exc_info=True
+            )
 
     async def fulfill_redemptions(
         self, reward_id: str, count: Optional[int] = None

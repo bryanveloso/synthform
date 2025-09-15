@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from datetime import timezone
 from typing import Dict
 from typing import Optional
 
 import httpx
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,15 @@ class RainwaveService:
         self.user_id = "53109"
         self.api_key = "vYyXHv30AT"
 
+        # Error handling state
+        self._consecutive_errors = 0
+        self._last_error_time = 0
+        self._error_backoff = 1  # Start with 1 second
+        self._max_backoff = getattr(settings, "RAINWAVE_MAX_BACKOFF", 60)
+        self._max_consecutive_errors = getattr(
+            settings, "RAINWAVE_MAX_CONSECUTIVE_ERRORS", 10
+        )
+
     def broadcast_update(self, track_info: Dict) -> None:
         """Broadcast music update via the central music service."""
         logger.info(
@@ -56,6 +67,17 @@ class RainwaveService:
         Returns:
             Dict with track info or None if fetch fails or user not tuned in
         """
+        # Check circuit breaker
+        if self._consecutive_errors >= self._max_consecutive_errors:
+            current_time = time.time()
+            if current_time - self._last_error_time < self._error_backoff:
+                logger.debug(
+                    f"Circuit breaker open, waiting {self._error_backoff - (current_time - self._last_error_time):.1f}s"
+                )
+                return None
+            # Try to reset circuit breaker
+            logger.info("Attempting to reset Rainwave circuit breaker")
+
         try:
             async with httpx.AsyncClient() as client:
                 # Include auth to get user tuned_in status
@@ -107,14 +129,38 @@ class RainwaveService:
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
+                    # Reset error state on successful fetch
+                    if self._consecutive_errors > 0:
+                        logger.info("Rainwave connection restored")
+                        self._consecutive_errors = 0
+                        self._error_backoff = 1
+
                     return track_info
 
         except httpx.HTTPError as e:
-            logger.error(f"HTTP error fetching Rainwave data: {e}")
+            await self._handle_error(f"HTTP error fetching Rainwave data: {e}")
         except Exception as e:
-            logger.error(f"Error fetching Rainwave data: {e}")
+            await self._handle_error(f"Error fetching Rainwave data: {e}")
 
         return None
+
+    async def _handle_error(self, error_msg: str) -> None:
+        """Handle errors with circuit breaker pattern.
+
+        Args:
+            error_msg: Error message to log
+        """
+        logger.error(error_msg)
+        self._consecutive_errors += 1
+        self._last_error_time = time.time()
+
+        if self._consecutive_errors >= self._max_consecutive_errors:
+            # Circuit breaker tripped
+            self._error_backoff = min(self._error_backoff * 2, self._max_backoff)
+            logger.warning(
+                f"Rainwave circuit breaker tripped after {self._consecutive_errors} errors. "
+                f"Backing off for {self._error_backoff}s"
+            )
 
     def _format_artists(self, artists: list) -> str:
         """Format artist list from Rainwave API.
@@ -188,9 +234,13 @@ class RainwaveService:
                         self.music_service.process_rainwave_update(clear_signal)
 
             except Exception as e:
-                logger.error(f"Error in Rainwave monitoring loop: {e}")
+                await self._handle_error(f"Error in Rainwave monitoring loop: {e}")
 
-            await asyncio.sleep(interval)
+            # Use backoff if in error state
+            sleep_time = interval
+            if self._consecutive_errors > 0:
+                sleep_time = min(interval * 2, self._max_backoff)
+            await asyncio.sleep(sleep_time)
 
 
 # Create singleton instance

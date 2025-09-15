@@ -192,6 +192,18 @@ else:
 
 TWITCH_OAUTH_REDIRECT_URI = f"{OAUTH_BASE_URL}/oauth/callback"
 
+# Service Resilience Configuration
+RAINWAVE_MAX_BACKOFF = env.int(
+    "RAINWAVE_MAX_BACKOFF", default=60
+)  # Maximum backoff in seconds
+RAINWAVE_MAX_CONSECUTIVE_ERRORS = env.int(
+    "RAINWAVE_MAX_CONSECUTIVE_ERRORS", default=10
+)  # Circuit breaker threshold
+HELIX_CACHE_TTL = env.int("HELIX_CACHE_TTL", default=30)  # Cache TTL in seconds
+HELIX_CACHE_FALLBACK_TTL = env.int(
+    "HELIX_CACHE_FALLBACK_TTL", default=3600
+)  # Fallback cache TTL in seconds
+
 # Encryption
 FERNET_KEY = env("FERNET_KEY", default="")
 SALT_KEY = FERNET_KEY  # django-fernet-encrypted-fields expects this setting

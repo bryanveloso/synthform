@@ -1,18 +1,18 @@
 import { gsap } from 'gsap'
 
-// Create a scoped animation controller for any overlay that needs orchestration
-// This orchestrates multiple animation types on the same page
+// Create a scoped animation controller for any overlay that needs orchestration.
+// This orchestrates multiple animation types on the same page.
 export const createAnimationController = () => {
   // Main timeline for sequential animations
   const masterTimeline = gsap.timeline({
     paused: false,
-    defaults: { ease: 'power3.out' }
+    defaults: { ease: 'power3.out' },
   })
 
   // Queue for pending animations
   const animationQueue = {
     alerts: [] as Array<() => gsap.core.Timeline>,
-    timeline: [] as Array<() => gsap.core.Timeline>
+    timeline: [] as Array<() => gsap.core.Timeline>,
   }
 
   let isProcessingAlert = false
@@ -43,28 +43,44 @@ export const createAnimationController = () => {
     }
   }
 
+  const reset = () => {
+    animationQueue.alerts = []
+    animationQueue.timeline = []
+    isProcessingAlert = false
+    masterTimeline.clear() // Clear any active tweens
+  }
+
   return {
     masterTimeline,
 
     // Queue an alert with its corresponding timeline event
-    queueEventWithAlert: (alertElement: HTMLElement, timelineElement: HTMLElement, alertDuration = 5) => {
+    queueEventWithAlert: (
+      alertElement: HTMLElement,
+      timelineElement: HTMLElement,
+      alertDuration = 5,
+    ) => {
       // Queue the alert
       animationQueue.alerts.push(() => {
-        return gsap.timeline()
-          .fromTo(alertElement,
+        return gsap
+          .timeline()
+          .fromTo(
+            alertElement,
             { scale: 0, opacity: 0, y: -20 },
-            { scale: 1, opacity: 1, y: 0, duration: 0.3, ease: 'back.out(2)' }
+            { scale: 1, opacity: 1, y: 0, duration: 0.3, ease: 'back.out(2)' },
           )
-          .to(alertElement, {}, `+=${alertDuration}`)  // Hold
+          .to(alertElement, {}, `+=${alertDuration}`) // Hold
           .to(alertElement, { scale: 0, opacity: 0, y: -20, duration: 0.2 })
       })
 
       // Queue the timeline event to appear AFTER the alert
       animationQueue.timeline.push(() => {
-        return gsap.timeline().fromTo(timelineElement,
-          { x: -50, opacity: 0, scale: 0.95 },
-          { x: 0, opacity: 1, scale: 1, duration: 0.5 }
-        )
+        return gsap
+          .timeline()
+          .fromTo(
+            timelineElement,
+            { x: -50, opacity: 0, scale: 0.95 },
+            { x: 0, opacity: 1, scale: 1, duration: 0.5 },
+          )
       })
 
       processNextAnimation()
@@ -73,10 +89,13 @@ export const createAnimationController = () => {
     // Add just a timeline event (no alert)
     queueTimelineEvent: (element: HTMLElement) => {
       animationQueue.timeline.push(() => {
-        return gsap.timeline().fromTo(element,
-          { x: -50, opacity: 0, scale: 0.95 },
-          { x: 0, opacity: 1, scale: 1, duration: 0.5 }
-        )
+        return gsap
+          .timeline()
+          .fromTo(
+            element,
+            { x: -50, opacity: 0, scale: 0.95 },
+            { x: 0, opacity: 1, scale: 1, duration: 0.5 },
+          )
       })
 
       if (!isProcessingAlert) {
@@ -91,7 +110,8 @@ export const createAnimationController = () => {
       animationQueue.timeline = []
       isProcessingAlert = true
 
-      const execution = gsap.timeline()
+      const execution = gsap
+        .timeline()
         .to(element, { scale: 1.2, duration: 0.1 })
         .to(element, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.3)' })
         .call(() => {
@@ -102,18 +122,20 @@ export const createAnimationController = () => {
       return execution
     },
 
+    reset,
+
     // Clean up on unmount
     destroy: () => {
       masterTimeline.kill()
-      animationQueue.alerts = []
-      animationQueue.timeline = []
-    }
+      reset()
+    },
   }
 }
 
 // Timeline item entrance - slides in from left
 export const animateTimelineEntry = (element: HTMLElement, delay: number = 0) => {
-  return gsap.fromTo(element,
+  return gsap.fromTo(
+    element,
     {
       x: -50,
       opacity: 0,
@@ -126,7 +148,7 @@ export const animateTimelineEntry = (element: HTMLElement, delay: number = 0) =>
       duration: 0.5,
       delay,
       ease: 'power3.out',
-    }
+    },
   )
 }
 
@@ -152,7 +174,8 @@ export const animateLimitBreakFill = (element: HTMLElement, targetWidth: number)
 
 // Limit break bar "maxed" pulse
 export const animateLimitBreakMaxed = (element: HTMLElement) => {
-  return gsap.timeline({ repeat: -1 })
+  return gsap
+    .timeline({ repeat: -1 })
     .to(element, {
       scale: 1.05,
       duration: 0.5,
@@ -175,11 +198,9 @@ export const animateLimitBreakExecute = (container: HTMLElement) => {
   flash.style.pointerEvents = 'none'
   container.appendChild(flash)
 
-  return gsap.timeline()
-    .fromTo(flash,
-      { opacity: 0 },
-      { opacity: 0.8, duration: 0.1, ease: 'power2.in' }
-    )
+  return gsap
+    .timeline()
+    .fromTo(flash, { opacity: 0 }, { opacity: 0.8, duration: 0.1, ease: 'power2.in' })
     .to(flash, { opacity: 0, duration: 0.3, ease: 'power2.out' })
     .call(() => flash.remove())
 }
@@ -195,26 +216,29 @@ export const animateOverlayEntrance = (container: HTMLElement) => {
 
   // Stagger the entrance of each section
   if (limitbreak) {
-    tl.fromTo(limitbreak,
+    tl.fromTo(
+      limitbreak,
       { y: -20, opacity: 0 },
       { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' },
-      0
+      0,
     )
   }
 
   if (timeline) {
-    tl.fromTo(timeline,
+    tl.fromTo(
+      timeline,
       { x: -30, opacity: 0 },
       { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out' },
-      0.1
+      0.1,
     )
   }
 
   if (music) {
-    tl.fromTo(music,
+    tl.fromTo(
+      music,
       { y: 20, opacity: 0 },
       { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' },
-      0.2
+      0.2,
     )
   }
 
@@ -223,10 +247,12 @@ export const animateOverlayEntrance = (container: HTMLElement) => {
 
 // Alert/notification style animation - standalone version for simple use cases
 export const animateAlert = (element: HTMLElement) => {
-  return gsap.timeline()
-    .fromTo(element,
+  return gsap
+    .timeline()
+    .fromTo(
+      element,
       { scale: 0.8, opacity: 0 },
-      { scale: 1.1, opacity: 1, duration: 0.2, ease: 'back.out(2)' }
+      { scale: 1.1, opacity: 1, duration: 0.2, ease: 'back.out(2)' },
     )
     .to(element, { scale: 1, duration: 0.2, ease: 'power2.out' })
 }
@@ -243,19 +269,30 @@ export const animateShimmer = (element: HTMLElement) => {
 }
 
 // Number count up animation
-export const animateCount = (element: HTMLElement, from: number, to: number, duration: number = 0.5) => {
-  return gsap.to({ value: from }, {
-    value: to,
-    duration,
-    ease: 'power2.out',
-    onUpdate: function() {
-      element.textContent = Math.floor(this.targets()[0].value).toString()
-    }
-  })
+export const animateCount = (
+  element: HTMLElement,
+  from: number,
+  to: number,
+  duration: number = 0.5,
+) => {
+  return gsap.to(
+    { value: from },
+    {
+      value: to,
+      duration,
+      ease: 'power2.out',
+      onUpdate: function () {
+        element.textContent = Math.floor(this.targets()[0].value).toString()
+      },
+    },
+  )
 }
 
 // Simple entrance animation for individual components
-export const animateComponentEntrance = (element: HTMLElement, direction: 'up' | 'down' | 'left' | 'right' = 'up') => {
+export const animateComponentEntrance = (
+  element: HTMLElement,
+  direction: 'up' | 'down' | 'left' | 'right' = 'up',
+) => {
   const from: gsap.TweenVars = { opacity: 0 }
 
   switch (direction) {
@@ -278,6 +315,6 @@ export const animateComponentEntrance = (element: HTMLElement, direction: 'up' |
     y: 0,
     opacity: 1,
     duration: 0.6,
-    ease: 'power3.out'
+    ease: 'power3.out',
   })
 }

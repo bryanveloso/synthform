@@ -48,6 +48,11 @@ class TwitchService(twitchio.Client):
         self._eventsub_connected = False
         self._event_handler = TwitchEventHandler()
         self._auth_service = AuthService("twitch")
+        self._reconnect_attempts = 0
+        self._max_reconnect_attempts = 5
+        self._reconnect_delay = 1  # Start with 1 second
+        self._max_reconnect_delay = 60  # Max 60 seconds
+        self._active_subscriptions = {}  # Track active subscriptions
         logger.info("TwitchIO adapter service initialized")
 
     async def event_ready(self):
@@ -61,6 +66,8 @@ class TwitchService(twitchio.Client):
         await self._subscribe_to_events()
 
         self._eventsub_connected = True
+        self._reconnect_attempts = 0  # Reset on successful connection
+        self._reconnect_delay = 1
         logger.info("EventSub connection established and subscriptions created")
 
     async def event_oauth_authorized(
@@ -302,7 +309,15 @@ class TwitchService(twitchio.Client):
 
             for subscription in subscriptions:
                 try:
-                    await self.subscribe_websocket(subscription, token_for=user_id)
+                    sub_id = await self.subscribe_websocket(
+                        subscription, token_for=user_id
+                    )
+                    # Track active subscription for reconnection
+                    self._active_subscriptions[subscription.__class__.__name__] = {
+                        "subscription": subscription,
+                        "user_id": user_id,
+                        "id": sub_id,
+                    }
                     logger.info(
                         f"Successfully subscribed to {subscription.__class__.__name__}"
                     )
@@ -314,6 +329,10 @@ class TwitchService(twitchio.Client):
                     logger.error(
                         f"HTTP error subscribing to {subscription.__class__.__name__}: {http_error}"
                     )
+                    # Check for specific HTTP errors that might indicate rate limiting
+                    if hasattr(http_error, "status") and http_error.status == 429:
+                        logger.warning("Rate limited, waiting before next subscription")
+                        await asyncio.sleep(2)  # Wait 2 seconds before next attempt
                 except Exception as e:
                     logger.error(
                         f"Unexpected error subscribing to {subscription.__class__.__name__}: {e}"
@@ -323,6 +342,73 @@ class TwitchService(twitchio.Client):
 
         except Exception as e:
             logger.error(f"Error subscribing to events for user {user_id}: {e}")
+
+    async def event_eventsub_notification_subscription_revoked(self, payload):
+        """Handle EventSub subscription revocation."""
+        logger.warning(f"EventSub subscription revoked: {payload}")
+        # Mark that we need to re-subscribe
+        self._eventsub_connected = False
+        asyncio.create_task(self._handle_reconnection())
+
+    async def event_eventsub_notification_websocket_disconnect(self, payload):
+        """Handle EventSub WebSocket disconnection."""
+        logger.warning(f"EventSub WebSocket disconnected: {payload}")
+        self._eventsub_connected = False
+        asyncio.create_task(self._handle_reconnection())
+
+    async def cleanup_subscriptions(self):
+        """Clean up EventSub subscriptions on shutdown."""
+        logger.info("Cleaning up EventSub subscriptions")
+        try:
+            # Clear tracked subscriptions
+            self._active_subscriptions.clear()
+            self._eventsub_connected = False
+            logger.info("EventSub subscriptions cleaned up")
+        except Exception as e:
+            logger.error(f"Error cleaning up subscriptions: {e}")
+
+    async def _handle_reconnection(self):
+        """Handle EventSub reconnection with exponential backoff."""
+        if self._reconnect_attempts >= self._max_reconnect_attempts:
+            logger.error(
+                f"Max reconnection attempts ({self._max_reconnect_attempts}) reached. "
+                "Manual intervention required."
+            )
+            return
+
+        self._reconnect_attempts += 1
+        wait_time = min(self._reconnect_delay, self._max_reconnect_delay)
+
+        logger.info(
+            f"Attempting EventSub reconnection {self._reconnect_attempts}/{self._max_reconnect_attempts} "
+            f"after {wait_time}s delay"
+        )
+
+        await asyncio.sleep(wait_time)
+        self._reconnect_delay = min(
+            self._reconnect_delay * 2, self._max_reconnect_delay
+        )
+
+        try:
+            # Re-subscribe to all previously active subscriptions
+            for sub_name, sub_info in self._active_subscriptions.items():
+                try:
+                    await self.subscribe_websocket(
+                        sub_info["subscription"], token_for=sub_info["user_id"]
+                    )
+                    logger.info(f"Re-subscribed to {sub_name}")
+                except Exception as e:
+                    logger.error(f"Failed to re-subscribe to {sub_name}: {e}")
+
+            self._eventsub_connected = True
+            self._reconnect_attempts = 0
+            self._reconnect_delay = 1
+            logger.info("EventSub reconnection successful")
+
+        except Exception as e:
+            logger.error(f"EventSub reconnection failed: {e}")
+            # Schedule another reconnection attempt
+            asyncio.create_task(self._handle_reconnection())
 
     async def _safe_delegate(self, handler_method, payload, event_name: str):
         """Safely delegate events to handler with error handling."""
@@ -605,8 +691,10 @@ async def main():
         await service.start()
     except KeyboardInterrupt:
         logger.info("Received interrupt signal, shutting down...")
+        await service.cleanup_subscriptions()
     except Exception as e:
         logger.error(f"Service error: {e}")
+        await service.cleanup_subscriptions()
     finally:
         await service.close()
         logger.info("TwitchIO adapter service stopped")
