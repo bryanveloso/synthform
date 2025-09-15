@@ -58,6 +58,15 @@ class RainwaveService:
         logger.info(
             f"🎵 Rainwave track update: {track_info.get('title')} by {track_info.get('artist')}"
         )
+        # Log if we have queue/history data
+        if "upcoming" in track_info:
+            logger.info(
+                f"📋 Rainwave queue data: {len(track_info['upcoming'])} upcoming items"
+            )
+        if "history" in track_info:
+            logger.info(
+                f"📚 Rainwave history data: {len(track_info['history'])} previous tracks"
+            )
         # Use the central music service to broadcast
         self.music_service.process_rainwave_update(track_info)
 
@@ -98,36 +107,41 @@ class RainwaveService:
                     logger.debug("User not tuned in to Rainwave, skipping update")
                     return None
 
+                # Process current track
+                current_track = None
                 if "sched_current" in data:
                     current = data["sched_current"]
-                    song = current.get("songs", [{}])[0] if current.get("songs") else {}
-
-                    # Get album info from albums array
-                    albums = song.get("albums", [])
-                    album_name = (
-                        albums[0].get("name", "Unknown Album")
-                        if albums
-                        else "Unknown Album"
+                    current_track = self._format_schedule_event(
+                        current, is_current=True
                     )
-                    album_art = albums[0].get("art", "") if albums else ""
 
-                    # Format track info
-                    track_info = {
-                        "id": f"rainwave_{song.get('id', 'unknown')}",
-                        "title": song.get("title", "Unknown Title"),
-                        "artist": self._format_artists(song.get("artists", [])),
-                        "album": album_name,
-                        "game": album_name,  # For game music, album is the game
-                        "duration": song.get("length", 0),
-                        "elapsed": current.get("sched_used", 0),
-                        "artwork": f"https://rainwave.cc{album_art}_320.jpg"
-                        if album_art
-                        else None,
-                        "source": "rainwave",
-                        "station": self.station_name,
-                        "url": song.get("url", ""),
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }
+                # Process upcoming tracks (sched_next)
+                upcoming = []
+                if "sched_next" in data:
+                    for event in data.get("sched_next", []):
+                        formatted_event = self._format_schedule_event(event)
+                        if formatted_event:
+                            upcoming.append(formatted_event)
+
+                # Process history (sched_history)
+                history = []
+                if "sched_history" in data:
+                    for event in data.get("sched_history", []):
+                        formatted_event = self._format_schedule_event(event)
+                        if formatted_event:
+                            history.append(formatted_event)
+
+                # Build the complete track info
+                if current_track:
+                    track_info = current_track
+                    track_info["upcoming"] = upcoming
+                    track_info["history"] = history
+                    track_info["timestamp"] = datetime.now(timezone.utc).isoformat()
+
+                    # Log the enhanced data for debugging
+                    logger.debug(
+                        f"📊 Rainwave data: current={bool(current_track)}, upcoming={len(upcoming)}, history={len(history)}"
+                    )
 
                     # Reset error state on successful fetch
                     if self._consecutive_errors > 0:
@@ -136,6 +150,9 @@ class RainwaveService:
                         self._error_backoff = 1
 
                     return track_info
+                else:
+                    # No current track, might be between songs
+                    return None
 
         except httpx.HTTPError as e:
             await self._handle_error(f"HTTP error fetching Rainwave data: {e}")
@@ -162,6 +179,122 @@ class RainwaveService:
                 f"Backing off for {self._error_backoff}s"
             )
 
+    def _format_schedule_event(
+        self, event: dict, is_current: bool = False
+    ) -> Optional[Dict]:
+        """Format a schedule event (current, next, or history).
+
+        Args:
+            event: Schedule event from Rainwave API
+            is_current: Whether this is the currently playing track
+
+        Returns:
+            Formatted event dictionary or None if no songs
+        """
+        if not event:
+            return None
+
+        # Get the song(s) from the event
+        songs = event.get("songs", [])
+        if not songs:
+            return None
+
+        # For elections (upcoming), there might be multiple songs
+        # For current/history, there's usually just one
+        if is_current or event.get("type") != "Election":
+            # Single song event (current or past)
+            song = songs[0]
+            return self._format_song(song, event, is_current)
+        else:
+            # Election with multiple songs (for voting)
+            return self._format_election(event)
+
+    def _format_song(self, song: dict, event: dict, is_current: bool = False) -> Dict:
+        """Format a single song with metadata.
+
+        Args:
+            song: Song data from Rainwave
+            event: Parent event data
+            is_current: Whether this is currently playing
+
+        Returns:
+            Formatted song dictionary
+        """
+        # Get album info
+        albums = song.get("albums", [])
+        album_name = (
+            albums[0].get("name", "Unknown Album") if albums else "Unknown Album"
+        )
+        album_art = albums[0].get("art", "") if albums else ""
+
+        # Base song info
+        song_info = {
+            "id": f"rainwave_{song.get('id', 'unknown')}",
+            "title": song.get("title", "Unknown Title"),
+            "artist": self._format_artists(song.get("artists", [])),
+            "album": album_name,
+            "game": album_name,  # For game music, album is the game
+            "duration": song.get("length", 0),
+            "artwork": f"https://rainwave.cc{album_art}_320.jpg" if album_art else None,
+            "source": "rainwave",
+            "station": self.station_name,
+            "url": song.get("url", ""),
+        }
+
+        # Add current-specific fields
+        if is_current:
+            song_info["elapsed"] = event.get("sched_used", 0)
+
+        # Add requester info if available
+        if song.get("elec_request_username"):
+            song_info["requested_by"] = song.get("elec_request_username")
+            song_info["requested_by_id"] = song.get("elec_request_user_id")
+
+            # Check if requester is a Crusader (community member)
+            song_info["is_crusader"] = self._check_is_crusader(
+                song.get("elec_request_username")
+            )
+
+        # Add event metadata
+        song_info["event_id"] = event.get("id")
+        song_info["event_type"] = event.get("type", "OneUp")  # OneUp, Election, etc.
+
+        return song_info
+
+    def _format_election(self, event: dict) -> Dict:
+        """Format an election (voting) event with multiple songs.
+
+        Args:
+            event: Election event from Rainwave
+
+        Returns:
+            Formatted election dictionary
+        """
+        songs = event.get("songs", [])
+
+        # Format all song options for voting
+        song_options = []
+        for song in songs:
+            song_data = self._format_song(song, event, is_current=False)
+            # Add voting-specific data
+            song_data["votes"] = song.get("elec_votes", 0)
+            song_data["is_request"] = bool(song.get("elec_request_username"))
+
+            # Check if requester is a Crusader for election songs too
+            if song.get("elec_request_username"):
+                song_data["is_crusader"] = self._check_is_crusader(
+                    song.get("elec_request_username")
+                )
+
+            song_options.append(song_data)
+
+        return {
+            "event_id": event.get("id"),
+            "event_type": "Election",
+            "voting_allowed": event.get("voting_allowed", False),
+            "songs": song_options,
+        }
+
     def _format_artists(self, artists: list) -> str:
         """Format artist list from Rainwave API.
 
@@ -176,6 +309,32 @@ class RainwaveService:
 
         artist_names = [a.get("name", "") for a in artists if a.get("name")]
         return ", ".join(artist_names) if artist_names else "Unknown Artist"
+
+    def _check_is_crusader(self, username: str) -> bool:
+        """Check if a username belongs to a community member (Crusader).
+
+        Args:
+            username: Rainwave username to check
+
+        Returns:
+            True if the user is in our Member database
+        """
+        if not username:
+            return False
+
+        try:
+            # Import here to avoid circular dependencies
+            from django.db.models import Q
+            from events.models import Member
+
+            # Check if username matches any member's username or display_name
+            # Case-insensitive match
+            return Member.objects.filter(
+                Q(username__iexact=username) | Q(display_name__iexact=username)
+            ).exists()
+        except Exception as e:
+            logger.debug(f"Error checking crusader status for {username}: {e}")
+            return False
 
     async def start_monitoring(self, interval: int = 10):
         """Start monitoring Rainwave for track changes.

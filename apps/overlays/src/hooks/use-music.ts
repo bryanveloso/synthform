@@ -1,28 +1,11 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useServer } from './use-server'
+import type { MusicData, MusicState } from '../types/music'
+import { isRainwaveData } from '../types/music'
 
-export interface MusicTrack {
-  id: string
-  title: string
-  artist: string
-  album?: string
-  game?: string  // For Rainwave
-  artwork?: string
-  duration?: number  // in seconds
-  elapsed?: number   // in seconds
-  source: 'rainwave' | 'apple' | 'spotify'
-  station?: string   // For Rainwave
-  url?: string       // For Rainwave
-  timestamp: string
-}
-
-export interface MusicState {
-  current: MusicTrack | null
-  previous: MusicTrack | null
-  isPlaying: boolean
-  source: string | null
-  lastUpdate: string | null
-}
+// Re-export for backward compatibility
+export type MusicTrack = MusicData
+export type { MusicState } from '../types/music'
 
 export function useMusic() {
   const [musicState, setMusicState] = useState<MusicState>({
@@ -51,6 +34,8 @@ export function useMusic() {
           isPlaying: false,
           source: data.source || prev.source,
           lastUpdate: data.timestamp || new Date().toISOString(),
+          upcoming: undefined,
+          history: undefined,
         }
       }
       
@@ -67,26 +52,42 @@ export function useMusic() {
         if (data.id !== prev.current?.id) {
           // Reset interpolation for new track
           setInterpolatedElapsed(normalizedData.elapsed)
-          
-          return {
-            current: normalizedData as MusicTrack,
+
+          const newState: MusicState = {
+            current: normalizedData as MusicData,
             previous: prev.current,
             isPlaying: normalizedData.isPlaying,
             source: data.source || 'rainwave',
             lastUpdate: data.timestamp || new Date().toISOString(),
           }
+
+          // Add Rainwave-specific queue data if present
+          if (data.source === 'rainwave' && data.upcoming) {
+            newState.upcoming = data.upcoming
+            newState.history = data.history
+          }
+
+          return newState
         }
-        // Same track, update elapsed time only if it changed
+        // Same track, update elapsed time and queue data
         const currentElapsed = normalizedData.elapsed
         if (prev.current && currentElapsed !== prev.current.elapsed) {
           // Reset interpolation starting point when we get a new position
           setInterpolatedElapsed(currentElapsed)
-          
-          return {
+
+          const updatedState = {
             ...prev,
             current: { ...prev.current, elapsed: currentElapsed },
             isPlaying: normalizedData.isPlaying,
           }
+
+          // Update Rainwave queue data if present
+          if (data.source === 'rainwave' && data.upcoming) {
+            updatedState.upcoming = data.upcoming
+            updatedState.history = data.history
+          }
+
+          return updatedState
         }
         // No changes
         return prev
