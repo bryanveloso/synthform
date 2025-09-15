@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.contrib import admin
 
 from .models import Session
+from .models import Status
 
 
 @admin.register(Session)
@@ -36,3 +37,18 @@ class SessionAdmin(admin.ModelAdmin):
         return obj.transcriptions.count()
 
     transcription_count.short_description = "Transcriptions"
+
+
+@admin.register(Status)
+class StatusAdmin(admin.ModelAdmin):
+    list_display = ("status", "message", "updated_at")
+    list_filter = ("status", "created_at", "updated_at")
+    search_fields = ("message",)
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        (None, {"fields": ("status", "message")}),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )

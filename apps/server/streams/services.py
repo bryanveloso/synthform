@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+import json
+import logging
+
+import redis
+from django.conf import settings
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+from .models import Status
+
+logger = logging.getLogger(__name__)
+redis_client = redis.from_url(settings.REDIS_URL)
+
+
+@receiver(post_save, sender=Status)
+def publish_status_update(sender, instance, created, **kwargs):
+    """Publish status updates to Redis when a Status is saved."""
+    try:
+        event_data = {
+            "event_type": "status.update",
+            "source": "status",
+            "data": {
+                "status": instance.status,
+                "message": instance.message,
+                "updated_at": instance.updated_at.isoformat()
+                if instance.updated_at
+                else None,
+            },
+        }
+
+        # Publish to Redis channel
+        redis_client.publish("events:status", json.dumps(event_data))
+        logger.info(
+            f"📍 Published status update to Redis: {instance.status} - {instance.message}"
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to publish status update to Redis: {e}")

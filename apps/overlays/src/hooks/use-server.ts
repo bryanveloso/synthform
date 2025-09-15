@@ -16,6 +16,8 @@ type MessageTypes =
   | 'limitbreak:update'
   | 'music:sync'
   | 'music:update'
+  | 'status:sync'
+  | 'status:update'
 
 interface ServerMessage {
   type: string;

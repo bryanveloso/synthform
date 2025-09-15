@@ -508,20 +508,17 @@ class OverlayConsumer(AsyncWebsocketConsumer):
     async def _get_status_state(self) -> dict | None:
         """Get current stream status."""
         from streams.models import Status
+        from asgiref.sync import sync_to_async
 
         try:
-            # Get the most recent status
-            status = await Status.objects.order_by("-created_at").afirst()
-            if status:
-                return {
-                    "status": status.status,
-                    "message": status.message,
-                    "updated_at": status.updated_at.isoformat(),
-                }
+            # Use the singleton pattern to get current status
+            status = await sync_to_async(Status.get_current)()
             return {
-                "status": "online",
-                "message": "",
-                "updated_at": None,
+                "status": status.status,
+                "message": status.message,
+                "updated_at": status.updated_at.isoformat()
+                if status.updated_at
+                else None,
             }
         except Exception as e:
             logger.error(f"Error getting status state: {e}")
