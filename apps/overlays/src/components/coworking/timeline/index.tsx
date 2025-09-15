@@ -35,7 +35,7 @@ const getType = (event: TimelineEvent) => {
     case 'twitch.channel.channel_points_custom_reward_redemption.add':
       return <RedemptionAdd event={event} />
     default:
-      return <div>Unhandled Event Type: {(event as TimelineEvent).type}</div>
+      return null
   }
 }
 
