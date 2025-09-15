@@ -1,23 +1,27 @@
 import type {
   ChannelFollowEvent,
-  ChannelSubscribeEvent,
-  SubscriptionGiftEvent,
-  SubscriptionMessageEvent,
-  CheerEvent,
   ChannelPointsRedemptionEvent,
   ChannelRaidEvent,
+  ChannelSubscribeEvent,
   ChatNotificationEvent,
+  CheerEvent,
+  SubscriptionGiftEvent,
+  SubscriptionMessageEvent,
 } from '@/types/events'
 import type { FC, PropsWithChildren } from 'react'
 
 const Item: FC<PropsWithChildren> = ({ children }) => {
-  return <div className="flex items-baseline gap-4 rounded-md p-0.5 px-3 inset-ring-1 inset-ring-shark-800 whitespace-nowrap">{children}</div>
+  return (
+    <div className="inset-ring-shark-800 flex items-baseline gap-4 rounded-md p-0.5 px-3 whitespace-nowrap inset-ring-1">
+      {children}
+    </div>
+  )
 }
 
 export const Follow = ({ event }: { event: ChannelFollowEvent }) => (
   <Item>
     <div>{event.data.payload.user_display_name || event.data.user_name}</div>
-    <div className="font-caps text-base whitespace-nowrap text-shark-680">Follow</div>
+    <div className="font-caps text-shark-680 text-base whitespace-nowrap">Follow</div>
   </Item>
 )
 
@@ -55,12 +59,13 @@ export const SubscriptionMessage = ({ event }: { event: SubscriptionMessageEvent
 
 export const Cheer = ({ event }: { event: CheerEvent }) => (
   <Item>
-    <div className="font-caps">Cheer</div>
-    <div className="font-caps text-shark-680 text-base whitespace-nowrap">
+    <div>
       {event.data.payload.is_anonymous
         ? 'Anonymous'
-        : event.data.payload.user_display_name || event.data.payload.user_name || 'Unknown'}{' '}
-      × {event.data.payload.bits}
+        : event.data.payload.user_display_name || event.data.payload.user_name || 'Unknown'}
+    </div>
+    <div className="font-caps text-shark-680 text-base whitespace-nowrap">
+      Cheer × {event.data.payload.bits}
     </div>
   </Item>
 )
@@ -75,7 +80,7 @@ export const RedemptionAdd = ({ event }: { event: ChannelPointsRedemptionEvent }
     )}
   </Item>
 )
-  
+
 export const Raid = ({ event }: { event: ChannelRaidEvent }) => (
   <Item>
     <div>
@@ -114,8 +119,8 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
         <Item>
           <div>
             {payload.sub_gift?.recipient?.display_name ||
-             payload.sub_gift?.recipient?.name ||
-             'Unknown'}
+              payload.sub_gift?.recipient?.name ||
+              'Unknown'}
           </div>
           <div className="font-caps text-shark-680 text-base whitespace-nowrap">Gift</div>
         </Item>
@@ -136,9 +141,10 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
         <Item>
           <div>
             {payload.raid?.user?.display_name ||
-             payload.raid?.user?.name ||
-             chatter_display_name ||
-             chatter_user_name} + {payload.raid?.viewer_count || '?'}
+              payload.raid?.user?.name ||
+              chatter_display_name ||
+              chatter_user_name}{' '}
+            + {payload.raid?.viewer_count || '?'}
           </div>
           <div className="font-caps text-shark-680 text-base whitespace-nowrap">Raid</div>
         </Item>
