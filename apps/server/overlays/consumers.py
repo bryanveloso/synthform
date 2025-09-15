@@ -250,20 +250,28 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 .filter(event_type__in=self.VIEWER_INTERACTIONS)
                 .order_by("-timestamp")[:limit]
             ):
-                events.append(
-                    {
-                        "id": str(event.id),
-                        "type": f"{event.source}.{event.event_type}",
-                        "data": {
-                            "user_name": event.username
-                            or (
-                                event.member.display_name if event.member else "Unknown"
-                            ),
-                            "timestamp": event.timestamp.isoformat(),
-                            "payload": event.payload,
-                        },
-                    }
-                )
+                try:
+                    events.append(
+                        {
+                            "id": str(event.id),
+                            "type": f"{event.source}.{event.event_type}",
+                            "data": {
+                                "user_name": event.username
+                                or (
+                                    event.member.display_name
+                                    if event.member
+                                    else "Unknown"
+                                ),
+                                "timestamp": event.timestamp.isoformat(),
+                                "payload": event.payload,
+                            },
+                        }
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Error processing event {event.id} ({event.event_type}): {e}"
+                    )
+                    continue
             return events
         except DatabaseError as e:
             logger.error(f"Database error querying recent events: {e}")
