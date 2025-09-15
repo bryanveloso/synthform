@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 
 import redis.asyncio as redis
@@ -20,13 +21,47 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
     # Timeline-worthy viewer interactions
     VIEWER_INTERACTIONS = [
-        "channel.chat.notification",
+        "channel.chat.notification",  # Will be filtered by notice_type
         "channel.follow",
         "channel.subscribe",
         "channel.subscription.gift",
         "channel.subscription.message",
         "channel.cheer",
         "channel.raid",
+    ]
+
+    # Notice types from channel.chat.notification that we want in timeline
+    # Excludes: announcement, unraid, shared_chat_* variants, etc.
+    TIMELINE_NOTICE_TYPES = [
+        "sub",  # New subscription
+        "resub",  # Resubscription
+        "sub_gift",  # Single gift subscription
+        "community_sub_gift",  # Community gift subscriptions
+        "gift_paid_upgrade",  # Gift sub converted to paid
+        "prime_paid_upgrade",  # Prime sub converted to paid
+        "pay_it_forward",  # Pay it forward gift
+        "raid",  # Channel raid
+        "bits_badge_tier",  # Bits badge earned
+        "charity_donation",  # Charity donation
+    ]
+
+    # Notice types to exclude from timeline
+    EXCLUDED_NOTICE_TYPES = [
+        "announcement",  # Channel announcements
+        "unraid",  # Raid cancelled (our stream status)
+        # Shared chat events (for merged chat rooms)
+        "shared_chat_sub",
+        "shared_chat_resub",
+        "shared_chat_sub_gift",
+        "shared_chat_community_sub_gift",
+        "shared_chat_gift_paid_upgrade",
+        "shared_chat_prime_paid_upgrade",
+        "shared_chat_pay_it_forward",
+        "shared_chat_raid",
+        "shared_chat_unraid",
+        "shared_chat_announcement",
+        "shared_chat_bits_badge_tier",
+        "shared_chat_charity_donation",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -244,12 +279,82 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         from events.models import Event
 
         try:
-            events = []
+            # First pass: collect all events and identify chat notifications
+            raw_events = []
+            chat_notification_keys = set()  # Track chat.notification events for dedup
+
+            # Fetch extra events to account for duplicates and filtered announcements
             async for event in (
                 Event.objects.select_related("member")
                 .filter(event_type__in=self.VIEWER_INTERACTIONS)
-                .order_by("-timestamp")[:limit]
+                .order_by("-timestamp")[: limit * 3]
             ):
+                raw_events.append(event)
+
+                # Track chat.notification events for deduplication
+                if event.event_type == "channel.chat.notification":
+                    notice_type = event.payload.get("notice_type", "")
+
+                    # Skip if not a timeline-worthy notice type
+                    if notice_type not in self.TIMELINE_NOTICE_TYPES:
+                        continue
+
+                    # Build dedup key: notice_type + username + timestamp (truncated to seconds)
+                    user_key = (
+                        event.payload.get("chatter_user_name", "")
+                        or event.username
+                        or ""
+                    )
+                    time_key = event.timestamp.isoformat()[:19]  # Truncate to seconds
+                    chat_notification_keys.add(f"{notice_type}:{user_key}:{time_key}")
+
+            # Second pass: build final event list with deduplication
+            events = []
+            for event in raw_events:
+                # Skip excluded notice types
+                if event.event_type == "channel.chat.notification":
+                    notice_type = event.payload.get("notice_type", "")
+                    if notice_type not in self.TIMELINE_NOTICE_TYPES:
+                        continue
+
+                # Check if this is a legacy event that has a chat.notification duplicate
+                if event.event_type in [
+                    "channel.subscribe",
+                    "channel.subscription.message",
+                    "channel.subscription.gift",
+                    "channel.raid",
+                ]:
+                    # Map legacy event types to notice_type values
+                    notice_type_map = {
+                        "channel.subscribe": "sub",
+                        "channel.subscription.message": "resub",
+                        "channel.subscription.gift": "community_sub_gift",
+                        "channel.raid": "raid",
+                    }
+
+                    notice_type = notice_type_map.get(event.event_type, "")
+                    user_key = event.username or ""
+
+                    # Check timestamp within 2-second window
+                    timestamp = event.timestamp
+                    found_duplicate = False
+                    for delta in range(-2, 3):  # -2 to +2 seconds
+                        time_with_delta = (
+                            timestamp + timedelta(seconds=delta)
+                        ).isoformat()[:19]
+                        dedup_key = f"{notice_type}:{user_key}:{time_with_delta}"
+                        if dedup_key in chat_notification_keys:
+                            found_duplicate = True
+                            logger.debug(
+                                f"Skipping duplicate {event.event_type} for {user_key} - "
+                                f"have chat.notification with notice_type={notice_type}"
+                            )
+                            break
+
+                    if found_duplicate:
+                        continue
+
+                # Add event to final list
                 try:
                     events.append(
                         {
@@ -267,11 +372,17 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                             },
                         }
                     )
+
+                    # Stop once we have enough events
+                    if len(events) >= limit:
+                        break
+
                 except Exception as e:
                     logger.error(
                         f"Error processing event {event.id} ({event.event_type}): {e}"
                     )
                     continue
+
             return events
         except DatabaseError as e:
             logger.error(f"Database error querying recent events: {e}")
