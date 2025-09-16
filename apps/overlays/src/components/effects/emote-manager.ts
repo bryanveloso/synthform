@@ -23,15 +23,15 @@ class EmoteManager {
   }
 
   queueEmote(emoteId: string) {
+    console.log('[EmoteManager] queueEmote called with:', emoteId)
     // Block global emotes (IDs < 1000000)
     const emoteIdNum = parseInt(emoteId)
     if (!isNaN(emoteIdNum) && emoteIdNum < 1000000) {
-      if (import.meta.env.DEV) {
-        console.log(`🚫 Filtered emote: ${emoteId}`)
-      }
+      console.log(`[EmoteManager] 🚫 Filtered emote: ${emoteId}`)
       return
     }
     // Just notify immediately
+    console.log('[EmoteManager] Notifying listeners for emote:', emoteId)
     this.notifyListeners(emoteId)
   }
 

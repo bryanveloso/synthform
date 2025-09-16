@@ -18,6 +18,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
 
   useEffect(() => {
     const chatMessage = data['chat:message']
+    console.log('[useChatMessages] Raw message:', chatMessage)
     if (!chatMessage) return
 
     // The message IS the payload directly from the server
@@ -40,8 +41,11 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
 
     // Process emotes and call onEmote for each
     if (onEmote && message.fragments) {
+      console.log('[useChatMessages] Processing fragments:', message.fragments)
       message.fragments.forEach(fragment => {
+        console.log('[useChatMessages] Fragment:', fragment)
         if (fragment.type === 'emote' && fragment.emote?.id) {
+          console.log('[useChatMessages] Found emote:', fragment.emote.id)
           onEmote(fragment.emote.id)
         }
       })

@@ -274,6 +274,7 @@ export const EmoteRain = memo(function EmoteRain() {
 
   // Handle emotes from chat
   const handleEmote = useCallback((emoteId: string) => {
+    console.log('[EmoteRain] Received emote from chat:', emoteId)
     emoteManager.queueEmote(emoteId)
   }, [])
 
@@ -284,10 +285,12 @@ export const EmoteRain = memo(function EmoteRain() {
   // Listen for emotes from the manager
   useEffect(() => {
     const handleEmote = (emoteId: string) => {
+      console.log('[EmoteRain] Manager emitted emote:', emoteId)
       spawnEmote(emoteId)
     }
 
     emoteManager.on('emote', handleEmote)
+    console.log('[EmoteRain] Registered listener with emoteManager')
 
     return () => {
       emoteManager.off('emote', handleEmote)
