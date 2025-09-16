@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useServer } from './use-server'
-
-interface StreamStatus {
-  status: 'online' | 'away' | 'busy' | 'brb' | 'focus'
-  message: string
-  updated_at: string | null
-}
+import type { StreamStatus } from '@/types/server'
 
 export function useStatus() {
   const [status, setStatus] = useState<StreamStatus>({
@@ -16,21 +11,20 @@ export function useStatus() {
 
   const { data, isConnected } = useServer(['status:sync', 'status:update'] as const)
 
+  const syncData = data['status:sync']
+  const updateData = data['status:update']
+
   useEffect(() => {
-    // Handle initial sync
-    const syncData = data['status:sync']
     if (syncData) {
       setStatus(syncData)
     }
-  }, [data])
+  }, [syncData])
 
   useEffect(() => {
-    // Handle status updates
-    const updateData = data['status:update']
     if (updateData) {
       setStatus(updateData)
     }
-  }, [data])
+  }, [updateData])
 
   return {
     status,

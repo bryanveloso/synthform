@@ -1,256 +1,413 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useReducer, useMemo } from 'react'
+import { ConnectionState } from '@/types/server'
+import type {
+  MessageType,
+  PayloadType,
+  ServerMessage,
+  UseServerOptions,
+  ServerData,
+  CacheEntry,
+} from '@/types/server'
 
-type MessageTypes =
-  | 'base:sync'
-  | 'base:update'
-  | 'timeline:push'
-  | 'timeline:sync'
-  | 'obs:update'
-  | 'obs:sync'
-  | 'ticker:sync'
-  | 'alert:show'
-  | 'alerts:sync'
-  | 'alerts:push'
-  | 'limitbreak:executed'
-  | 'limitbreak:sync'
-  | 'limitbreak:update'
-  | 'music:sync'
-  | 'music:update'
-  | 'status:sync'
-  | 'status:update'
+// Cache configuration
+const DEFAULT_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const MAX_CACHE_SIZE = 100
+const CACHE_CLEANUP_INTERVAL = 60 * 1000 // 1 minute
 
-interface ServerMessage {
-  type: string;
-  payload: any;
-  timestamp: string;
-  sequence: number;
+// Connection configuration
+const DEFAULT_RECONNECT_DELAY = 1000
+const DEFAULT_MAX_RECONNECT_ATTEMPTS = 10
+const MAX_RECONNECT_DELAY = 30000
+
+// Action types for the reducer
+type DataAction<T extends readonly MessageType[]> =
+  | { type: 'SET_INITIAL'; payload: Partial<ServerData<T>> }
+  | { type: 'UPDATE_MESSAGE'; messageType: T[number]; payload: PayloadType<T[number]> }
+  | { type: 'BATCH_UPDATE'; updates: Array<{ messageType: T[number]; payload: PayloadType<T[number]> }> }
+  | { type: 'CLEAR' }
+
+// Reducer for managing message data
+function dataReducer<T extends readonly MessageType[]>(
+  state: ServerData<T>,
+  action: DataAction<T>
+): ServerData<T> {
+  switch (action.type) {
+    case 'SET_INITIAL':
+      return { ...state, ...action.payload }
+    case 'UPDATE_MESSAGE':
+      return { ...state, [action.messageType]: action.payload }
+    case 'BATCH_UPDATE': {
+      const updates = action.updates.reduce(
+        (acc, { messageType, payload }) => ({ ...acc, [messageType]: payload }),
+        {}
+      )
+      return { ...state, ...updates }
+    }
+    case 'CLEAR':
+      return {} as ServerData<T>
+    default:
+      return state
+  }
 }
 
 class ServerConnection {
-  private ws: WebSocket | null = null;
-  private subscribers = new Map<string, Set<(data: any) => void>>();
-  private latestData = new Map<string, any>();
-  private connectionState = 'disconnected'; // 'disconnected' | 'connecting' | 'connected'
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
-  private reconnectDelay = 1000;
+  private ws: WebSocket | null = null
+  private subscribers = new Map<MessageType, Set<(data: unknown) => void>>()
+  private cache = new Map<MessageType, CacheEntry>()
+  private connectionState: ConnectionState = ConnectionState.Disconnected
+  private reconnectAttempts = 0
+  private maxReconnectAttempts = DEFAULT_MAX_RECONNECT_ATTEMPTS
+  private reconnectDelay = DEFAULT_RECONNECT_DELAY
+  private cacheCleanupTimer: NodeJS.Timeout | null = null
+  private reconnectTimer: NodeJS.Timeout | null = null
+
+  constructor() {
+    // Start cache cleanup timer
+    this.startCacheCleanup()
+  }
 
   private getWebSocketUrl(): string {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // In development, connect to localhost Docker container
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const isDev =
-      import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === 'zelan'
+      import.meta.env.DEV ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === 'zelan'
     const host = import.meta.env.VITE_WS_HOST || (isDev ? 'zelan' : 'saya')
     const port = import.meta.env.VITE_WS_PORT || '7175'
-    return `${protocol}//${host}:${port}/ws/overlay/`;
+    return `${protocol}//${host}:${port}/ws/overlay/`
+  }
+
+  private startCacheCleanup() {
+    this.cacheCleanupTimer = setInterval(() => {
+      const now = Date.now()
+      const entriesToDelete: MessageType[] = []
+
+      this.cache.forEach((entry, key) => {
+        if (now - entry.timestamp > entry.ttl) {
+          entriesToDelete.push(key)
+        }
+      })
+
+      entriesToDelete.forEach(key => this.cache.delete(key))
+
+      // Also limit cache size
+      if (this.cache.size > MAX_CACHE_SIZE) {
+        const sortedEntries = Array.from(this.cache.entries())
+          .sort((a, b) => a[1].timestamp - b[1].timestamp)
+        const toRemove = sortedEntries.slice(0, this.cache.size - MAX_CACHE_SIZE)
+        toRemove.forEach(([key]) => this.cache.delete(key))
+      }
+    }, CACHE_CLEANUP_INTERVAL)
   }
 
   connect() {
-    if (this.connectionState !== 'disconnected') {
-      return;
+    if (this.connectionState !== ConnectionState.Disconnected) {
+      return
     }
 
-    this.connectionState = 'connecting';
+    this.connectionState = ConnectionState.Connecting
 
     try {
-      this.ws = new WebSocket(this.getWebSocketUrl());
+      this.ws = new WebSocket(this.getWebSocketUrl())
 
       this.ws.onopen = () => {
-        console.log('WebSocket connected to server');
-        this.connectionState = 'connected';
-        this.reconnectAttempts = 0;
-        this.notifyConnectionChange(true);
-      };
+        console.log('🔌 WebSocket connected to server')
+        this.connectionState = ConnectionState.Connected
+        this.reconnectAttempts = 0
+        this.notifyConnectionChange(true)
+      }
 
       this.ws.onmessage = (event) => {
-        this.handleMessage(event);
-      };
+        this.handleMessage(event)
+      }
 
       this.ws.onclose = () => {
-        console.log('WebSocket disconnected from server');
-        this.connectionState = 'disconnected';
-        this.ws = null;
-        this.notifyConnectionChange(false);
-        this.scheduleReconnect();
-      };
+        console.log('🔌 WebSocket disconnected from server')
+        this.connectionState = ConnectionState.Disconnected
+        this.ws = null
+        this.notifyConnectionChange(false)
+        this.scheduleReconnect()
+      }
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        this.connectionState = 'disconnected';
-      };
-
+        console.error('❌ WebSocket error:', error)
+        this.connectionState = ConnectionState.Disconnected
+      }
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      this.connectionState = 'disconnected';
-      this.scheduleReconnect();
+      console.error('❌ Failed to create WebSocket connection:', error)
+      this.connectionState = ConnectionState.Disconnected
+      this.scheduleReconnect()
     }
   }
 
   private handleMessage(event: MessageEvent) {
     try {
-      const message: ServerMessage = JSON.parse(event.data);
-      const { type, payload } = message;
+      const message = JSON.parse(event.data) as ServerMessage
+      const { type, payload } = message
 
-      // Store latest data for this message type
-      this.latestData.set(type, payload);
+      // Validate message type
+      if (!this.isValidMessageType(type)) {
+        console.warn(`Unknown message type: ${type}`)
+        return
+      }
 
-      // Notify all subscribers for this message type
-      const subscribers = this.subscribers.get(type);
+      const messageType = type as MessageType
+
+      // Update cache
+      this.cache.set(messageType, {
+        data: payload,
+        timestamp: Date.now(),
+        ttl: DEFAULT_CACHE_TTL,
+      })
+
+      // Notify subscribers
+      const subscribers = this.subscribers.get(messageType)
       if (subscribers) {
         subscribers.forEach(callback => {
           try {
-            callback(payload);
+            callback(payload)
           } catch (error) {
-            console.error('Error in subscriber callback:', error);
+            console.error(`Error in subscriber callback for ${messageType}:`, error)
           }
-        });
+        })
       }
     } catch (error) {
-      console.error('Failed to parse WebSocket message:', error);
+      console.error('Failed to parse WebSocket message:', error)
     }
+  }
+
+  private isValidMessageType(type: string): type is MessageType {
+    const validTypes: MessageType[] = [
+      'base:sync', 'base:update', 'timeline:push', 'timeline:sync',
+      'obs:update', 'obs:sync', 'ticker:sync', 'alert:show',
+      'alerts:sync', 'alerts:push', 'limitbreak:executed',
+      'limitbreak:sync', 'limitbreak:update', 'music:sync',
+      'music:update', 'status:sync', 'status:update', 'chat:message'
+    ]
+    return validTypes.includes(type as MessageType)
   }
 
   private scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
-      return;
+      console.error('❌ Max reconnection attempts reached')
+      return
     }
 
     // Only reconnect if we have active subscribers
     if (this.subscribers.size === 0) {
-      return;
+      return
     }
 
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts), 30000);
-    this.reconnectAttempts++;
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
+      MAX_RECONNECT_DELAY
+    )
+    this.reconnectAttempts++
 
-    console.log(`Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
-    
-    setTimeout(() => {
-      if (this.connectionState === 'disconnected' && this.subscribers.size > 0) {
-        this.connect();
+    console.log(`🔄 Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`)
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+    }
+
+    this.reconnectTimer = setTimeout(() => {
+      if (this.connectionState === ConnectionState.Disconnected && this.subscribers.size > 0) {
+        this.connect()
       }
-    }, delay);
+    }, delay)
   }
 
-  subscribe(messageType: string, callback: (data: any) => void): any {
+  subscribe<T extends MessageType>(
+    messageType: T,
+    callback: (data: PayloadType<T>) => void
+  ): PayloadType<T> | undefined {
     // Initialize subscriber set if it doesn't exist
     if (!this.subscribers.has(messageType)) {
-      this.subscribers.set(messageType, new Set());
+      this.subscribers.set(messageType, new Set())
     }
 
     // Add callback to subscribers
-    this.subscribers.get(messageType)!.add(callback);
+    this.subscribers.get(messageType)!.add(callback as (data: unknown) => void)
 
     // Auto-connect if not already connected/connecting
-    if (this.connectionState === 'disconnected') {
-      this.connect();
+    if (this.connectionState === ConnectionState.Disconnected) {
+      this.connect()
     }
 
     // Return cached data if available
-    return this.latestData.get(messageType);
+    const cached = this.cache.get(messageType)
+    if (cached) {
+      return cached.data as PayloadType<T>
+    }
+
+    return undefined
   }
 
-  unsubscribe(messageType: string, callback: (data: any) => void) {
-    const subscribers = this.subscribers.get(messageType);
+  unsubscribe<T extends MessageType>(
+    messageType: T,
+    callback: (data: PayloadType<T>) => void
+  ) {
+    const subscribers = this.subscribers.get(messageType)
     if (subscribers) {
-      subscribers.delete(callback);
+      subscribers.delete(callback as (data: unknown) => void)
 
       // Clean up empty subscriber sets
       if (subscribers.size === 0) {
-        this.subscribers.delete(messageType);
+        this.subscribers.delete(messageType)
       }
     }
-
-    // If no subscribers left, we could disconnect here
-    // But keeping connection alive is probably better for user experience
   }
 
   isConnected(): boolean {
-    return this.connectionState === 'connected';
+    return this.connectionState === ConnectionState.Connected
+  }
+
+  getConnectionState(): ConnectionState {
+    return this.connectionState
   }
 
   private notifyConnectionChange(connected: boolean) {
-    // Notify connection state subscribers (added below)
-    const connectionSubscribers = this.subscribers.get('__connection__');
+    // Notify connection state subscribers using a special key
+    const connectionSubscribers = this.subscribers.get('__connection__' as any)
     if (connectionSubscribers) {
       connectionSubscribers.forEach(callback => {
         try {
-          callback(connected);
+          callback(connected)
         } catch (error) {
-          console.error('Error in connection subscriber callback:', error);
+          console.error('Error in connection subscriber callback:', error)
         }
-      });
+      })
+    }
+  }
+
+  disconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+
+    this.connectionState = ConnectionState.Disconnected
+  }
+
+  clearCache() {
+    this.cache.clear()
+  }
+
+  destroy() {
+    this.disconnect()
+    this.subscribers.clear()
+    this.cache.clear()
+    if (this.cacheCleanupTimer) {
+      clearInterval(this.cacheCleanupTimer)
+      this.cacheCleanupTimer = null
     }
   }
 }
 
 // Singleton instance
-const serverConnection = new ServerConnection();
+const serverConnection = new ServerConnection()
 
-export function useServer<T extends readonly MessageTypes[]>(messageTypes: T) {
-  const [data, setData] = useState<Record<string, any>>({});
-  const [isConnected, setIsConnected] = useState(false);
-  
-  // Use refs to maintain stable callback references
-  const callbacksRef = useRef<Map<string, (payload: any) => void>>(new Map());
-  const connectionCallbackRef = useRef<((connected: boolean) => void) | undefined>(undefined);
+// Main hook
+export function useServer<T extends readonly MessageType[]>(
+  messageTypes: T,
+  options?: UseServerOptions
+) {
+  const [data, dispatch] = useReducer(
+    dataReducer<T>,
+    {} as ServerData<T>
+  )
+  const [isConnected, setIsConnected] = useState(false)
 
-  // Create stable callback for connection state
+  // Use refs for stable references
+  const callbacksRef = useRef<Map<MessageType, (payload: unknown) => void>>(new Map())
+  const optionsRef = useRef(options)
+  optionsRef.current = options
+
+  // Handle connection state changes
   const handleConnectionChange = useCallback((connected: boolean) => {
-    setIsConnected(connected);
-  }, []);
+    setIsConnected(connected)
+    optionsRef.current?.onConnectionChange?.(connected)
+  }, [])
 
+  // Subscribe to connection state
   useEffect(() => {
-    // Subscribe to connection state changes
-    connectionCallbackRef.current = handleConnectionChange;
-    serverConnection.subscribe('__connection__', handleConnectionChange);
-    setIsConnected(serverConnection.isConnected());
+    const connectionKey = '__connection__' as MessageType
+    serverConnection.subscribe(
+      connectionKey,
+      handleConnectionChange as (data: unknown) => void
+    )
+    setIsConnected(serverConnection.isConnected())
 
     return () => {
-      if (connectionCallbackRef.current) {
-        serverConnection.unsubscribe('__connection__', connectionCallbackRef.current);
-      }
-    };
-  }, [handleConnectionChange]);
+      serverConnection.unsubscribe(
+        connectionKey,
+        handleConnectionChange as (data: unknown) => void
+      )
+    }
+  }, [handleConnectionChange])
 
+  // Track message types to avoid re-subscribing
+  const messageTypesKey = useMemo(() => JSON.stringify(messageTypes), [messageTypes])
+
+  // Subscribe to message types
   useEffect(() => {
-    // Create callbacks for each message type
-    const newCallbacks = new Map<string, (payload: any) => void>();
+    const initialData: Partial<ServerData<T>> = {}
 
+    // Create subscriptions
     messageTypes.forEach(messageType => {
-      const callback = (payload: any) => {
-        setData(prev => ({
-          ...prev,
-          [messageType]: payload
-        }));
-      };
-
-      newCallbacks.set(messageType, callback);
-      
-      // Subscribe and get any cached data
-      const cachedData = serverConnection.subscribe(messageType, callback);
-      if (cachedData !== undefined) {
-        setData(prev => ({
-          ...prev,
-          [messageType]: cachedData
-        }));
+      // Check if we already have a callback for this message type
+      if (callbacksRef.current.has(messageType)) {
+        return // Skip if already subscribed
       }
-    });
 
-    callbacksRef.current = newCallbacks;
+      const callback = (payload: unknown) => {
+        dispatch({
+          type: 'UPDATE_MESSAGE',
+          messageType,
+          payload: payload as PayloadType<T[number]>,
+        })
+      }
+
+      callbacksRef.current.set(messageType, callback)
+      const cachedData = serverConnection.subscribe(messageType, callback as (data: PayloadType<typeof messageType>) => void)
+
+      // If we have cached data, set it immediately
+      if (cachedData !== undefined) {
+        initialData[messageType] = cachedData as PayloadType<T[number]>
+      }
+    })
+
+    // Set initial data if any
+    if (Object.keys(initialData).length > 0) {
+      dispatch({ type: 'SET_INITIAL', payload: initialData })
+    }
 
     // Cleanup function
     return () => {
-      newCallbacks.forEach((callback, messageType) => {
-        serverConnection.unsubscribe(messageType, callback);
-      });
-      callbacksRef.current.clear();
-    };
-  }, [messageTypes]);
+      messageTypes.forEach((messageType) => {
+        const callback = callbacksRef.current.get(messageType)
+        if (callback) {
+          serverConnection.unsubscribe(messageType, callback)
+          callbacksRef.current.delete(messageType)
+        }
+      })
+    }
+  }, [messageTypesKey])
 
   return {
-    data: data as Record<T[number], any>,
-    isConnected
-  };
+    data,
+    isConnected,
+    connectionState: serverConnection.getConnectionState(),
+    reconnect: () => serverConnection.connect(),
+    disconnect: () => serverConnection.disconnect(),
+    clearCache: () => serverConnection.clearCache(),
+  }
 }
+
+// Export singleton for advanced use cases
+export { serverConnection }

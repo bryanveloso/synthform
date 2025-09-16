@@ -1,13 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useServer } from './use-server'
+import type { LimitBreakData, LimitBreakExecutedData } from '@/types/server'
 
-export interface LimitBreakData {
-  count: number
-  bar1: number
-  bar2: number
-  bar3: number
-  isMaxed: boolean
-}
+export type { LimitBreakData }
 
 export interface LimitBreakState {
   data: LimitBreakData | null

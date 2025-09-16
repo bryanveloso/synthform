@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
-
-import type { TimelineEvent } from '@/types/events'
-
 import { useServer } from './use-server'
+import type { TimelineEvent } from '@/types/events'
 
 const MESSAGE_TYPES = ['timeline:sync', 'timeline:push'] as const
 
@@ -54,13 +52,13 @@ function transformEvent(rawEvent: RawEvent): TimelineEvent {
 
   return {
     id: rawEvent.event_id || rawEvent.id || `${Date.now()}`,
-    type: `${source}.${eventType}` as any,
+    type: `${source}.${eventType}`,
     data: {
       timestamp: rawEvent.timestamp || new Date().toISOString(),
       payload: rawEvent.payload || {},
       user_name: rawEvent.username || rawEvent.payload?.user_name || 'Unknown',
     },
-  }
+  } as TimelineEvent
 }
 
 export function useTimeline(maxEvents: number = 10) {
