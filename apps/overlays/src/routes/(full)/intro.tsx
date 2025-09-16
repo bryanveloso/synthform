@@ -1,7 +1,7 @@
 import { Canvas } from '@/components/ui/canvas'
 import { createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/(full)/start')({
+export const Route = createFileRoute('/(full)/intro')({
   component: RouteComponent,
 })
 
