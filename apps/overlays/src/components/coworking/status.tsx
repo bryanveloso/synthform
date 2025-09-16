@@ -43,7 +43,7 @@ export function Status() {
       <div className="from-shark-840 to-shark-880 flex items-center justify-center rounded-l-lg bg-gradient-to-b pr-4 pl-4.5">
         <div
           className={cn(
-            'outline-shark-920 size-3.5 rounded-full bg-radial-[at_50%_25%] outline-4',
+            'outline-shark-920 size-3.5 rounded-full bg-radial-[at_50%_25%] outline-4 transition-all duration-300 ease-in-out',
             config.color,
           )}></div>
       </div>
