@@ -55,7 +55,7 @@ export const Timeline = () => {
     }
   }, [])
 
-  // Animate new events as they appear
+  // Animate new events appearing
   useGSAP(() => {
     const elementsToAnimate: HTMLElement[] = []
 
@@ -79,7 +79,7 @@ export const Timeline = () => {
     }
 
     // Clean up refs for removed events
-    const currentEventIds = new Set(timelineEvents.map((e) => e.id))
+    const currentEventIds = new Set(timelineEvents.map((event) => event.id))
     animatedEvents.current.forEach((id) => {
       if (!currentEventIds.has(id)) {
         eventRefs.current.delete(id)
@@ -124,7 +124,7 @@ export const Timeline = () => {
                 `font-sans text-sm text-white`,
                 isStale(event) ? 'opacity-50' : 'opacity-100',
               )}
-              style={{ opacity: 0 }} // Start invisible for animation
+              style={{ opacity: 0 }}
             >
               {component}
             </div>

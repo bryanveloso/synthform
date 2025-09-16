@@ -15,6 +15,7 @@ import { Route as LimitbreakRouteImport } from './routes/limitbreak'
 import { Route as CoworkingRouteImport } from './routes/coworking'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DebugEventsRouteImport } from './routes/debug/events'
+import { Route as fullStartRouteImport } from './routes/(full)/start'
 
 const OmnibarRoute = OmnibarRouteImport.update({
   id: '/omnibar',
@@ -46,6 +47,11 @@ const DebugEventsRoute = DebugEventsRouteImport.update({
   path: '/debug/events',
   getParentRoute: () => rootRouteImport,
 } as any)
+const fullStartRoute = fullStartRouteImport.update({
+  id: '/(full)/start',
+  path: '/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/omnibar': typeof OmnibarRoute
+  '/start': typeof fullStartRoute
   '/debug/events': typeof DebugEventsRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/omnibar': typeof OmnibarRoute
+  '/start': typeof fullStartRoute
   '/debug/events': typeof DebugEventsRoute
 }
 export interface FileRoutesById {
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/omnibar': typeof OmnibarRoute
+  '/(full)/start': typeof fullStartRoute
   '/debug/events': typeof DebugEventsRoute
 }
 export interface FileRouteTypes {
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/limitbreak'
     | '/music'
     | '/omnibar'
+    | '/start'
     | '/debug/events'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -88,6 +98,7 @@ export interface FileRouteTypes {
     | '/limitbreak'
     | '/music'
     | '/omnibar'
+    | '/start'
     | '/debug/events'
   id:
     | '__root__'
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
     | '/limitbreak'
     | '/music'
     | '/omnibar'
+    | '/(full)/start'
     | '/debug/events'
   fileRoutesById: FileRoutesById
 }
@@ -105,6 +117,7 @@ export interface RootRouteChildren {
   LimitbreakRoute: typeof LimitbreakRoute
   MusicRoute: typeof MusicRoute
   OmnibarRoute: typeof OmnibarRoute
+  fullStartRoute: typeof fullStartRoute
   DebugEventsRoute: typeof DebugEventsRoute
 }
 
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DebugEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(full)/start': {
+      id: '/(full)/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof fullStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -161,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   LimitbreakRoute: LimitbreakRoute,
   MusicRoute: MusicRoute,
   OmnibarRoute: OmnibarRoute,
+  fullStartRoute: fullStartRoute,
   DebugEventsRoute: DebugEventsRoute,
 }
 export const routeTree = rootRouteImport
