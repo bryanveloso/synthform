@@ -190,8 +190,8 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Handle chat messages for emote rain
         if event_type == "channel.chat.message":
-            logger.info("💬 WebSocket: Sending chat:message to overlay for emotes")
-            await self._send_message("chat", "message", event_data)
+            logger.info(f"💬 WebSocket: Sending chat:message to overlay - {event_data.get('data', {})}")
+            await self._send_message("chat", "message", event_data.get("data", {}))
             # Don't return - let it continue to other handlers if needed
 
         # Handle OBS events differently
