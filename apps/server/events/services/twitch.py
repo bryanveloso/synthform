@@ -316,7 +316,7 @@ class TwitchEventHandler:
                     "text": fragment.text,
                     "emote": {
                         "id": fragment.emote.id,
-                        "emote_set_id": fragment.emote.emote_set_id,
+                        "emote_set_id": fragment.emote.set_id,
                     }
                     if hasattr(fragment, "emote") and fragment.emote
                     else None,
