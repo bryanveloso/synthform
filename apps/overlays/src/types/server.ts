@@ -36,24 +36,20 @@ export interface ChatEmote {
   emote_set_id: string
 }
 
-export interface ChatFragment {
+export interface EmoteFragment {
   type: string
   text: string
   emote?: ChatEmote
 }
 
-export interface ChatMessagePayload {
+export interface ChatMessage {
   id: string
   text: string
   user_name: string
   user_display_name: string
-  fragments: ChatFragment[]
+  fragments: EmoteFragment[]
 }
 
-// Chat message as received from the server (with wrapper)
-export interface ChatMessageData {
-  data: ChatMessagePayload
-}
 
 // OBS types
 export interface OBSSceneData {
@@ -112,7 +108,7 @@ export interface MessagePayloadMap {
   'music:update': MusicData
   'status:sync': StreamStatus
   'status:update': StreamStatus
-  'chat:message': ChatMessageData
+  'chat:message': ChatMessage
 }
 
 // Extract valid message types

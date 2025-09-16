@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from datetime import timedelta
 from datetime import timezone
 
 import redis.asyncio as redis
@@ -96,8 +95,9 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         await self.pubsub.subscribe("events:limitbreak")
         await self.pubsub.subscribe("events:music")
         await self.pubsub.subscribe("events:status")
+        await self.pubsub.subscribe("events:chat")
         logger.info(
-            "Subscribed to Redis events:twitch, events:obs, events:limitbreak, events:music, and events:status channels"
+            "Subscribed to Redis events:twitch, events:obs, events:limitbreak, events:music, events:status, and events:chat channels"
         )
 
         # Start Redis message listener
@@ -187,6 +187,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             )
             await self._send_message("status", "update", event_data.get("data", {}))
             return
+
+        # Handle chat messages for emote rain
+        if event_type == "channel.chat.message":
+            logger.info("💬 WebSocket: Sending chat:message to overlay for emotes")
+            await self._send_message("chat", "message", event_data)
+            # Don't return - let it continue to other handlers if needed
 
         # Handle OBS events differently
         if source == "obs":
@@ -507,8 +513,9 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
     async def _get_status_state(self) -> dict | None:
         """Get current stream status."""
-        from streams.models import Status
         from asgiref.sync import sync_to_async
+
+        from streams.models import Status
 
         try:
             # Use the singleton pattern to get current status

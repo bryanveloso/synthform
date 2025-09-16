@@ -16,6 +16,7 @@ import { Route as CoworkingRouteImport } from './routes/coworking'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DebugEventsRouteImport } from './routes/debug/events'
 import { Route as fullIntroRouteImport } from './routes/(full)/intro'
+import { Route as fullEmoteRainRouteImport } from './routes/(full)/emote-rain'
 
 const OmnibarRoute = OmnibarRouteImport.update({
   id: '/omnibar',
@@ -52,6 +53,11 @@ const fullIntroRoute = fullIntroRouteImport.update({
   path: '/intro',
   getParentRoute: () => rootRouteImport,
 } as any)
+const fullEmoteRainRoute = fullEmoteRainRouteImport.update({
+  id: '/(full)/emote-rain',
+  path: '/emote-rain',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/omnibar': typeof OmnibarRoute
+  '/emote-rain': typeof fullEmoteRainRoute
   '/intro': typeof fullIntroRoute
   '/debug/events': typeof DebugEventsRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/omnibar': typeof OmnibarRoute
+  '/emote-rain': typeof fullEmoteRainRoute
   '/intro': typeof fullIntroRoute
   '/debug/events': typeof DebugEventsRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/omnibar': typeof OmnibarRoute
+  '/(full)/emote-rain': typeof fullEmoteRainRoute
   '/(full)/intro': typeof fullIntroRoute
   '/debug/events': typeof DebugEventsRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/limitbreak'
     | '/music'
     | '/omnibar'
+    | '/emote-rain'
     | '/intro'
     | '/debug/events'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/limitbreak'
     | '/music'
     | '/omnibar'
+    | '/emote-rain'
     | '/intro'
     | '/debug/events'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/limitbreak'
     | '/music'
     | '/omnibar'
+    | '/(full)/emote-rain'
     | '/(full)/intro'
     | '/debug/events'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   LimitbreakRoute: typeof LimitbreakRoute
   MusicRoute: typeof MusicRoute
   OmnibarRoute: typeof OmnibarRoute
+  fullEmoteRainRoute: typeof fullEmoteRainRoute
   fullIntroRoute: typeof fullIntroRoute
   DebugEventsRoute: typeof DebugEventsRoute
 }
@@ -172,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof fullIntroRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(full)/emote-rain': {
+      id: '/(full)/emote-rain'
+      path: '/emote-rain'
+      fullPath: '/emote-rain'
+      preLoaderRoute: typeof fullEmoteRainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   LimitbreakRoute: LimitbreakRoute,
   MusicRoute: MusicRoute,
   OmnibarRoute: OmnibarRoute,
+  fullEmoteRainRoute: fullEmoteRainRoute,
   fullIntroRoute: fullIntroRoute,
   DebugEventsRoute: DebugEventsRoute,
 }
