@@ -13,6 +13,7 @@ import django
 
 django.setup()
 
+import sentry_sdk  # noqa: E402
 import twitchio  # noqa: E402
 from django.conf import settings  # noqa: E402
 from twitchio import eventsub  # noqa: E402
@@ -218,6 +219,19 @@ class TwitchService(twitchio.Client):
     async def _subscribe_to_events_for_user(self, user_id: str):
         """Subscribe to Twitch EventSub events for a specific user ID using subscription payload objects."""
         try:
+            # Clean up any existing subscriptions first to avoid hitting rate limits
+            try:
+                logger.info(
+                    "Checking for existing EventSub subscriptions to clean up..."
+                )
+                # This would need to be implemented with the proper TwitchIO method
+                # For now, we'll just log a warning
+                logger.warning(
+                    "EventSub cleanup not yet implemented - may hit rate limits on restart"
+                )
+            except Exception as e:
+                logger.warning(f"Could not check existing subscriptions: {e}")
+
             # Create subscription payload objects with the correct conditions
             subscriptions = [
                 # Stream events
@@ -355,6 +369,25 @@ class TwitchService(twitchio.Client):
         logger.warning(f"EventSub WebSocket disconnected: {payload}")
         self._eventsub_connected = False
         asyncio.create_task(self._handle_reconnection())
+
+    async def event_eventsub_error(self, error):
+        """Handle EventSub errors including 429 rate limit."""
+        logger.error(f"EventSub error received: {error}")
+
+        # Report to Sentry
+        sentry_sdk.capture_message(
+            f"EventSub error: {error}",
+            level="error",
+            extras={"error_details": str(error)},
+        )
+
+        # Check for rate limit or bad request errors
+        if "429" in str(error) or "400" in str(error):
+            logger.warning(
+                "EventSub connection issue detected, triggering reconnection"
+            )
+            self._eventsub_connected = False
+            asyncio.create_task(self._handle_reconnection())
 
     async def cleanup_subscriptions(self):
         """Clean up EventSub subscriptions on shutdown."""
