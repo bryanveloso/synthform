@@ -45,7 +45,7 @@ export const LimitBreak = () => {
   // Play sound when limit break becomes maxed
   useEffect(() => {
     if (hasJustMaxed && audioRef.current) {
-      audioRef.current.volume = 0.075
+      audioRef.current.volume = 0.05
       audioRef.current.play().catch((error) => {
         console.warn('Could not play limit break sound:', error)
       })
@@ -55,7 +55,7 @@ export const LimitBreak = () => {
   // Play sound when limit break is executed
   useEffect(() => {
     if (hasJustExecuted && executionAudioRef.current) {
-      executionAudioRef.current.volume = 0.075
+      executionAudioRef.current.volume = 0.05
       executionAudioRef.current
         .play()
         .then(() => {
