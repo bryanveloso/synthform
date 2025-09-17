@@ -18,11 +18,6 @@ from pathlib import Path
 import environ
 import sentry_sdk
 
-sentry_sdk.init(
-    dsn="https://554e88df517d1b8a1c89a7899abaffb3@o4509979087077376.ingest.us.sentry.io/4509979089174528",
-    send_default_pii=True,
-)
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -46,6 +41,23 @@ SECRET_KEY = env(
 DEBUG = env("DEBUG")
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+
+# Initialize Sentry only in production
+if not DEBUG:
+    sentry_sdk.init(
+        dsn="https://554e88df517d1b8a1c89a7899abaffb3@o4509979087077376.ingest.us.sentry.io/4509979089174528",
+        environment="production",
+        send_default_pii=True,
+        traces_sample_rate=0.1,  # Capture 10% of transactions for performance monitoring
+        profiles_sample_rate=0.1,  # Capture 10% of transactions for profiling
+        # Ignore common development errors
+        ignore_errors=[
+            KeyboardInterrupt,
+            SystemExit,
+        ],
+        # Only send errors from your app code, not from Django internals during development
+        before_send=lambda event, hint: event if event.get("logger") != "django.security.DisallowedHost" else None,
+    )
 
 
 # Application definition
