@@ -325,6 +325,7 @@ class RainwaveService:
         try:
             # Import here to avoid circular dependencies
             from django.db.models import Q
+
             from events.models import Member
 
             # Check if username matches any member's username or display_name
@@ -359,7 +360,7 @@ class RainwaveService:
                     # User is tuned in and we have track info
                     if not was_tuned_in:
                         # Just tuned in, send current track
-                        logger.info(f"🎵 User tuned in to Rainwave")
+                        logger.info("🎵 User tuned in to Rainwave")
                         was_tuned_in = True
                         self.last_track_id = track_info["id"]
                         self.current_track = track_info
