@@ -172,21 +172,6 @@ export const animateLimitBreakFill = (element: HTMLElement, targetWidth: number)
   })
 }
 
-// Limit break bar "maxed" pulse
-export const animateLimitBreakMaxed = (element: HTMLElement) => {
-  return gsap
-    .timeline({ repeat: -1 })
-    .to(element, {
-      scale: 1.05,
-      duration: 0.5,
-      ease: 'power2.inOut',
-    })
-    .to(element, {
-      scale: 1,
-      duration: 0.5,
-      ease: 'power2.inOut',
-    })
-}
 
 // Limit break execution flash
 export const animateLimitBreakExecute = (container: HTMLElement) => {
