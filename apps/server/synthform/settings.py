@@ -56,7 +56,9 @@ if not DEBUG:
             SystemExit,
         ],
         # Only send errors from your app code, not from Django internals during development
-        before_send=lambda event, hint: event if event.get("logger") != "django.security.DisallowedHost" else None,
+        before_send=lambda event, hint: event
+        if event.get("logger") != "django.security.DisallowedHost"
+        else None,
     )
 
 
