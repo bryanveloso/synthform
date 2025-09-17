@@ -6,7 +6,7 @@ export type { ChatMessage, EmoteFragment }
 
 interface UseChatMessagesOptions {
   onMessage?: (message: ChatMessage) => void
-  onEmote?: (emoteId: string) => void
+  onEmote?: (emoteId: string, emoteSetId?: string) => void
 }
 
 export function useChatMessages(options: UseChatMessagesOptions = {}) {
@@ -45,8 +45,8 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       message.fragments.forEach(fragment => {
         console.log('[useChatMessages] Fragment:', fragment)
         if (fragment.type === 'emote' && fragment.emote?.id) {
-          console.log('[useChatMessages] Found emote:', fragment.emote.id)
-          onEmote(fragment.emote.id)
+          console.log('[useChatMessages] Found emote:', fragment.emote.id, 'set:', fragment.emote.emote_set_id)
+          onEmote(fragment.emote.id, fragment.emote.emote_set_id)
         }
       })
     }

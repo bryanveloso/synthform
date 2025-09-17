@@ -33,8 +33,8 @@ export const EmoteRain = memo(function EmoteRain() {
     engine.gravity.scale = 0.0008 // Adjust gravity strength
     engineRef.current = engine
 
-    // Create boundaries (ground at bottom of visible area)
-    const ground = Matter.Bodies.rectangle(960, 1050, 1920, 60, { isStatic: true })
+    // Create boundaries (ground at actual bottom of viewport)
+    const ground = Matter.Bodies.rectangle(960, 1110, 1920, 60, { isStatic: true })
     const leftWall = Matter.Bodies.rectangle(-30, 540, 60, 1080, { isStatic: true })
     const rightWall = Matter.Bodies.rectangle(1950, 540, 60, 1080, { isStatic: true })
 
@@ -157,12 +157,8 @@ export const EmoteRain = memo(function EmoteRain() {
     // Create new image if not cached
     if (!existingImg) {
       const img = new Image()
-      const emoteIdNum = parseInt(emoteId)
-      if (!isNaN(emoteIdNum) && emoteIdNum > 1000000) {
-        img.src = `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/2.0`
-      } else {
-        img.src = `https://static-cdn.jtvnw.net/emoticons/v1/${emoteId}/2.0`
-      }
+      // Always try v2 API with animated format first
+      img.src = `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/animated/dark/2.0`
 
       img.onload = () => {
         // Update ALL bodies with this emote ID
@@ -173,8 +169,18 @@ export const EmoteRain = memo(function EmoteRain() {
         })
       }
 
+      // Try fallbacks if loading fails
+      let attemptCount = 0
       img.onerror = () => {
-        // Failed to load emote
+        attemptCount++
+        if (attemptCount === 1) {
+          // Try static v2
+          img.src = `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/2.0`
+        } else if (attemptCount === 2) {
+          // Try v1 API as last resort
+          img.src = `https://static-cdn.jtvnw.net/emoticons/v1/${emoteId}/2.0`
+        }
+        // If it fails 3 times, emote doesn't exist
       }
 
       emoteImagesRef.current.set(emoteId, img)
@@ -253,9 +259,15 @@ export const EmoteRain = memo(function EmoteRain() {
     // Preload image with the specific emote body ID
     preloadEmote(emoteId, emoteBody.id)
 
-    // Remove after 60 seconds
+    // Remove ground collision after 60 seconds so emote falls off screen
     const timeoutId = setTimeout(() => {
-      removeEmote(emoteBody.id)
+      // Instead of removing immediately, let it fall by removing collision
+      // The renderEmotes loop will clean it up when it goes off screen
+      if (emoteBody.body) {
+        // Make the body non-colliding so it falls through the ground
+        emoteBody.body.collisionFilter.group = -1
+        emoteBody.body.collisionFilter.mask = 0
+      }
       timeoutIdsRef.current.delete(timeoutId)
     }, 60000)
     timeoutIdsRef.current.add(timeoutId)
@@ -273,8 +285,16 @@ export const EmoteRain = memo(function EmoteRain() {
   }, [])
 
   // Handle emotes from chat
-  const handleEmote = useCallback((emoteId: string) => {
-    console.log('[EmoteRain] Received emote from chat:', emoteId)
+  const handleEmote = useCallback((emoteId: string, emoteSetId?: string) => {
+    console.log('[EmoteRain] Received emote from chat:', emoteId, 'set:', emoteSetId)
+
+    // Filter out global emotes (set_id "0" or undefined typically means global)
+    // Channel emotes have specific set IDs like longer strings
+    if (!emoteSetId || emoteSetId === "0") {
+      console.log('[EmoteRain] Skipping global emote')
+      return
+    }
+
     emoteManager.queueEmote(emoteId)
   }, [])
 
