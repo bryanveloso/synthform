@@ -211,7 +211,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             ]:
                 # For chat.notification, check if it's a timeline-worthy notice type
                 if event_type == "channel.chat.notification":
-                    notice_type = event_data.get("data", {}).get("notice_type", "")
+                    notice_type = event_data.get("payload", {}).get("notice_type", "")
+                    logger.debug(
+                        f"Chat notification received - notice_type: {notice_type}, "
+                        f"is_timeline_worthy: {notice_type in self.TIMELINE_NOTICE_TYPES}"
+                    )
                     if notice_type in self.TIMELINE_NOTICE_TYPES:
                         await self._send_message("timeline", "push", event_data)
                 else:
