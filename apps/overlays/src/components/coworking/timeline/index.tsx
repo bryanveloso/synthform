@@ -57,25 +57,35 @@ export const Timeline = () => {
 
   // Animate new events appearing
   useGSAP(() => {
-    const elementsToAnimate: HTMLElement[] = []
+    const elementsToAnimate: { element: HTMLElement; event: TimelineEvent }[] = []
 
     timelineEvents.forEach((event) => {
       const element = eventRefs.current.get(event.id)
 
       // Only animate if this event hasn't been animated yet
       if (element && !animatedEvents.current.has(event.id)) {
-        elementsToAnimate.push(element)
+        elementsToAnimate.push({ element, event })
         animatedEvents.current.add(event.id)
       }
     })
 
     // Batch animate all new elements with stagger
     if (elementsToAnimate.length > 0) {
-      gsap.fromTo(
-        elementsToAnimate,
-        { x: -50, opacity: 0, scale: 0.95 },
-        { x: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'power3.out', stagger: 0.05 },
-      )
+      elementsToAnimate.forEach(({ element, event }, index) => {
+        const targetOpacity = isStale(event) ? 0.4 : 1
+        gsap.fromTo(
+          element,
+          { x: -50, opacity: 0, scale: 0.95 },
+          {
+            x: 0,
+            opacity: targetOpacity,
+            scale: 1,
+            duration: 0.5,
+            ease: 'power3.out',
+            delay: index * 0.05,
+          },
+        )
+      })
     }
 
     // Clean up refs for removed events
@@ -123,9 +133,7 @@ export const Timeline = () => {
               className={cn(
                 `font-sans text-sm text-white`,
                 isStale(event) ? 'opacity-50' : 'opacity-100',
-              )}
-              style={{ opacity: 0 }}
-            >
+              )}>
               {component}
             </div>
           )
