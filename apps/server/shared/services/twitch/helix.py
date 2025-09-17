@@ -249,6 +249,19 @@ class HelixService:
     async def _update_count_in_background(self, reward_id: str, cache_key: str) -> None:
         """Background task to update the redemption count."""
         try:
+            # Check if we should skip this update due to rate limiting
+            redis_conn = await self._get_redis()
+            if redis_conn:
+                # Use Redis to track last update time across all instances
+                rate_limit_key = f"limitbreak:update_lock:{reward_id}"
+                # Try to set the lock with a 5-second TTL (only succeeds if key doesn't exist)
+                lock_acquired = await redis_conn.set(rate_limit_key, "1", nx=True, ex=5)
+                if not lock_acquired:
+                    logger.debug(
+                        f"Skipping background update for {reward_id} - another update in progress"
+                    )
+                    return
+
             # Only update if we're initialized
             if not self._broadcaster:
                 return
@@ -264,7 +277,6 @@ class HelixService:
                 count += 1
 
             # Update cache
-            redis_conn = await self._get_redis()
             if redis_conn:
                 cache_ttl = getattr(settings, "HELIX_CACHE_TTL", 30)
                 fallback_ttl = getattr(settings, "HELIX_CACHE_FALLBACK_TTL", 3600)

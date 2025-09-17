@@ -1307,10 +1307,112 @@ class TwitchEventHandler:
         )
 
         try:
-            # Get current queue count from helix service
-            from shared.services.twitch.helix import helix_service
+            # Track count locally to avoid constant API calls
+            count = 0
 
-            count = await helix_service.get_reward_redemption_count(THROW_REWARD_ID)
+            # Check if it's time for a periodic sync (every 45 seconds)
+            last_sync = await self._redis_client.get("limitbreak:last_api_sync")
+            current_time = timezone.now().timestamp()
+            should_sync = not last_sync or (current_time - float(last_sync)) > 45
+
+            # For new redemptions, increment our local count
+            if payload.status == "unfulfilled":
+                # Get current cached count
+                cached_count = await self._redis_client.get("limitbreak:local_count")
+                if cached_count:
+                    count = int(cached_count) + 1
+                    await self._redis_client.set(
+                        "limitbreak:local_count", str(count), ex=300
+                    )
+                    logger.info(f"🎯 Limit Break: Incremented local count to {count}")
+
+                    # Periodic sync to ensure accuracy
+                    if should_sync:
+                        from shared.services.twitch.helix import helix_service
+
+                        api_count = await helix_service.get_reward_redemption_count(
+                            THROW_REWARD_ID
+                        )
+                        if abs(api_count - count) > 2:  # If drift is significant
+                            logger.warning(
+                                f"🎯 Limit Break: Count drift detected! Local: {count}, API: {api_count}. Using API value."
+                            )
+                            count = api_count
+                            await self._redis_client.set(
+                                "limitbreak:local_count", str(count), ex=300
+                            )
+                        await self._redis_client.set(
+                            "limitbreak:last_api_sync", str(current_time), ex=60
+                        )
+                        logger.info(
+                            f"🎯 Limit Break: Periodic sync complete, count = {count}"
+                        )
+                else:
+                    # No cached count, need initial sync with API
+                    from shared.services.twitch.helix import helix_service
+
+                    count = await helix_service.get_reward_redemption_count(
+                        THROW_REWARD_ID
+                    )
+                    await self._redis_client.set(
+                        "limitbreak:local_count", str(count), ex=300
+                    )
+                    await self._redis_client.set(
+                        "limitbreak:last_api_sync", str(current_time), ex=60
+                    )
+                    logger.info(
+                        f"🎯 Limit Break: Initial sync with API, count = {count}"
+                    )
+
+            # For fulfilled redemptions, check if we need to sync or handle execution
+            elif payload.status == "fulfilled":
+                # Get current cached count
+                cached_count = await self._redis_client.get("limitbreak:local_count")
+                if cached_count:
+                    count = max(0, int(cached_count) - 1)  # Decrement for fulfilled
+                    await self._redis_client.set(
+                        "limitbreak:local_count", str(count), ex=300
+                    )
+                    logger.info(f"🎯 Limit Break: Decremented local count to {count}")
+
+                    # Periodic sync to ensure accuracy (same 45 second interval)
+                    if should_sync:
+                        from shared.services.twitch.helix import helix_service
+
+                        api_count = await helix_service.get_reward_redemption_count(
+                            THROW_REWARD_ID
+                        )
+                        if abs(api_count - count) > 2:  # If drift is significant
+                            logger.warning(
+                                f"🎯 Limit Break: Count drift detected! Local: {count}, API: {api_count}. Using API value."
+                            )
+                            count = api_count
+                            await self._redis_client.set(
+                                "limitbreak:local_count", str(count), ex=300
+                            )
+                        await self._redis_client.set(
+                            "limitbreak:last_api_sync", str(current_time), ex=60
+                        )
+                        logger.info(
+                            f"🎯 Limit Break: Periodic sync complete, count = {count}"
+                        )
+                else:
+                    # Need initial sync with API
+                    from shared.services.twitch.helix import helix_service
+
+                    count = await helix_service.get_reward_redemption_count(
+                        THROW_REWARD_ID
+                    )
+                    await self._redis_client.set(
+                        "limitbreak:local_count", str(count), ex=300
+                    )
+                    await self._redis_client.set(
+                        "limitbreak:last_api_sync", str(current_time), ex=60
+                    )
+                    logger.info(
+                        f"🎯 Limit Break: Initial sync with API, count = {count}"
+                    )
+
             logger.info(f"🎯 Limit Break: Current queue count = {count}")
 
             # Check for limit break execution (bulk fulfillment)
@@ -1358,9 +1460,41 @@ class TwitchEventHandler:
                         await self._redis_client.set(
                             "limitbreak:last_execution", str(current_time), ex=60
                         )
+
+                        # Clear the cache since we know redemptions are being fulfilled
+                        cache_key = f"limitbreak:count:{self.LIMITBREAK_REWARD_ID}"
+                        await self._redis_client.set(cache_key, "0", ex=30)
+                        await self._redis_client.set(
+                            f"{cache_key}:fallback", "0", ex=3600
+                        )
+                        # Also clear the local count
+                        await self._redis_client.set(
+                            "limitbreak:local_count", "0", ex=300
+                        )
+
                         logger.info(
                             f"Limit break EXECUTED! Detected bulk fulfillment starting from {previous_count} redemptions"
                         )
+
+                        # Immediately send a sync event with count=0 to update the overlay
+                        reset_data = {
+                            "count": 0,
+                            "bar1": 0.0,
+                            "bar2": 0.0,
+                            "bar3": 0.0,
+                            "isMaxed": False,
+                        }
+                        await self._redis_client.publish(
+                            "events:limitbreak",
+                            json.dumps(
+                                {
+                                    "event_type": "limitbreak.sync",
+                                    "data": reset_data,
+                                    "timestamp": timezone.now().isoformat(),
+                                }
+                            ),
+                        )
+                        logger.info("Sent limit break reset sync with count=0")
 
             # Store current count for next comparison (with 5 minute TTL)
             await self._redis_client.set(
