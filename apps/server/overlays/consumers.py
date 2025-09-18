@@ -297,6 +297,17 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 .afirst()
             )
             if latest_event:
+                # Parse payload if it's a string (from older events)
+                payload = latest_event.payload
+                if isinstance(payload, str):
+                    try:
+                        payload = json.loads(payload)
+                    except json.JSONDecodeError:
+                        logger.warning(
+                            f"Failed to parse payload for event {latest_event.id}"
+                        )
+                        payload = {}
+
                 return {
                     "id": str(latest_event.id),
                     "type": f"{latest_event.source}.{latest_event.event_type}",
@@ -308,7 +319,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                             else "Unknown"
                         ),
                         "timestamp": latest_event.timestamp.isoformat(),
-                        "payload": latest_event.payload,
+                        "payload": payload,
                     },
                 }
             return None
@@ -345,6 +356,17 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
                 # Add event to the list
                 try:
+                    # Parse payload if it's a string (from older events)
+                    payload = event.payload
+                    if isinstance(payload, str):
+                        try:
+                            payload = json.loads(payload)
+                        except json.JSONDecodeError:
+                            logger.warning(
+                                f"Failed to parse payload for event {event.id}"
+                            )
+                            payload = {}
+
                     events.append(
                         {
                             "id": str(event.id),
@@ -357,7 +379,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                                     else "Unknown"
                                 ),
                                 "timestamp": event.timestamp.isoformat(),
-                                "payload": event.payload,
+                                "payload": payload,
                             },
                         }
                     )
