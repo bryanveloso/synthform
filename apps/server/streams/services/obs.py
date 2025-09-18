@@ -102,6 +102,14 @@ class OBSService:
             # Broadcast initial state
             await self._broadcast_current_state()
 
+            # Auto-refresh browser sources on connection
+            if settings.OBS_AUTO_REFRESH_BROWSER_SOURCES:
+                logger.info("Auto-refreshing browser sources on connection...")
+                try:
+                    await self.refresh_all_browser_sources()
+                except Exception as e:
+                    logger.warning(f"Failed to auto-refresh browser sources: {e}")
+
         except (TimeoutError, ConnectionRefusedError):
             # These are expected when OBS is not running - log at INFO level
             logger.info(
@@ -529,6 +537,111 @@ class OBSService:
 
         except Exception as e:
             logger.error(f"Error getting sources for scene {scene_name}: {e}")
+            raise
+
+    async def get_browser_sources(self) -> list[dict]:
+        """Get all browser sources across all scenes."""
+        await self._ensure_running()
+
+        try:
+            if not self._client_req:
+                raise ConnectionError("Not connected to OBS")
+
+            browser_sources = []
+
+            # Get list of all inputs/sources
+            inputs = self._client_req.get_input_list()
+
+            for input_item in inputs.inputs:
+                # Check if this is a browser source
+                if input_item["inputKind"] == "browser_source":
+                    # Get the settings to find the URL
+                    settings = self._client_req.get_input_settings(
+                        input_item["inputName"]
+                    )
+                    browser_sources.append(
+                        {
+                            "name": input_item["inputName"],
+                            "kind": input_item["inputKind"],
+                            "url": settings.input_settings.get("url", ""),
+                            "width": settings.input_settings.get("width", 1920),
+                            "height": settings.input_settings.get("height", 1080),
+                        }
+                    )
+
+            logger.info(f"Found {len(browser_sources)} browser sources")
+            return browser_sources
+
+        except Exception as e:
+            logger.error(f"Error getting browser sources: {e}")
+            raise
+
+    async def refresh_browser_source(self, source_name: str):
+        """Refresh a specific browser source."""
+        await self._ensure_running()
+
+        try:
+            if not self._client_req:
+                raise ConnectionError("Not connected to OBS")
+
+            # Method 1: Press the refresh button (if available in OBS WebSocket v5)
+            try:
+                self._client_req.press_input_properties_button(
+                    source_name, "refreshnocache"
+                )
+                logger.info(f"Refreshed browser source: {source_name}")
+                return
+            except Exception:
+                # If button press doesn't work, try method 2
+                pass
+
+            # Method 2: Toggle URL to force reload
+            settings = self._client_req.get_input_settings(source_name)
+            current_url = settings.input_settings.get("url", "")
+
+            if current_url:
+                # Temporarily set to blank then back to force reload
+                self._client_req.set_input_settings(
+                    source_name, {"url": "about:blank"}, overlay=True
+                )
+                # Small delay
+                await asyncio.sleep(0.1)
+                # Restore original URL
+                self._client_req.set_input_settings(
+                    source_name, {"url": current_url}, overlay=True
+                )
+                logger.info(f"Force-refreshed browser source: {source_name}")
+            else:
+                logger.warning(f"Browser source {source_name} has no URL configured")
+
+        except Exception as e:
+            logger.error(f"Error refreshing browser source {source_name}: {e}")
+            raise
+
+    async def refresh_all_browser_sources(self):
+        """Refresh all browser sources in OBS."""
+        try:
+            browser_sources = await self.get_browser_sources()
+
+            for source in browser_sources:
+                try:
+                    await self.refresh_browser_source(source["name"])
+                    # Small delay between refreshes to avoid overload
+                    await asyncio.sleep(0.2)
+                except Exception as e:
+                    logger.warning(f"Failed to refresh {source['name']}: {e}")
+                    continue
+
+            logger.info(f"Refreshed {len(browser_sources)} browser sources")
+
+            # Broadcast refresh event
+            await self._broadcast_event(
+                "obs.browser_sources.refreshed",
+                {"count": len(browser_sources), "sources": browser_sources},
+            )
+
+        except Exception as e:
+            logger.error(f"Error refreshing all browser sources: {e}")
             raise
 
 

@@ -298,6 +298,20 @@ class ServerConnection {
     this.cache.clear()
   }
 
+  send<T extends MessageType>(messageType: T, payload: PayloadType<T>) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      const message = {
+        type: messageType,
+        payload,
+        timestamp: new Date().toISOString(),
+      }
+      this.ws.send(JSON.stringify(message))
+      return true
+    }
+    console.warn(`Cannot send message ${messageType}: WebSocket not connected`)
+    return false
+  }
+
   destroy() {
     this.disconnect()
     this.subscribers.clear()
@@ -399,10 +413,18 @@ export function useServer<T extends readonly MessageType[]>(
     }
   }, [messageTypesKey])
 
+  const send = useCallback(<T extends MessageType>(
+    messageType: T,
+    payload: PayloadType<T>
+  ) => {
+    return serverConnection.send(messageType, payload)
+  }, [])
+
   return {
     data,
     isConnected,
     connectionState: serverConnection.getConnectionState(),
+    send,
     reconnect: () => serverConnection.connect(),
     disconnect: () => serverConnection.disconnect(),
     clearCache: () => serverConnection.clearCache(),

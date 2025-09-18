@@ -1,5 +1,15 @@
 import type { TimelineEvent } from './events'
 import type { MusicData } from './music'
+import type {
+  OBSStatusMessage,
+  OBSSceneChangedMessage,
+  OBSScenesListMessage,
+  OBSSceneItemsMessage,
+  OBSStreamStatusMessage,
+  RefreshBrowserSourceCommand,
+  SetSceneCommand,
+} from './obs'
+import type { RMEMicStatus } from '@/hooks/use-rme'
 
 // Connection state enum
 export enum ConnectionState {
@@ -97,6 +107,23 @@ export interface MessagePayloadMap {
   'timeline:sync': TimelineEvent[]
   'obs:update': OBSStreamData
   'obs:sync': OBSSceneData & OBSStreamData
+  'obs:status': OBSStatusMessage
+  'obs:scene:changed': OBSSceneChangedMessage
+  'obs:stream:started': Record<string, never>
+  'obs:stream:stopped': Record<string, never>
+  'obs:record:started': Record<string, never>
+  'obs:record:stopped': Record<string, never>
+  'obs:virtualcam:started': Record<string, never>
+  'obs:virtualcam:stopped': Record<string, never>
+  'obs:scenes:list': OBSScenesListMessage
+  'obs:scene:items': OBSSceneItemsMessage
+  'obs:stream:status': OBSStreamStatusMessage
+  'obs:browser:refresh': RefreshBrowserSourceCommand
+  'obs:scene:set': SetSceneCommand
+  'obs:stream:start': Record<string, never>
+  'obs:stream:stop': Record<string, never>
+  'obs:record:start': Record<string, never>
+  'obs:record:stop': Record<string, never>
   'ticker:sync': TickerData
   'alert:show': AlertData
   'alerts:sync': AlertData[]
@@ -109,6 +136,10 @@ export interface MessagePayloadMap {
   'status:sync': StreamStatus
   'status:update': StreamStatus
   'chat:message': ChatMessage
+  'audio:mic:status': RMEMicStatus
+  'audio:mic:update': RMEMicStatus
+  'audio:mic:mute': { data: { muted: boolean } }
+  'audio:mic:level': { data: { level: number } }
 }
 
 // Extract valid message types

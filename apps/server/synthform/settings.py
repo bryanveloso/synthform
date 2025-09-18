@@ -244,3 +244,16 @@ AUDIO_RATE_LIMIT_PER_SECOND = env("AUDIO_RATE_LIMIT_PER_SECOND", default=200)
 OBS_HOST = env("OBS_HOST", default="100.106.173.14")
 OBS_PORT = env("OBS_PORT", default=4455)
 OBS_PASSWORD = env("OBS_PASSWORD", default="")
+OBS_AUTO_REFRESH_BROWSER_SOURCES = env("OBS_AUTO_REFRESH_BROWSER_SOURCES", default=True)
+
+# RME TotalMix FX Configuration
+RME_TOTALMIX_HOST = env("RME_TOTALMIX_HOST", default="100.106.173.14")
+RME_TOTALMIX_SEND_PORT = env(
+    "RME_TOTALMIX_SEND_PORT", default=7001
+)  # Port TotalMix listens on (incoming in TotalMix)
+RME_TOTALMIX_RECEIVE_PORT = env(
+    "RME_TOTALMIX_RECEIVE_PORT", default=9001
+)  # Port we listen on (outgoing from TotalMix)
+RME_MIC_CHANNEL = env(
+    "RME_MIC_CHANNEL", default=0
+)  # 0-based channel index (0 = Input 1)

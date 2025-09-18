@@ -57,19 +57,21 @@ class EventsConfig(AppConfig):
             logger.info("🚀 Starting background services from AppConfig...")
 
             # Import here to avoid circular imports
+            from audio.services.rme import rme_service
             from events.services.rainwave import rainwave_service
             from streams.services.obs import obs_service
 
-            # Create tasks
+            # Create and run tasks
             tasks = [
                 loop.create_task(obs_service.startup()),
                 loop.create_task(rainwave_service.start_monitoring()),
+                loop.create_task(rme_service.startup()),
             ]
 
             logger.info("✅ Background services started")
 
-            # Run the event loop
-            loop.run_forever()
+            # Wait for all tasks to complete
+            loop.run_until_complete(asyncio.gather(*tasks))
 
         except Exception as e:
             logger.error(f"Error starting background services: {e}")
