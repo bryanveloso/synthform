@@ -419,13 +419,25 @@ class TwitchEventHandler:
         ]
 
         def serialize_twitchio_object(obj):
-            """Safely serialize TwitchIO objects to dict."""
+            """Safely serialize TwitchIO objects to dict, excluding internal properties."""
             if obj is None:
                 return None
 
             # Handle primitive types
-            if isinstance(obj, (str, int, float, bool, dict, list)):
+            if isinstance(obj, (str, int, float, bool)):
                 return obj
+
+            # Handle lists
+            if isinstance(obj, list):
+                return [serialize_twitchio_object(item) for item in obj]
+
+            # Handle dicts
+            if isinstance(obj, dict):
+                return {
+                    k: serialize_twitchio_object(v)
+                    for k, v in obj.items()
+                    if not k.startswith("_")
+                }
 
             # Handle TwitchIO objects
             result = {}
@@ -433,32 +445,51 @@ class TwitchEventHandler:
             # Check if object uses __slots__ (common in TwitchIO)
             if hasattr(obj, "__slots__"):
                 for slot in obj.__slots__:
+                    # Skip private/internal attributes
+                    if slot.startswith("_"):
+                        continue
                     try:
                         attr_value = getattr(obj, slot)
                         if attr_value is not None:
+                            # Skip internal TwitchIO objects
+                            if slot in [
+                                "_http",
+                                "_session",
+                                "_client_id",
+                                "_session_set",
+                                "_should_close",
+                            ]:
+                                continue
                             # Recursively serialize nested objects
-                            if hasattr(attr_value, "__slots__") or hasattr(
-                                attr_value, "__dict__"
-                            ):
-                                result[slot] = serialize_twitchio_object(attr_value)
-                            else:
-                                result[slot] = attr_value
+                            result[slot] = serialize_twitchio_object(attr_value)
                     except AttributeError:
                         # Slot exists but not set
                         continue
             # Fallback to __dict__ for regular objects
             elif hasattr(obj, "__dict__"):
                 for key, value in obj.__dict__.items():
-                    if not key.startswith("_") and value is not None:
-                        if hasattr(value, "__slots__") or hasattr(value, "__dict__"):
-                            result[key] = serialize_twitchio_object(value)
-                        else:
-                            result[key] = value
+                    # Skip private attributes and None values
+                    if key.startswith("_") or value is None:
+                        continue
+                    # Skip internal TwitchIO properties
+                    if key in [
+                        "_http",
+                        "_session",
+                        "_client_id",
+                        "_session_set",
+                        "_should_close",
+                        "_url",
+                        "_ext",
+                        "_original_url",
+                        "user_agent",
+                    ]:
+                        continue
+                    result[key] = serialize_twitchio_object(value)
             else:
                 # If neither __slots__ nor __dict__, convert to string
                 return str(obj)
 
-            return result if result else str(obj)
+            return result if result else None
 
         for field in notice_fields:
             if hasattr(payload, field):
