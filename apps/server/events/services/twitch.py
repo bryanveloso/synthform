@@ -444,6 +444,7 @@ class TwitchEventHandler:
 
             # Check if object uses __slots__ (common in TwitchIO)
             if hasattr(obj, "__slots__"):
+                logger.debug(f"Serializing {type(obj).__name__} with __slots__: {obj.__slots__}")
                 for slot in obj.__slots__:
                     # Skip private/internal attributes
                     if slot.startswith("_"):
@@ -460,10 +461,12 @@ class TwitchEventHandler:
                                 "_should_close",
                             ]:
                                 continue
+                            logger.debug(f"  Slot '{slot}' = {attr_value!r} ({type(attr_value).__name__})")
                             # Recursively serialize nested objects
                             result[slot] = serialize_twitchio_object(attr_value)
                     except AttributeError:
                         # Slot exists but not set
+                        logger.debug(f"  Slot '{slot}' not set")
                         continue
             # Fallback to __dict__ for regular objects
             elif hasattr(obj, "__dict__"):
@@ -495,6 +498,7 @@ class TwitchEventHandler:
             if hasattr(payload, field):
                 field_value = getattr(payload, field)
                 if field_value is not None:
+                    logger.debug(f"Processing notice field '{field}' for {payload.notice_type}")
                     payload_dict[field] = serialize_twitchio_object(field_value)
                 else:
                     payload_dict[field] = None
@@ -558,6 +562,7 @@ class TwitchEventHandler:
             "followed_at": payload.followed_at.isoformat(),
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
+            "broadcaster_user_display_name": payload.broadcaster.display_name,
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
