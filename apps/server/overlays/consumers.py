@@ -220,24 +220,53 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             await self._send_message("chat", "message", event_data.get("data", {}))
             # Don't return - let it continue to other handlers if needed
 
-        # Handle game events from FFBot and other games
+        # Handle game events from FFBot
         if source == "ffbot":
-            # Extract the event type without the game prefix
+            # Extract the event subtype (stats, hire, change, save)
             game_event_type = event_type.replace("ffbot.", "")
-            logger.info(
-                f"🎮 WebSocket: Sending games:{game_event_type} to overlay from FFBot"
-            )
-            await self._send_message(
-                "games",
-                game_event_type,
-                {
-                    "game": source,
+
+            # Build appropriate payload based on event type
+            payload = {}
+            if game_event_type == "stats":
+                payload = {
                     "player": event_data.get("player"),
-                    "member_id": event_data.get("member", {}).get("id"),
-                    "timestamp": event_data.get("timestamp"),
+                    "member": event_data.get("member"),
                     "data": event_data.get("payload", {}),
-                },
-            )
+                    "timestamp": event_data.get("timestamp"),
+                }
+            elif game_event_type == "hire":
+                game_payload = event_data.get("payload", {})
+                payload = {
+                    "player": event_data.get("player"),
+                    "member": event_data.get("member"),
+                    "character": game_payload.get("character"),
+                    "cost": game_payload.get("cost", 0),
+                    "timestamp": event_data.get("timestamp"),
+                }
+            elif game_event_type == "change":
+                game_payload = event_data.get("payload", {})
+                payload = {
+                    "player": event_data.get("player"),
+                    "member": event_data.get("member"),
+                    "from": game_payload.get("from", ""),
+                    "to": game_payload.get("to", ""),
+                    "timestamp": event_data.get("timestamp"),
+                }
+            elif game_event_type == "save":
+                game_payload = event_data.get("payload", {})
+                payload = {
+                    "player_count": game_payload.get("player_count", 0),
+                    "metadata": game_payload.get("metadata"),
+                    "timestamp": event_data.get("timestamp"),
+                }
+            else:
+                # Unknown event type, skip
+                logger.warning(f"Unknown FFBot event type: {event_type}")
+                return
+
+            # Send with specific message type
+            logger.info(f"🎮 WebSocket: Sending ffbot:{game_event_type} to overlay")
+            await self._send_message("ffbot", game_event_type, payload)
             return
 
         # Handle OBS events differently
