@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from datetime import timezone
 from typing import Optional
 
 import redis.asyncio as redis
@@ -87,7 +86,7 @@ async def process_ffbot_event(data: dict) -> None:
     try:
         event_type = data.get("type")
         player_username = data.get("player")
-        timestamp = data.get("timestamp", datetime.now(timezone.utc).timestamp())
+        timestamp = data.get("timestamp", datetime.now(datetime.UTC).timestamp())
 
         logger.info(f"🎮 Processing FFBot {event_type} event from {player_username}")
 
@@ -142,28 +141,28 @@ async def get_or_create_member(username: str):
 
 
 async def update_player_stats(member, stats_data: dict) -> None:
-    """Update PlayerStats with latest data from stats event."""
+    """Update PlayerStats with latest data from stats event.
+
+    Note: The game doesn't send exp, gil, freehirecount, or season in stats events.
+    These are managed internally by the game and only gil is deducted during hire events.
+    """
     stats, created = await Player.objects.aget_or_create(member=member)
 
     fields_to_update = []
 
-    # Core stats
+    # Core stats - only update fields that are actually sent
     for field in [
         "lv",
         "atk",
         "mag",
         "spi",
         "hp",
-        "exp",
-        "gil",
         "collection",
         "ascension",
         "wins",
-        "freehirecount",
-        "season",
         "esper",
     ]:
-        if field in stats_data:
+        if field in stats_data and stats_data[field] is not None:
             setattr(stats, field, stats_data[field])
             fields_to_update.append(field)
 
@@ -232,7 +231,7 @@ async def publish_to_redis(
         redis_message = {
             "event_type": f"ffbot.{event_type}",
             "source": "ffbot",
-            "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(timestamp, tz=datetime.UTC).isoformat(),
             "payload": data.get("data", {}),
             "player": data.get("player"),
         }

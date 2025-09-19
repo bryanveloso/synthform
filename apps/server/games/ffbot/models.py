@@ -61,10 +61,9 @@ class Player(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "games_ffbot_playerstats"
         indexes = [models.Index(fields=["member"])]
-        verbose_name = "FFBot Player Stats"
-        verbose_name_plural = "FFBot Player Stats"
+        verbose_name = "FFBot Player"
+        verbose_name_plural = "FFBot Players"
 
     def __str__(self):
         return f"{self.member.display_name} - Lv.{self.lv}"
