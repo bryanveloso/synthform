@@ -56,6 +56,8 @@ class Player(models.Model):
     card_collection = models.IntegerField(default=0)
     card_passive = models.CharField(max_length=200, blank=True)
 
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
