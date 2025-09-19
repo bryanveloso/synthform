@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime
+from datetime import timezone
 from typing import Optional
 
 import redis.asyncio as redis
@@ -86,7 +87,7 @@ async def process_ffbot_event(data: dict) -> None:
     try:
         event_type = data.get("type")
         player_username = data.get("player")
-        timestamp = data.get("timestamp", datetime.now(datetime.UTC).timestamp())
+        timestamp = data.get("timestamp", datetime.now(timezone.utc).timestamp())
 
         logger.info(f"🎮 Processing FFBot {event_type} event from {player_username}")
 
@@ -231,7 +232,7 @@ async def publish_to_redis(
         redis_message = {
             "event_type": f"ffbot.{event_type}",
             "source": "ffbot",
-            "timestamp": datetime.fromtimestamp(timestamp, tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(),
             "payload": data.get("data", {}),
             "player": data.get("player"),
         }
