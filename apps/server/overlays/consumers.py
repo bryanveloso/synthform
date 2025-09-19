@@ -128,6 +128,28 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                         logger.info(
                             f"📨 Event type: {event_data.get('event_type')}, Source: {event_data.get('source')}"
                         )
+                        # Debug log the entire event_data structure for chat notifications
+                        if event_data.get("event_type") == "channel.chat.notification":
+                            logger.info(f"📨 FULL event_data keys: {event_data.keys()}")
+                            payload = event_data.get("payload")
+                            if payload:
+                                logger.info(f"📨 Payload type: {type(payload)}")
+                                if isinstance(payload, dict):
+                                    logger.info(f"📨 Payload keys: {payload.keys()}")
+                                    logger.info(
+                                        f"📨 chatter_display_name: {payload.get('chatter_display_name')}"
+                                    )
+                                    logger.info(
+                                        f"📨 notice_type: {payload.get('notice_type')}"
+                                    )
+                                    if payload.get("notice_type") == "resub":
+                                        logger.info(
+                                            f"📨 resub data: {payload.get('resub')}"
+                                        )
+                                else:
+                                    logger.info(
+                                        f"📨 Payload is STRING: {payload[:100]}..."
+                                    )
                         await self._route_live_event(event_data)
                     except (json.JSONDecodeError, KeyError) as e:
                         logger.error(f"Error processing Redis message: {e}")
@@ -211,10 +233,27 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             ]:
                 # For chat.notification, check if it's a timeline-worthy notice type
                 if event_type == "channel.chat.notification":
-                    notice_type = event_data.get("payload", {}).get("notice_type", "")
+                    payload = event_data.get("payload", {})
+                    # Parse payload if it's a string (shouldn't happen, but just in case)
+                    if isinstance(payload, str):
+                        try:
+                            payload = json.loads(payload)
+                            logger.warning(
+                                f"Had to parse payload from string for {event_type}"
+                            )
+                        except json.JSONDecodeError:
+                            logger.error(
+                                f"Failed to parse payload string for {event_type}"
+                            )
+                            payload = {}
+                    notice_type = payload.get("notice_type", "")
                     logger.debug(
                         f"Chat notification received - notice_type: {notice_type}, "
                         f"is_timeline_worthy: {notice_type in self.TIMELINE_NOTICE_TYPES}"
+                    )
+                    logger.debug(
+                        f"Payload type: {type(payload)}, "
+                        f"chatter_user_name: {payload.get('chatter_user_name') if isinstance(payload, dict) else 'N/A - payload is not dict'}"
                     )
                     if notice_type in self.TIMELINE_NOTICE_TYPES:
                         # Format event for timeline with proper structure
@@ -223,8 +262,8 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                             "type": f"{event_data.get('source', 'twitch')}.{event_type}",
                             "data": {
                                 "timestamp": event_data.get("timestamp"),
-                                "payload": event_data.get("payload", {}),
-                                "user_name": event_data.get("payload", {}).get(
+                                "payload": payload,  # Use the parsed payload
+                                "user_name": payload.get(
                                     "chatter_user_name", "Unknown"
                                 ),
                             },
