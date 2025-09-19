@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     "authentication",
     "campaigns",
     "events",
+    "games.ffbot",
     "overlays",
     "streams",
     "transcriptions",

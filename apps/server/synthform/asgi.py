@@ -25,6 +25,7 @@ django.setup()
 from audio.routing import websocket_urlpatterns as audio_websocket_urlpatterns  # noqa: E402, I001
 from events.consumers import EventConsumer  # noqa: E402
 from events.consumers import MusicAgentConsumer  # noqa: E402
+from games.ffbot.consumers import FFBotConsumer  # noqa: E402
 from overlays.consumers import OverlayConsumer  # noqa: E402
 
 django_asgi_app = get_asgi_application()
@@ -33,6 +34,7 @@ websocket_urlpatterns = [
     path("ws/events/", EventConsumer.as_asgi()),
     path("ws/overlay/", OverlayConsumer.as_asgi()),
     path("ws/music/", MusicAgentConsumer.as_asgi()),
+    path("ws/games/ffbot/", FFBotConsumer.as_asgi()),
 ] + audio_websocket_urlpatterns
 
 base_application = ProtocolTypeRouter(

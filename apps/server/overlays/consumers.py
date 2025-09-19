@@ -96,8 +96,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         await self.pubsub.subscribe("events:music")
         await self.pubsub.subscribe("events:status")
         await self.pubsub.subscribe("events:chat")
+        await self.pubsub.subscribe("events:games:ffbot")
+        # Future game channels can be added here:
+        # await self.pubsub.subscribe("events:games:ironmon")
+        # await self.pubsub.subscribe("events:games:ff14")
         logger.info(
-            "Subscribed to Redis events:twitch, events:obs, events:limitbreak, events:music, events:status, and events:chat channels"
+            "Subscribed to Redis channels: events:twitch, events:obs, events:limitbreak, events:music, events:status, events:chat, and events:games:ffbot"
         )
 
         # Start Redis message listener
@@ -215,6 +219,26 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             logger.info("💬 WebSocket: Sending chat:message to overlay")
             await self._send_message("chat", "message", event_data.get("data", {}))
             # Don't return - let it continue to other handlers if needed
+
+        # Handle game events from FFBot and other games
+        if source == "ffbot":
+            # Extract the event type without the game prefix
+            game_event_type = event_type.replace("ffbot.", "")
+            logger.info(
+                f"🎮 WebSocket: Sending games:{game_event_type} to overlay from FFBot"
+            )
+            await self._send_message(
+                "games",
+                game_event_type,
+                {
+                    "game": source,
+                    "player": event_data.get("player"),
+                    "member_id": event_data.get("member", {}).get("id"),
+                    "timestamp": event_data.get("timestamp"),
+                    "data": event_data.get("payload", {}),
+                },
+            )
+            return
 
         # Handle OBS events differently
         if source == "obs":
