@@ -107,12 +107,42 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Start Redis message listener
         self.redis_task = asyncio.create_task(self._listen_to_redis())
 
+        # Start heartbeat task
+        self.heartbeat_task = asyncio.create_task(self._heartbeat())
+
         # Send initial state for all layers
         await self._send_initial_state()
+
+        # Test Redis connection
+        logger.info("🧪 Testing Redis pub/sub...")
+        test_channel = f"test:{datetime.now(timezone.utc).timestamp()}"
+        await self.redis.publish(test_channel, "test")
+        logger.info("✅ Redis test publish successful")
+
+    async def _heartbeat(self) -> None:
+        """Send periodic heartbeat to detect connection issues."""
+        heartbeat_interval = 30  # seconds
+        try:
+            while True:
+                await asyncio.sleep(heartbeat_interval)
+                await self._send_message(
+                    "base",
+                    "heartbeat",
+                    {"timestamp": datetime.now(timezone.utc).isoformat()},
+                )
+                logger.debug("💓 Heartbeat sent")
+        except asyncio.CancelledError:
+            logger.info("Heartbeat task cancelled")
+        except Exception as e:
+            logger.error(f"❌ Heartbeat error: {e}")
 
     async def disconnect(self, close_code: int) -> None:
         """Clean up connections when overlay disconnects."""
         logger.info(f"Overlay client disconnected with code: {close_code}")
+
+        # Cancel heartbeat if it exists
+        if hasattr(self, "heartbeat_task"):
+            self.heartbeat_task.cancel()
 
         await cleanup_redis_connections(self.redis, self.pubsub, self.redis_task)
 
@@ -123,7 +153,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 message = await self.pubsub.get_message(
                     ignore_subscribe_messages=True, timeout=1.0
                 )
-                if message:
+                if message and message.get("type") == "message":
                     try:
                         logger.info(
                             f"📨 Received Redis message on channel: {message.get('channel')}"
@@ -241,6 +271,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     "member": event_data.get("member"),
                     "character": game_payload.get("character"),
                     "cost": game_payload.get("cost", 0),
+                    "data": game_payload.get("stats", {}),  # Include enriched stats
                     "timestamp": event_data.get("timestamp"),
                 }
             elif game_event_type == "change":
@@ -250,6 +281,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     "member": event_data.get("member"),
                     "from": game_payload.get("from", ""),
                     "to": game_payload.get("to", ""),
+                    "data": game_payload.get("stats", {}),  # Include enriched stats
                     "timestamp": event_data.get("timestamp"),
                 }
             elif game_event_type == "save":
@@ -300,12 +332,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                             )
                             payload = {}
                     notice_type = payload.get("notice_type", "")
-                    logger.debug(
-                        f"Chat notification received - notice_type: {notice_type}, "
+                    logger.info(
+                        f"📺 Chat notification received - notice_type: {notice_type}, "
                         f"is_timeline_worthy: {notice_type in self.TIMELINE_NOTICE_TYPES}"
                     )
-                    logger.debug(
-                        f"Payload type: {type(payload)}, "
+                    logger.info(
+                        f"📺 Payload type: {type(payload)}, "
                         f"chatter_user_name: {payload.get('chatter_user_name') if isinstance(payload, dict) else 'N/A - payload is not dict'}"
                     )
                     if notice_type in self.TIMELINE_NOTICE_TYPES:
@@ -321,6 +353,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                                 ),
                             },
                         }
+                        logger.info(f"📺 Sending {notice_type} to timeline:push")
                         await self._send_message("timeline", "push", timeline_event)
                 else:
                     # Follow and cheer events always go to timeline
@@ -412,8 +445,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             "sequence": self.sequence,
         }
 
-        await self.send(text_data=json.dumps(message))
-        logger.debug(f"Sent {layer}:{verb} message to overlay client")
+        try:
+            await self.send(text_data=json.dumps(message))
+            logger.info(f"📤 Sent {layer}:{verb} to overlay (seq: {self.sequence})")
+        except Exception as e:
+            logger.error(f"❌ Failed to send {layer}:{verb}: {e}")
 
     async def _get_latest_event(self) -> dict | None:
         """Query database for latest viewer interaction."""

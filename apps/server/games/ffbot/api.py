@@ -111,12 +111,45 @@ async def process_ffbot_event(data: dict) -> None:
         member = await get_or_create_member(player_username)
 
         # Update PlayerStats cache for events with stats data
+        player_stats = None
         if event_type == "stats":
-            await update_player_stats(member, data.get("data", {}))
+            player_stats = await update_player_stats(member, data.get("data", {}))
         elif event_type == "hire":
-            await update_after_hire(member, data)
+            player_stats = await update_after_hire(member, data)
         elif event_type == "change":
-            await update_after_change(member, data)
+            player_stats = await update_after_change(member, data)
+
+        # If we have player stats, enrich the payload with full data from database
+        if player_stats:
+            full_stats_data = {
+                "lv": player_stats.lv,
+                "atk": player_stats.atk,
+                "mag": player_stats.mag,
+                "spi": player_stats.spi,
+                "hp": player_stats.hp,
+                "exp": player_stats.exp,
+                "gil": player_stats.gil,
+                "collection": player_stats.collection,
+                "ascension": player_stats.ascension,
+                "wins": player_stats.wins,
+                "freehirecount": player_stats.freehirecount,
+                "season": player_stats.season,
+                "unit": player_stats.unit,
+                "esper": player_stats.esper,
+                "preference": player_stats.preferedstat,
+                "job": player_stats.m1,
+                "job_level": player_stats.jobap,
+                "card": player_stats.card,
+            }
+
+            # For stats events, the game sends data under 'data' field
+            # For hire/change events, enrich the root-level data
+            if event_type == "stats":
+                # Merge with game data (game data takes precedence for fields it sends)
+                data["data"] = {**full_stats_data, **data.get("data", {})}
+            else:
+                # For hire/change events, add the full stats alongside the event-specific fields
+                data["stats"] = full_stats_data
 
         # Always forward to Redis for real-time overlay
         await publish_to_redis(event_type, member, data, timestamp)
@@ -141,11 +174,13 @@ async def get_or_create_member(username: str):
     return member
 
 
-async def update_player_stats(member, stats_data: dict) -> None:
+async def update_player_stats(member, stats_data: dict):
     """Update PlayerStats with latest data from stats event.
 
     Note: The game doesn't send exp, gil, freehirecount, or season in stats events.
     These are managed internally by the game and only gil is deducted during hire events.
+
+    Returns the Player object so we can access additional fields like unit.
     """
     stats, created = await Player.objects.aget_or_create(member=member)
 
@@ -190,9 +225,14 @@ async def update_player_stats(member, stats_data: dict) -> None:
         await stats.asave(update_fields=fields_to_update)
         logger.debug(f"Updated Player stats for {member.display_name}")
 
+    return stats
 
-async def update_after_hire(member, hire_data: dict) -> None:
-    """Update PlayerStats after a hire event."""
+
+async def update_after_hire(member, hire_data: dict):
+    """Update PlayerStats after a hire event.
+
+    Returns the Player object so we can access all fields for payload enrichment.
+    """
     stats, _ = await Player.objects.aget_or_create(member=member)
 
     fields_to_update = []
@@ -211,14 +251,21 @@ async def update_after_hire(member, hire_data: dict) -> None:
         fields_to_update.append("updated_at")
         await stats.asave(update_fields=fields_to_update)
 
+    return stats
 
-async def update_after_change(member, change_data: dict) -> None:
-    """Update PlayerStats after a character change event."""
+
+async def update_after_change(member, change_data: dict):
+    """Update PlayerStats after a character change event.
+
+    Returns the Player object so we can access all fields for payload enrichment.
+    """
     stats, _ = await Player.objects.aget_or_create(member=member)
 
     if "to" in change_data:
         stats.unit = change_data["to"]
         await stats.asave(update_fields=["unit", "updated_at"])
+
+    return stats
 
 
 async def publish_to_redis(
