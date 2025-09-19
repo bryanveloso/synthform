@@ -444,7 +444,9 @@ class TwitchEventHandler:
 
             # Check if object uses __slots__ (common in TwitchIO)
             if hasattr(obj, "__slots__"):
-                logger.debug(f"Serializing {type(obj).__name__} with __slots__: {obj.__slots__}")
+                logger.debug(
+                    f"Serializing {type(obj).__name__} with __slots__: {obj.__slots__}"
+                )
                 for slot in obj.__slots__:
                     # Skip private/internal attributes
                     if slot.startswith("_"):
@@ -461,7 +463,9 @@ class TwitchEventHandler:
                                 "_should_close",
                             ]:
                                 continue
-                            logger.debug(f"  Slot '{slot}' = {attr_value!r} ({type(attr_value).__name__})")
+                            logger.debug(
+                                f"  Slot '{slot}' = {attr_value!r} ({type(attr_value).__name__})"
+                            )
                             # Recursively serialize nested objects
                             result[slot] = serialize_twitchio_object(attr_value)
                     except AttributeError:
@@ -498,7 +502,9 @@ class TwitchEventHandler:
             if hasattr(payload, field):
                 field_value = getattr(payload, field)
                 if field_value is not None:
-                    logger.debug(f"Processing notice field '{field}' for {payload.notice_type}")
+                    logger.debug(
+                        f"Processing notice field '{field}' for {payload.notice_type}"
+                    )
                     payload_dict[field] = serialize_twitchio_object(field_value)
                 else:
                     payload_dict[field] = None

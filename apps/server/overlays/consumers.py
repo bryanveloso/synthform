@@ -217,15 +217,53 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                         f"is_timeline_worthy: {notice_type in self.TIMELINE_NOTICE_TYPES}"
                     )
                     if notice_type in self.TIMELINE_NOTICE_TYPES:
-                        await self._send_message("timeline", "push", event_data)
+                        # Format event for timeline with proper structure
+                        timeline_event = {
+                            "id": event_data.get("event_id"),
+                            "type": f"{event_data.get('source', 'twitch')}.{event_type}",
+                            "data": {
+                                "timestamp": event_data.get("timestamp"),
+                                "payload": event_data.get("payload", {}),
+                                "user_name": event_data.get("payload", {}).get(
+                                    "chatter_user_name", "Unknown"
+                                ),
+                            },
+                        }
+                        await self._send_message("timeline", "push", timeline_event)
                 else:
                     # Follow and cheer events always go to timeline
-                    await self._send_message("timeline", "push", event_data)
+                    # Format event for timeline with proper structure
+                    timeline_event = {
+                        "id": event_data.get("event_id"),
+                        "type": f"{event_data.get('source', 'twitch')}.{event_type}",
+                        "data": {
+                            "timestamp": event_data.get("timestamp"),
+                            "payload": event_data.get("payload", {}),
+                            "user_name": event_data.get("payload", {}).get(
+                                "user_name", "Unknown"
+                            ),
+                        },
+                    }
+                    await self._send_message("timeline", "push", timeline_event)
 
             # All viewer interactions still go to base and alerts for other uses
             if event_type in self.VIEWER_INTERACTIONS:
-                await self._send_message("base", "update", event_data)
-                await self._send_message("alerts", "push", event_data)
+                # Format event for base and alerts with proper structure
+                formatted_event = {
+                    "id": event_data.get("event_id"),
+                    "type": f"{event_data.get('source', 'twitch')}.{event_type}",
+                    "data": {
+                        "timestamp": event_data.get("timestamp"),
+                        "payload": event_data.get("payload", {}),
+                        "user_name": event_data.get("member", {}).get("display_name")
+                        or event_data.get("member", {}).get("username")
+                        or event_data.get("payload", {}).get("user_name")
+                        or event_data.get("payload", {}).get("chatter_user_name")
+                        or "Unknown",
+                    },
+                }
+                await self._send_message("base", "update", formatted_event)
+                await self._send_message("alerts", "push", formatted_event)
 
     async def _send_initial_state(self) -> None:
         """Send sync messages for all layers on connection."""
