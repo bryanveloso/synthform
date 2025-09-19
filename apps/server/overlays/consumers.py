@@ -113,12 +113,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Send initial state for all layers
         await self._send_initial_state()
 
-        # Test Redis connection
-        logger.info("🧪 Testing Redis pub/sub...")
-        test_channel = f"test:{datetime.now(timezone.utc).timestamp()}"
-        await self.redis.publish(test_channel, "test")
-        logger.info("✅ Redis test publish successful")
-
     async def _heartbeat(self) -> None:
         """Send periodic heartbeat to detect connection issues."""
         heartbeat_interval = 30  # seconds
@@ -148,58 +142,34 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
     async def _listen_to_redis(self) -> None:
         """Listen for Redis pub/sub messages and route to overlay layers."""
-        try:
-            while True:
+        while True:
+            try:
                 message = await self.pubsub.get_message(
                     ignore_subscribe_messages=True, timeout=1.0
                 )
                 if message and message.get("type") == "message":
                     try:
-                        logger.info(
-                            f"📨 Received Redis message on channel: {message.get('channel')}"
-                        )
                         event_data = json.loads(message["data"])
-                        logger.info(
-                            f"📨 Event type: {event_data.get('event_type')}, Source: {event_data.get('source')}"
-                        )
-                        # Debug log the entire event_data structure for chat notifications
-                        if event_data.get("event_type") == "channel.chat.notification":
-                            logger.info(f"📨 FULL event_data keys: {event_data.keys()}")
-                            payload = event_data.get("payload")
-                            if payload:
-                                logger.info(f"📨 Payload type: {type(payload)}")
-                                if isinstance(payload, dict):
-                                    logger.info(f"📨 Payload keys: {payload.keys()}")
-                                    logger.info(
-                                        f"📨 chatter_display_name: {payload.get('chatter_display_name')}"
-                                    )
-                                    logger.info(
-                                        f"📨 notice_type: {payload.get('notice_type')}"
-                                    )
-                                    if payload.get("notice_type") == "resub":
-                                        logger.info(
-                                            f"📨 resub data: {payload.get('resub')}"
-                                        )
-                                else:
-                                    logger.info(
-                                        f"📨 Payload is STRING: {payload[:100]}..."
-                                    )
                         await self._route_live_event(event_data)
-                    except (json.JSONDecodeError, KeyError) as e:
-                        logger.error(f"Error processing Redis message: {e}")
-                    except redis.RedisError as e:
-                        logger.error(f"Redis error routing live event: {e}")
-                        break
-
-        except asyncio.CancelledError:
-            logger.info("Redis listener task cancelled")
-        except redis.RedisError as e:
-            logger.error(f"Redis error in listener: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error in Redis listener: {e}")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse Redis message: {e}")
+                    except Exception as e:
+                        # Log the error but continue listening
+                        logger.error(f"Error routing event: {e}", exc_info=True)
+            except asyncio.CancelledError:
+                logger.info("Redis listener cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Redis listener error: {e}", exc_info=True)
+                # Sleep briefly before retrying
+                await asyncio.sleep(1)
 
     async def _route_live_event(self, event_data: dict) -> None:
         """Route live events to appropriate overlay layers."""
+        if not event_data:
+            logger.error("Received null event_data in _route_live_event")
+            return
+
         event_type = event_data.get("event_type")
         source = event_data.get("source")
 
@@ -332,14 +302,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                             )
                             payload = {}
                     notice_type = payload.get("notice_type", "")
-                    logger.info(
-                        f"📺 Chat notification received - notice_type: {notice_type}, "
-                        f"is_timeline_worthy: {notice_type in self.TIMELINE_NOTICE_TYPES}"
-                    )
-                    logger.info(
-                        f"📺 Payload type: {type(payload)}, "
-                        f"chatter_user_name: {payload.get('chatter_user_name') if isinstance(payload, dict) else 'N/A - payload is not dict'}"
-                    )
                     if notice_type in self.TIMELINE_NOTICE_TYPES:
                         # Format event for timeline with proper structure
                         timeline_event = {
@@ -353,7 +315,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                                 ),
                             },
                         }
-                        logger.info(f"📺 Sending {notice_type} to timeline:push")
                         await self._send_message("timeline", "push", timeline_event)
                 else:
                     # Follow and cheer events always go to timeline
@@ -445,11 +406,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             "sequence": self.sequence,
         }
 
-        try:
-            await self.send(text_data=json.dumps(message))
-            logger.info(f"📤 Sent {layer}:{verb} to overlay (seq: {self.sequence})")
-        except Exception as e:
-            logger.error(f"❌ Failed to send {layer}:{verb}: {e}")
+        await self.send(text_data=json.dumps(message))
 
     async def _get_latest_event(self) -> dict | None:
         """Query database for latest viewer interaction."""

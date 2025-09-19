@@ -276,11 +276,26 @@ async def publish_to_redis(
     try:
         redis_client = redis.from_url(settings.REDIS_URL)
 
+        # Build payload based on event type
+        # For stats events, data is in data["data"]
+        # For hire/change events, we have the raw event data plus enriched stats in data["stats"]
+        if event_type == "stats":
+            payload = data.get("data", {})
+        elif event_type in ["hire", "change"]:
+            # Include both the event-specific fields and the enriched stats
+            payload = {
+                k: v for k, v in data.items() if k not in ["type", "player", "stats"]
+            }
+            payload["stats"] = data.get("stats", {})
+        else:
+            # For other events, just pass through the data
+            payload = data
+
         redis_message = {
             "event_type": f"ffbot.{event_type}",
             "source": "ffbot",
             "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(),
-            "payload": data.get("data", {}),
+            "payload": payload,
             "player": data.get("player"),
         }
 
