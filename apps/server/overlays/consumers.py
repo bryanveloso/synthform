@@ -107,36 +107,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Start Redis message listener
         self.redis_task = asyncio.create_task(self._listen_to_redis())
 
-        # Start heartbeat task
-        self.heartbeat_task = asyncio.create_task(self._heartbeat())
-
         # Send initial state for all layers
         await self._send_initial_state()
-
-    async def _heartbeat(self) -> None:
-        """Send periodic heartbeat to detect connection issues."""
-        heartbeat_interval = 30  # seconds
-        try:
-            while True:
-                await asyncio.sleep(heartbeat_interval)
-                await self._send_message(
-                    "base",
-                    "heartbeat",
-                    {"timestamp": datetime.now(timezone.utc).isoformat()},
-                )
-                logger.debug("💓 Heartbeat sent")
-        except asyncio.CancelledError:
-            logger.info("Heartbeat task cancelled")
-        except Exception as e:
-            logger.error(f"❌ Heartbeat error: {e}")
 
     async def disconnect(self, close_code: int) -> None:
         """Clean up connections when overlay disconnects."""
         logger.info(f"Overlay client disconnected with code: {close_code}")
-
-        # Cancel heartbeat if it exists
-        if hasattr(self, "heartbeat_task"):
-            self.heartbeat_task.cancel()
 
         await cleanup_redis_connections(self.redis, self.pubsub, self.redis_task)
 
@@ -662,13 +638,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
     async def _get_status_state(self) -> dict | None:
         """Get current stream status."""
-        from asgiref.sync import sync_to_async
+        from channels.db import database_sync_to_async
 
         from streams.models import Status
 
         try:
-            # Use the singleton pattern to get current status
-            status = await sync_to_async(Status.get_current)()
+            # Use database_sync_to_async for proper async handling
+            status = await database_sync_to_async(Status.get_current)()
             return {
                 "status": status.status,
                 "message": status.message,
