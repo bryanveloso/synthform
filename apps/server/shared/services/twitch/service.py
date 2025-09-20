@@ -222,15 +222,49 @@ class TwitchService(twitchio.Client):
             # Clean up any existing subscriptions first to avoid hitting rate limits
             try:
                 logger.info(
-                    "Checking for existing EventSub subscriptions to clean up..."
+                    "Cleaning up existing EventSub subscriptions to prevent duplicates..."
                 )
-                # This would need to be implemented with the proper TwitchIO method
-                # For now, we'll just log a warning
-                logger.warning(
-                    "EventSub cleanup not yet implemented - may hit rate limits on restart"
-                )
+
+                # Fetch existing subscriptions for this broadcaster
+                existing_subs = await self.fetch_eventsub_subscriptions(user_id=user_id)
+
+                if existing_subs:
+                    # EventsubSubscriptions object contains subscription data
+                    try:
+                        # Try to iterate directly over the object
+                        count = 0
+                        for sub in existing_subs:
+                            count += 1
+                            try:
+                                # Access subscription ID - might be sub.subscription_id or sub['id']
+                                sub_id = (
+                                    getattr(sub, "subscription_id", None)
+                                    or getattr(sub, "id", None)
+                                    or sub.get("id")
+                                )
+                                if sub_id:
+                                    await self.delete_eventsub_subscription(sub_id)
+                                    logger.debug(f"Deleted subscription {sub_id}")
+                            except Exception as e:
+                                logger.warning(f"Could not delete subscription: {e}")
+
+                        if count > 0:
+                            logger.info(f"Cleaned up {count} existing subscriptions")
+                    except Exception as e:
+                        logger.debug(f"Could not iterate subscriptions directly: {e}")
+                        # Try alternative method - delete all at once
+                        try:
+                            await self.delete_all_eventsub_subscriptions()
+                            logger.info("Deleted all existing EventSub subscriptions")
+                        except Exception as e2:
+                            logger.warning(f"Could not delete all subscriptions: {e2}")
+
+                    # Small delay to ensure cleanup is processed
+                    await asyncio.sleep(0.5)
+
+                logger.info("EventSub subscription cleanup complete")
             except Exception as e:
-                logger.warning(f"Could not check existing subscriptions: {e}")
+                logger.warning(f"Could not clean up existing subscriptions: {e}")
 
             # Create subscription payload objects with the correct conditions
             subscriptions = [
