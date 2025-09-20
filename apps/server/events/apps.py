@@ -47,12 +47,22 @@ class EventsConfig(AppConfig):
         thread.daemon = True
         thread.start()
 
+    def _handle_task_exception(self, loop, context):
+        """Handle exceptions from asyncio tasks."""
+        logger.error(
+            f"Background task exception: {context.get('exception', context['message'])}",
+            exc_info=context.get("exception"),
+        )
+
     def _start_background_services(self):
         """Start async background services in a new event loop."""
         try:
             # Create a new event loop for this thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+
+            # Set exception handler for the loop
+            loop.set_exception_handler(self._handle_task_exception)
 
             logger.info("🚀 Starting background services from AppConfig...")
 
@@ -61,15 +71,28 @@ class EventsConfig(AppConfig):
             from events.services.rainwave import rainwave_service
             from streams.services.obs import obs_service
 
+            logger.info("📦 Services imported successfully")
+
             # Create and run tasks
             tasks = [
                 loop.create_task(obs_service.startup()),
                 loop.create_task(rainwave_service.start_monitoring()),
                 loop.create_task(rme_service.startup()),
             ]
+            logger.info("✓ OBS, Rainwave, and RME/OSC service tasks created")
 
             # Wait for all startup tasks to complete
-            loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+            results = loop.run_until_complete(
+                asyncio.gather(*tasks, return_exceptions=True)
+            )
+
+            # Check results and log any failures
+            service_names = ["OBS", "Rainwave", "RME/OSC"]
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    logger.error(
+                        f"{service_names[i]} service failed to start: {result}"
+                    )
 
             logger.info("✅ Background services started")
 
