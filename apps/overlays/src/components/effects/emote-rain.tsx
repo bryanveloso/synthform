@@ -219,7 +219,6 @@ export const EmoteRain = memo(function EmoteRain() {
   // Spawn an emote
   const spawnEmote = useCallback((emoteId: string) => {
     if (!engineRef.current) return
-    if (emoteBodiesRef.current.size >= 300) return
 
     // Random position across top
     const x = Math.random() * 1920
