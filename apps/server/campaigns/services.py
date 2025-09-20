@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
 from typing import Any
 
-from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from .models import Campaign, Metric, Milestone
+from .models import Campaign
+from .models import Metric
+from .models import Milestone
 
 logger = logging.getLogger(__name__)
 

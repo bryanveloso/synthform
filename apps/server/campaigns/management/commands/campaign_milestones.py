@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
+from django.core.management.base import CommandError
 from django.db import transaction
 
-from campaigns.models import Campaign, Milestone
+from campaigns.models import Campaign
+from campaigns.models import Milestone
 
 
 class Command(BaseCommand):
@@ -53,8 +54,10 @@ class Command(BaseCommand):
 
         try:
             campaign = Campaign.objects.get(slug=campaign_slug)
-        except Campaign.DoesNotExist:
-            raise CommandError(f"Campaign with slug '{campaign_slug}' does not exist")
+        except Campaign.DoesNotExist as err:
+            raise CommandError(
+                f"Campaign with slug '{campaign_slug}' does not exist"
+            ) from err
 
         if action == "import":
             self._import_milestones(campaign, file_path, options)
@@ -66,7 +69,7 @@ class Command(BaseCommand):
         if not file_path.exists():
             raise CommandError(f"File '{file_path}' does not exist")
 
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             data = json.load(f)
 
         # Validate structure

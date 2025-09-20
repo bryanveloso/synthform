@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import random
-from datetime import timedelta
-from typing import Any
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.utils import timezone
 
-from campaigns.models import Campaign, Metric, Milestone
+from campaigns.models import Campaign
+from campaigns.models import Metric
+from campaigns.models import Milestone
 from campaigns.services import campaign_service
 
 
@@ -168,7 +167,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Simulating {count} subscriptions...")
 
         unlocked_milestones = []
-        for i in range(count):
+        for _i in range(count):
             # Random tier distribution: 70% T1, 20% T2, 10% T3
             rand = random.random()
             if rand < 0.7:
@@ -201,7 +200,7 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Simulating {count} resubs...")
 
-        for i in range(count):
+        for _i in range(count):
             async_to_sync(campaign_service.process_resub)(campaign)
 
     def _simulate_bits(self, campaign: Campaign, total_bits: int):
