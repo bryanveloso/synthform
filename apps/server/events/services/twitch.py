@@ -1411,11 +1411,14 @@ class TwitchEventHandler:
                 # Get current cached count
                 cached_count = await self._redis_client.get("limitbreak:local_count")
                 if cached_count:
-                    count = max(0, int(cached_count) - 1)  # Decrement for fulfilled
+                    previous_cached = int(cached_count)
+                    count = max(0, previous_cached - 1)  # Decrement for fulfilled
                     await self._redis_client.set(
                         "limitbreak:local_count", str(count), ex=300
                     )
-                    logger.info(f"🎯 Limit Break: Decremented local count to {count}")
+                    logger.info(
+                        f"🎯 Limit Break: Decremented count from {previous_cached} to {count}"
+                    )
 
                     # Periodic sync to ensure accuracy (same 45 second interval)
                     if should_sync:
@@ -1504,7 +1507,7 @@ class TwitchEventHandler:
                         )
 
                         # Clear the cache since we know redemptions are being fulfilled
-                        cache_key = f"limitbreak:count:{self.LIMITBREAK_REWARD_ID}"
+                        cache_key = f"limitbreak:count:{THROW_REWARD_ID}"
                         await self._redis_client.set(cache_key, "0", ex=30)
                         await self._redis_client.set(
                             f"{cache_key}:fallback", "0", ex=3600
@@ -1556,6 +1559,8 @@ class TwitchEventHandler:
                 "bar3": bar3_fill,
                 "isMaxed": is_maxed,
             }
+
+            logger.info(f"🎯 Limit Break: Publishing update with count={count}")
 
             # Publish to Redis for overlay consumers
             await self._redis_client.publish(
