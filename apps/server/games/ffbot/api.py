@@ -3,9 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
-from typing import Optional
 
 import redis.asyncio as redis
 from django.conf import settings
@@ -29,38 +28,38 @@ class FFBotStatsData(Schema):
     mag: int = 0
     spi: int = 0
     hp: int = 0
-    preference: Optional[str] = None
+    preference: str | None = None
     collection: int = 0
-    collection_total: Optional[int] = None
+    collection_total: int | None = None
     ascension: int = 0
     wins: int = 0
     esper: str = ""
     artifact: str = ""
     job: str = ""
     job_level: int = 0
-    exp: Optional[int] = None
-    gil: Optional[int] = None
+    exp: int | None = None
+    gil: int | None = None
 
 
 class FFBotEvent(Schema):
     type: str = Field(
         ..., description="Event type: stats, hire, change, attack, join, save"
     )
-    player: Optional[str] = None
-    timestamp: Optional[float] = None
-    data: Optional[FFBotStatsData] = None
+    player: str | None = None
+    timestamp: float | None = None
+    data: FFBotStatsData | None = None
     # Hire event fields
-    character: Optional[str] = None
-    cost: Optional[int] = None
+    character: str | None = None
+    cost: int | None = None
     # Change event fields
-    from_: Optional[str] = Field(None, alias="from")
-    to: Optional[str] = None
+    from_: str | None = Field(None, alias="from")
+    to: str | None = None
     # Attack event fields
-    damage: Optional[int] = None
-    target: Optional[str] = None
+    damage: int | None = None
+    target: str | None = None
     # Save event fields
-    player_count: Optional[int] = None
-    metadata: Optional[dict] = None
+    player_count: int | None = None
+    metadata: dict | None = None
 
 
 class AcceptedResponse(Schema):
@@ -87,7 +86,7 @@ async def process_ffbot_event(data: dict) -> None:
     try:
         event_type = data.get("type")
         player_username = data.get("player")
-        timestamp = data.get("timestamp", datetime.now(timezone.utc).timestamp())
+        timestamp = data.get("timestamp", datetime.now(UTC).timestamp())
 
         logger.info(f"🎮 Processing FFBot {event_type} event from {player_username}")
 
@@ -96,16 +95,13 @@ async def process_ffbot_event(data: dict) -> None:
             logger.warning("Invalid FFBot event: missing type")
             return
 
-        # For save events, just log and publish to Redis
-        if event_type == "save":
-            await publish_to_redis("save", None, data, timestamp)
-            logger.info(f"FFBot auto-save: {data.get('player_count', 0)} players")
-            return
-
-        # Battle events don't require a player
-        if event_type in ["party_wipe", "new_run", "battle_victory"]:
+        # Handle events that don't require a player
+        if event_type in NO_PLAYER_EVENTS:
             await publish_to_redis(event_type, None, data, timestamp)
-            logger.info(f"FFBot battle event: {event_type}")
+            if event_type == "save":
+                logger.info(f"FFBot auto-save: {data.get('player_count', 0)} players")
+            else:
+                logger.info(f"FFBot battle event: {event_type}")
             return
 
         # All other events require a player
@@ -116,35 +112,27 @@ async def process_ffbot_event(data: dict) -> None:
         # Get or create Member
         member = await get_or_create_member(player_username)
 
-        # Update PlayerStats cache for events with stats data
+        # Get handler for event type or check if it's display-only
         player_stats = None
-        if event_type == "stats":
-            player_stats = await update_player_stats(member, data.get("data", {}))
-        elif event_type == "hire":
-            player_stats = await update_after_hire(member, data)
-        elif event_type == "change":
-            player_stats = await update_after_change(member, data)
-        elif event_type == "preference":
-            player_stats = await update_after_preference(member, data)
-        elif event_type == "ascension_confirm":
-            player_stats = await update_after_ascension(member, data)
-        elif event_type == "esper":
-            player_stats = await update_after_esper(member, data)
-        elif event_type == "artifact":
-            player_stats = await update_after_artifact(member, data)
-        elif event_type == "job":
-            player_stats = await update_after_job(member, data)
-        elif event_type == "card":
-            player_stats = await update_after_card(member, data)
-        elif event_type == "mastery":
-            player_stats = await update_after_mastery(member, data)
-        elif event_type == "freehire":
-            player_stats = await update_after_freehire(member, data)
+        handler = EVENT_HANDLERS.get(event_type)
 
-        # Display-only events - get stats for enrichment but don't update
-        elif event_type in ["ascension_preview", "missing", "attack", "join"]:
+        if handler:
+            # Execute the appropriate update handler with error handling
+            try:
+                player_stats = await handler(member, data)
+            except Exception as e:
+                logger.error(f"Error in {event_type} handler: {e}", exc_info=True)
+                # Try to get current stats as fallback
+                try:
+                    player_stats, _ = await Player.objects.aget_or_create(member=member)
+                except Exception:
+                    pass  # Continue without stats enrichment
+        elif event_type in DISPLAY_ONLY_EVENTS:
             # Get current stats without updating
             player_stats, _ = await Player.objects.aget_or_create(member=member)
+        else:
+            logger.warning(f"Unknown FFBot event type: {event_type}")
+            return
 
         # If we have player stats, enrich the payload with full data from database
         if player_stats:
@@ -320,7 +308,7 @@ async def publish_to_redis(
         redis_message = {
             "event_type": f"ffbot.{event_type}",
             "source": "ffbot",
-            "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(timestamp, tz=UTC).isoformat(),
             "payload": payload,
             "player": data.get("player"),
         }
@@ -484,3 +472,26 @@ async def update_after_freehire(member, event_data: dict):
         await stats.asave(update_fields=["freehirecount", "updated_at"])
 
     return stats
+
+
+# Event handler mapping - cleaner than giant if/elif chain
+EVENT_HANDLERS = {
+    # Database update events
+    "stats": lambda m, d: update_player_stats(m, d.get("data", {})),
+    "hire": update_after_hire,
+    "change": update_after_change,
+    "preference": update_after_preference,
+    "ascension_confirm": update_after_ascension,
+    "esper": update_after_esper,
+    "artifact": update_after_artifact,
+    "job": update_after_job,
+    "card": update_after_card,
+    "mastery": update_after_mastery,
+    "freehire": update_after_freehire,
+}
+
+# Events that don't require a player
+NO_PLAYER_EVENTS = {"save", "party_wipe", "new_run", "battle_victory"}
+
+# Display-only events (get stats but don't update)
+DISPLAY_ONLY_EVENTS = {"ascension_preview", "missing", "attack", "join"}

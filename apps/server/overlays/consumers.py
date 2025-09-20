@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import secrets
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 import redis.asyncio as redis
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -71,6 +72,92 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         "shared_chat_charity_donation",
     ]
 
+    def _get_ffbot_payload_builder(self, event_type: str):
+        """Get the appropriate payload builder for an FFBot event type."""
+        # Map event types to their payload builders
+        builders = {
+            "stats": self._build_stats_payload,
+            "hire": self._build_hire_payload,
+            "change": self._build_change_payload,
+            "save": self._build_save_payload,
+            # Display-only events that pass through most fields
+            "preference": self._build_passthrough_payload,
+            "ascension_preview": self._build_passthrough_payload,
+            "ascension_confirm": self._build_passthrough_payload,
+            "esper": self._build_passthrough_payload,
+            "artifact": self._build_passthrough_payload,
+            "job": self._build_passthrough_payload,
+            "card": self._build_passthrough_payload,
+            "mastery": self._build_passthrough_payload,
+            "freehire": self._build_passthrough_payload,
+            "missing": self._build_passthrough_payload,
+            "attack": self._build_passthrough_payload,
+            "join": self._build_passthrough_payload,
+            "party_wipe": self._build_passthrough_payload,
+            "new_run": self._build_passthrough_payload,
+            "battle_victory": self._build_passthrough_payload,
+        }
+        return builders.get(event_type)
+
+    def _build_stats_payload(self, event_data: dict) -> dict:
+        """Build payload for stats event."""
+        return {
+            "player": event_data.get("player"),
+            "member": event_data.get("member"),
+            "data": event_data.get("payload", {}),
+            "timestamp": event_data.get("timestamp"),
+        }
+
+    def _build_hire_payload(self, event_data: dict) -> dict:
+        """Build payload for hire event."""
+        game_payload = event_data.get("payload", {})
+        # Debug log to see what we're getting
+        logger.debug(f"🎮 Hire event payload: {game_payload}")
+        payload = {
+            "player": event_data.get("player"),
+            "member": event_data.get("member"),
+            "character": game_payload.get("character"),
+            "cost": game_payload.get("cost", 0),
+            "data": game_payload.get("stats", {}),  # Include enriched stats
+            "timestamp": event_data.get("timestamp"),
+        }
+        logger.debug(f"🎮 Hire event final payload: {payload}")
+        return payload
+
+    def _build_change_payload(self, event_data: dict) -> dict:
+        """Build payload for character change event."""
+        game_payload = event_data.get("payload", {})
+        return {
+            "player": event_data.get("player"),
+            "member": event_data.get("member"),
+            "from": game_payload.get("from", ""),
+            "to": game_payload.get("to", ""),
+            "data": game_payload.get("stats", {}),  # Include enriched stats
+            "timestamp": event_data.get("timestamp"),
+        }
+
+    def _build_save_payload(self, event_data: dict) -> dict:
+        """Build payload for save event."""
+        game_payload = event_data.get("payload", {})
+        return {
+            "player_count": game_payload.get("player_count", 0),
+            "metadata": game_payload.get("metadata"),
+            "timestamp": event_data.get("timestamp"),
+        }
+
+    def _build_passthrough_payload(self, event_data: dict) -> dict:
+        """Build payload for events that pass through all fields."""
+        game_payload = event_data.get("payload", {})
+        return {
+            "player": event_data.get("player"),
+            "member": event_data.get("member"),
+            "data": game_payload.get(
+                "stats", {}
+            ),  # Include enriched stats if available
+            "timestamp": event_data.get("timestamp"),
+            **game_payload,  # Include all event-specific fields
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.redis: redis.Redis | None = None
@@ -78,8 +165,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         self.redis_task: asyncio.Task | None = None
         self.sequence: int = 0
         # Generate a short ID to identify this connection in logs
-        import secrets
-
         self.connection_id = secrets.token_hex(3)
 
     async def connect(self) -> None:
@@ -207,77 +292,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # Extract the event subtype (stats, hire, change, save)
             game_event_type = event_type.replace("ffbot.", "")
 
-            # Build appropriate payload based on event type
-            payload = {}
-            if game_event_type == "stats":
-                payload = {
-                    "player": event_data.get("player"),
-                    "member": event_data.get("member"),
-                    "data": event_data.get("payload", {}),
-                    "timestamp": event_data.get("timestamp"),
-                }
-            elif game_event_type == "hire":
-                game_payload = event_data.get("payload", {})
-                # Debug log to see what we're getting
-                logger.info(f"🎮 Hire event payload: {game_payload}")
-                payload = {
-                    "player": event_data.get("player"),
-                    "member": event_data.get("member"),
-                    "character": game_payload.get("character"),
-                    "cost": game_payload.get("cost", 0),
-                    "data": game_payload.get("stats", {}),  # Include enriched stats
-                    "timestamp": event_data.get("timestamp"),
-                }
-                logger.info(f"🎮 Hire event final payload: {payload}")
-            elif game_event_type == "change":
-                game_payload = event_data.get("payload", {})
-                payload = {
-                    "player": event_data.get("player"),
-                    "member": event_data.get("member"),
-                    "from": game_payload.get("from", ""),
-                    "to": game_payload.get("to", ""),
-                    "data": game_payload.get("stats", {}),  # Include enriched stats
-                    "timestamp": event_data.get("timestamp"),
-                }
-            elif game_event_type == "save":
-                game_payload = event_data.get("payload", {})
-                payload = {
-                    "player_count": game_payload.get("player_count", 0),
-                    "metadata": game_payload.get("metadata"),
-                    "timestamp": event_data.get("timestamp"),
-                }
-            # Simple pass-through events (display only)
-            elif game_event_type in [
-                "preference",
-                "ascension_preview",
-                "ascension_confirm",
-                "esper",
-                "artifact",
-                "job",
-                "card",
-                "mastery",
-                "freehire",
-                "missing",
-                "attack",
-                "join",
-                "party_wipe",
-                "new_run",
-                "battle_victory",
-            ]:
-                game_payload = event_data.get("payload", {})
-                payload = {
-                    "player": event_data.get("player"),
-                    "member": event_data.get("member"),
-                    "data": game_payload.get(
-                        "stats", {}
-                    ),  # Include enriched stats if available
-                    "timestamp": event_data.get("timestamp"),
-                    **game_payload,  # Include all event-specific fields
-                }
-            else:
-                # Unknown event type, skip
+            # Get the appropriate payload builder
+            payload_builder = self._get_ffbot_payload_builder(game_event_type)
+            if not payload_builder:
                 logger.warning(f"Unknown FFBot event type: {event_type}")
                 return
+
+            # Build the payload
+            payload = payload_builder(event_data)
 
             # Send with specific message type
             logger.debug(f"🎮 WebSocket: Sending ffbot:{game_event_type} to overlay")
@@ -415,7 +437,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         message = {
             "type": f"{layer}:{verb}",
             "payload": payload,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "sequence": self.sequence,
         }
 
