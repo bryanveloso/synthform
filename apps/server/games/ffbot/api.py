@@ -102,6 +102,12 @@ async def process_ffbot_event(data: dict) -> None:
             logger.info(f"FFBot auto-save: {data.get('player_count', 0)} players")
             return
 
+        # Battle events don't require a player
+        if event_type in ["party_wipe", "new_run", "battle_victory"]:
+            await publish_to_redis(event_type, None, data, timestamp)
+            logger.info(f"FFBot battle event: {event_type}")
+            return
+
         # All other events require a player
         if not player_username:
             logger.warning(f"Invalid FFBot event: missing player for {event_type}")
@@ -118,6 +124,27 @@ async def process_ffbot_event(data: dict) -> None:
             player_stats = await update_after_hire(member, data)
         elif event_type == "change":
             player_stats = await update_after_change(member, data)
+        elif event_type == "preference":
+            player_stats = await update_after_preference(member, data)
+        elif event_type == "ascension_confirm":
+            player_stats = await update_after_ascension(member, data)
+        elif event_type == "esper":
+            player_stats = await update_after_esper(member, data)
+        elif event_type == "artifact":
+            player_stats = await update_after_artifact(member, data)
+        elif event_type == "job":
+            player_stats = await update_after_job(member, data)
+        elif event_type == "card":
+            player_stats = await update_after_card(member, data)
+        elif event_type == "mastery":
+            player_stats = await update_after_mastery(member, data)
+        elif event_type == "freehire":
+            player_stats = await update_after_freehire(member, data)
+
+        # Display-only events - get stats for enrichment but don't update
+        elif event_type in ["ascension_preview", "missing", "attack", "join"]:
+            # Get current stats without updating
+            player_stats, _ = await Player.objects.aget_or_create(member=member)
 
         # If we have player stats, enrich the payload with full data from database
         if player_stats:
@@ -197,6 +224,7 @@ async def update_player_stats(member, stats_data: dict):
         "ascension",
         "wins",
         "esper",
+        "unit",
     ]:
         if field in stats_data and stats_data[field] is not None:
             setattr(stats, field, stats_data[field])
@@ -231,16 +259,14 @@ async def update_player_stats(member, stats_data: dict):
 async def update_after_hire(member, hire_data: dict):
     """Update PlayerStats after a hire event.
 
+    Note: Hired characters go into the collection, they don't become the current unit.
+    Only !change updates the current unit.
+
     Returns the Player object so we can access all fields for payload enrichment.
     """
     stats, _ = await Player.objects.aget_or_create(member=member)
 
     fields_to_update = []
-
-    # Update unit if character provided
-    if "character" in hire_data:
-        stats.unit = hire_data["character"]
-        fields_to_update.append("unit")
 
     # Reduce gil by cost if provided
     if "cost" in hire_data:
@@ -317,3 +343,144 @@ async def publish_to_redis(
     finally:
         if redis_client:
             await redis_client.close()
+
+
+async def update_after_preference(member, event_data: dict):
+    """Update player's stat preference."""
+    stats, _ = await Player.objects.aget_or_create(member=member)
+
+    preference = event_data.get("preference", "none")
+    if preference:
+        stats.preferedstat = preference
+        await stats.asave(update_fields=["preferedstat", "updated_at"])
+
+    return stats
+
+
+async def update_after_ascension(member, event_data: dict):
+    """Update player stats after ascension confirmation."""
+    stats, _ = await Player.objects.aget_or_create(member=member)
+
+    # Ascension resets level and experience but increments ascension count
+    stats.ascension = event_data.get("ascension", stats.ascension + 1)
+    stats.lv = 1
+    stats.exp = 1
+    stats.wins = 0
+
+    await stats.asave(update_fields=["ascension", "lv", "exp", "wins", "updated_at"])
+
+    return stats
+
+
+async def update_after_esper(member, event_data: dict):
+    """Update player's equipped esper."""
+    stats, _ = await Player.objects.aget_or_create(member=member)
+
+    esper = event_data.get("esper", "")
+    if esper:
+        stats.esper = esper
+        await stats.asave(update_fields=["esper", "updated_at"])
+
+    return stats
+
+
+async def update_after_artifact(member, event_data: dict):
+    """Update player's artifact and bonuses."""
+    stats, _ = await Player.objects.aget_or_create(member=member)
+
+    artifact = event_data.get("artifact", "")
+    bonuses = event_data.get("bonuses", {})
+
+    if artifact:
+        stats.card = artifact  # artifact maps to card field
+
+    # Update artifact bonuses
+    if bonuses:
+        stats.arti_hp = bonuses.get("hp", 0)
+        stats.arti_atk = bonuses.get("atk", 0)
+        stats.arti_mag = bonuses.get("mag", 0)
+        stats.arti_spi = bonuses.get("spi", 0)
+
+    fields_to_update = [
+        "card",
+        "arti_hp",
+        "arti_atk",
+        "arti_mag",
+        "arti_spi",
+        "updated_at",
+    ]
+    await stats.asave(update_fields=fields_to_update)
+
+    return stats
+
+
+async def update_after_job(member, event_data: dict):
+    """Update player's main job."""
+    stats, _ = await Player.objects.aget_or_create(member=member)
+
+    job = event_data.get("job", "")
+    if job:
+        stats.m1 = job
+        stats.jobap = 0  # Reset job AP when changing jobs
+        await stats.asave(update_fields=["m1", "jobap", "updated_at"])
+
+    return stats
+
+
+async def update_after_card(member, event_data: dict):
+    """Update player's card and passive."""
+    stats, _ = await Player.objects.aget_or_create(member=member)
+
+    card = event_data.get("card", "")
+    passive = event_data.get("passive", "")
+
+    if card:
+        stats.card = card
+    if passive:
+        stats.card_passive = passive
+
+    await stats.asave(update_fields=["card", "card_passive", "updated_at"])
+
+    return stats
+
+
+async def update_after_mastery(member, event_data: dict):
+    """Update player's mastery slots."""
+    stats, _ = await Player.objects.aget_or_create(member=member)
+
+    slot = event_data.get("slot", "")
+    job = event_data.get("job", "")
+    success = event_data.get("success", False)
+
+    # Only update if the mastery was successful
+    if success and slot and job:
+        # Map slot names to model fields
+        slot_mapping = {
+            "m2": "m2",
+            "m3": "m3",
+            "m4": "m4",
+            "m5": "m5",
+            "m6": "m6",
+            "m7": "m7",
+        }
+
+        field_name = slot_mapping.get(slot)
+        if field_name:
+            setattr(stats, field_name, job)
+            await stats.asave(update_fields=[field_name, "updated_at"])
+
+    return stats
+
+
+async def update_after_freehire(member, event_data: dict):
+    """Update player after free hire."""
+    stats, _ = await Player.objects.aget_or_create(member=member)
+
+    available = event_data.get("available", False)
+
+    # If free hire was used, reset the counter
+    if available:
+        stats.freehirecount = 0
+        await stats.asave(update_fields=["freehirecount", "updated_at"])
+
+    return stats

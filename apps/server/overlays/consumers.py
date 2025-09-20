@@ -77,11 +77,15 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         self.pubsub: redis.client.PubSub | None = None
         self.redis_task: asyncio.Task | None = None
         self.sequence: int = 0
+        # Generate a short ID to identify this connection in logs
+        import secrets
+
+        self.connection_id = secrets.token_hex(3)
 
     async def connect(self) -> None:
         """Accept WebSocket connection and initialize overlay state."""
         await self.accept()
-        logger.info("Overlay client connected")
+        logger.info(f"Overlay client connected [ID: {self.connection_id}]")
 
         # Connect to Redis for live events
         from django.conf import settings
@@ -112,7 +116,9 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code: int) -> None:
         """Clean up connections when overlay disconnects."""
-        logger.info(f"Overlay client disconnected with code: {close_code}")
+        logger.info(
+            f"Overlay client disconnected [ID: {self.connection_id}] with code: {close_code}"
+        )
 
         await cleanup_redis_connections(self.redis, self.pubsub, self.redis_task)
 
@@ -154,13 +160,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Handle limit break events
         if event_type == "limitbreak.update":
-            logger.info(
+            logger.debug(
                 f"🎯 WebSocket: Sending limitbreak:update to overlay - {event_data.get('data', {})}"
             )
             await self._send_message("limitbreak", "update", event_data.get("data", {}))
             return
         elif event_type == "limitbreak.executed":
-            logger.info(
+            logger.debug(
                 f"🔊 WebSocket: Sending limitbreak:executed to overlay - {event_data.get('data', {})}"
             )
             await self._send_message(
@@ -170,13 +176,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Handle music events
         if event_type == "music.update":
-            logger.info(
+            logger.debug(
                 f"🎵 WebSocket: Sending music:update to overlay - {event_data.get('data', {})}"
             )
             await self._send_message("music", "update", event_data.get("data", {}))
             return
         elif event_type == "music.sync":
-            logger.info(
+            logger.debug(
                 f"🎵 WebSocket: Sending music:sync to overlay - {event_data.get('data', {})}"
             )
             await self._send_message("music", "sync", event_data.get("data", {}))
@@ -184,7 +190,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Handle status events
         if event_type == "status.update":
-            logger.info(
+            logger.debug(
                 f"📍 WebSocket: Sending status:update to overlay - {event_data.get('data', {})}"
             )
             await self._send_message("status", "update", event_data.get("data", {}))
@@ -192,7 +198,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Handle chat messages for emote rain
         if event_type == "channel.chat.message":
-            logger.info("💬 WebSocket: Sending chat:message to overlay")
+            logger.debug("💬 WebSocket: Sending chat:message to overlay")
             await self._send_message("chat", "message", event_data.get("data", {}))
             # Don't return - let it continue to other handlers if needed
 
@@ -212,6 +218,8 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 }
             elif game_event_type == "hire":
                 game_payload = event_data.get("payload", {})
+                # Debug log to see what we're getting
+                logger.info(f"🎮 Hire event payload: {game_payload}")
                 payload = {
                     "player": event_data.get("player"),
                     "member": event_data.get("member"),
@@ -220,6 +228,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     "data": game_payload.get("stats", {}),  # Include enriched stats
                     "timestamp": event_data.get("timestamp"),
                 }
+                logger.info(f"🎮 Hire event final payload: {payload}")
             elif game_event_type == "change":
                 game_payload = event_data.get("payload", {})
                 payload = {
@@ -237,13 +246,41 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     "metadata": game_payload.get("metadata"),
                     "timestamp": event_data.get("timestamp"),
                 }
+            # Simple pass-through events (display only)
+            elif game_event_type in [
+                "preference",
+                "ascension_preview",
+                "ascension_confirm",
+                "esper",
+                "artifact",
+                "job",
+                "card",
+                "mastery",
+                "freehire",
+                "missing",
+                "attack",
+                "join",
+                "party_wipe",
+                "new_run",
+                "battle_victory",
+            ]:
+                game_payload = event_data.get("payload", {})
+                payload = {
+                    "player": event_data.get("player"),
+                    "member": event_data.get("member"),
+                    "data": game_payload.get(
+                        "stats", {}
+                    ),  # Include enriched stats if available
+                    "timestamp": event_data.get("timestamp"),
+                    **game_payload,  # Include all event-specific fields
+                }
             else:
                 # Unknown event type, skip
                 logger.warning(f"Unknown FFBot event type: {event_type}")
                 return
 
             # Send with specific message type
-            logger.info(f"🎮 WebSocket: Sending ffbot:{game_event_type} to overlay")
+            logger.debug(f"🎮 WebSocket: Sending ffbot:{game_event_type} to overlay")
             await self._send_message("ffbot", game_event_type, payload)
             return
 
