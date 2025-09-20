@@ -35,6 +35,7 @@ services:
       - ./apps/server:/app
     ports:
       - "7175:7175"
+      - "9001:9001/udp"
     command: >
       sh -c "uv run python manage.py migrate &&
              uv run daphne -b 0.0.0.0 -p 7175 synthform.asgi:application"
