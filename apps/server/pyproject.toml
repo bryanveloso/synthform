@@ -3,7 +3,7 @@ name = "server"
 version = "0.1.0"
 description = "Synthform's Central Brain"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     "channels[daphne]>=4.3.1",
     "django>=5.2.5",
@@ -51,8 +51,8 @@ extend-include = ["*.pyi?"]
 indent-width = 4
 # Same as Black.
 line-length = 88
-# Assume Python >=3.12.
-target-version = "py312"
+# Assume Python >=3.13.
+target-version = "py313"
 
 [tool.ruff.format]
 # Like Black, indent with spaces, rather than tabs.
