@@ -15,10 +15,10 @@ export interface RMEState {
 export function useRME() {
   const [micStatus, setMicStatus] = useState<RMEMicStatus | null>(null)
 
-  const { data, isConnected } = useServer(['audio:mic:status', 'audio:mic:update'] as const)
+  const { data, isConnected } = useServer(['audio:rme:status', 'audio:rme:update'] as const)
 
-  const syncData = data['audio:mic:status']
-  const updateData = data['audio:mic:update']
+  const syncData = data['audio:rme:status']
+  const updateData = data['audio:rme:update']
 
   useEffect(() => {
     if (syncData) {

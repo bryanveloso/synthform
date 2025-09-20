@@ -185,12 +185,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         await self.pubsub.subscribe("events:music")
         await self.pubsub.subscribe("events:status")
         await self.pubsub.subscribe("events:chat")
+        await self.pubsub.subscribe("events:audio")
         await self.pubsub.subscribe("events:games:ffbot")
         # Future game channels can be added here:
         # await self.pubsub.subscribe("events:games:ironmon")
         # await self.pubsub.subscribe("events:games:ff14")
         logger.info(
-            "Subscribed to Redis channels: events:twitch, events:obs, events:limitbreak, events:music, events:status, events:chat, and events:games:ffbot"
+            "Subscribed to Redis channels: events:twitch, events:obs, events:limitbreak, events:music, events:status, events:chat, events:audio, and events:games:ffbot"
         )
 
         # Start Redis message listener
@@ -279,6 +280,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 f"📍 WebSocket: Sending status:update to overlay - {event_data.get('data', {})}"
             )
             await self._send_message("status", "update", event_data.get("data", {}))
+            return
+
+        # Handle audio events from RME TotalMix
+        if event_type == "audio.mic.mute":
+            logger.debug(
+                f"🎤 WebSocket: Sending audio:rme:update to overlay - {event_data.get('data', {})}"
+            )
+            await self._send_message("audio:rme", "update", event_data.get("data", {}))
             return
 
         # Handle chat messages for emote rain
@@ -407,6 +416,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         obs_state = await self._get_obs_state()
         if obs_state:
             await self._send_message("obs", "sync", obs_state)
+
+        # Audio layer - current RME status
+        rme_status = await self._get_rme_status()
+        if rme_status:
+            await self._send_message("audio:rme", "status", rme_status)
 
         # Alert layer - starts with empty queue
         await self._send_message("alerts", "sync", [])
@@ -641,6 +655,25 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error getting OBS state: {e}")
             return {"message": "OBS state unavailable", "connected": False}
+
+    async def _get_rme_status(self) -> dict | None:
+        """Get current RME TotalMix status."""
+        try:
+            from datetime import UTC
+            from datetime import datetime
+
+            from audio.services.rme import rme_service
+
+            state = await rme_service.get_current_state()
+            return {
+                "channel": state.get("mic_channel", 0),
+                "muted": state.get("mic_muted", False),
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting RME status: {e}")
+            return None
 
     async def _get_limit_break_state(self) -> dict | None:
         """Get current limit break state using the helix service."""

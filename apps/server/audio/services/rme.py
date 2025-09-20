@@ -36,8 +36,8 @@ class RMETotalMixService:
         self._running = False
         self._osc_client = None
         self._osc_server = None
+        self._osc_transport = None
         self._redis_client = None
-        self._server_task = None
 
         # Configuration
         self.totalmix_host = (
@@ -107,15 +107,9 @@ class RMETotalMixService:
         logger.info("Shutting down RME TotalMix service...")
         self._running = False
 
-        # Cancel server task
-        if self._server_task and not self._server_task.done():
-            self._server_task.cancel()
-            try:
-                await self._server_task
-            except asyncio.CancelledError:
-                pass
-
         # Close OSC server
+        if self._osc_transport:
+            self._osc_transport.close()
         if self._osc_server:
             self._osc_server.shutdown()
 
@@ -131,31 +125,19 @@ class RMETotalMixService:
             # Create dispatcher for handling incoming OSC messages
             disp = dispatcher.Dispatcher()
 
-            # Register handlers for different OSC addresses
-            # TotalMix sends updates on these addresses
-            disp.map("/1/busInput", self._handle_bus_input)
-            disp.map("/1/busOutput", self._handle_bus_output)
-            disp.map("/1/busPlayback", self._handle_bus_playback)
+            # Add a catch-all handler to log ANY incoming OSC message
+            disp.set_default_handler(self._handle_any_osc)
 
-            # Mute state updates (format: /1/mute<channel>)
-            for i in range(48):  # UCX II has up to 48 channels
-                disp.map(f"/1/mute{i + 1}", self._handle_mute_update, i)
-
-            # Volume/fader updates (format: /1/volume<channel>)
-            for i in range(48):
-                disp.map(f"/1/volume{i + 1}", self._handle_volume_update, i)
-
-            # Pan updates
-            for i in range(48):
-                disp.map(f"/1/pan{i + 1}", self._handle_pan_update, i)
+            # Don't register specific handlers - let the catch-all handle everything
+            # This ensures we see ALL messages
 
             # Create async OSC server
             self._osc_server = AsyncIOOSCUDPServer(
                 ("0.0.0.0", self.totalmix_receive_port), disp, asyncio.get_event_loop()
             )
 
-            # Start serving
-            transport, protocol = await self._osc_server.create_serve_endpoint()
+            # Start serving and keep reference to transport
+            self._osc_transport, _ = await self._osc_server.create_serve_endpoint()
             logger.info(f"OSC server listening on port {self.totalmix_receive_port}")
 
         except Exception as e:
@@ -165,69 +147,103 @@ class RMETotalMixService:
     async def _request_initial_state(self):
         """Request initial state from TotalMix."""
         try:
+            logger.info(
+                f"Sending OSC commands to TotalMix at {self.totalmix_host}:{self.totalmix_send_port}"
+            )
+
             # Enable OSC updates from TotalMix
             self._osc_client.send_message("/1/busInput", 1)  # Enable input bus
+            logger.debug("Sent /1/busInput = 1")
 
             # Request current mute state for mic channel
             # TotalMix doesn't have a direct query, but sending a value triggers a response
             channel_addr = f"/1/mute{self.mic_channel + 1}"
             self._osc_client.send_message(channel_addr, -1)  # Query current state
+            logger.debug(f"Sent {channel_addr} = -1")
 
             logger.info(f"Requested initial state for channel {self.mic_channel}")
 
         except Exception as e:
             logger.error(f"Failed to request initial state: {e}")
 
-    def _handle_mute_update(self, address: str, channel_index: int, *args):
-        """Handle mute state update from TotalMix."""
-        try:
-            if channel_index == self.mic_channel:
-                # In TotalMix OSC: 0 = unmuted, 1 = muted
-                new_mute_state = bool(args[0]) if args else False
+    def _handle_any_osc(self, address: str, *args):
+        """Catch-all handler to log ANY incoming OSC message."""
+        # Only log non-heartbeat messages to reduce noise
+        if address != "/":
+            logger.debug(f"OSC message received: address={address}, args={args}")
 
-                if new_mute_state != self._mic_muted:
-                    self._mic_muted = new_mute_state
-                    logger.info(
-                        f"Mic channel {channel_index} mute state: {'MUTED' if new_mute_state else 'UNMUTED'}"
-                    )
+        # Since wildcards might not work, handle mute messages here
+        if address.startswith("/1/mute/"):
+            self._handle_mute_update(address, *args)
+        elif address.startswith("/1/solo/"):
+            self._handle_solo_update(address, *args)
+        elif address.startswith("/1/volume/"):
+            self._handle_volume_update(address, *args)
+        elif address.startswith("/1/pan/"):
+            self._handle_pan_update(address, *args)
 
-                    # Broadcast state change
-                    asyncio.create_task(self._broadcast_mic_state())
+    def _handle_mute_update(self, address: str, *args):
+        """Handle mute state update from TotalMix with /1/mute/<bus>/<channel> format."""
+        # Parse the address to get bus and channel
+        parts = address.split("/")
+        if len(parts) >= 5:  # Need 5 parts: '', '1', 'mute', bus, channel
+            try:
+                bus = int(parts[3]) - 1  # Convert to 0-based
+                channel = int(parts[4]) - 1  # Convert to 0-based
 
-                    # Call registered callbacks
-                    for callback in self._callbacks:
-                        try:
-                            callback(self._mic_muted)
-                        except Exception as e:
-                            logger.error(f"Error in mute callback: {e}")
+                # Check if this is our mic channel (channel 0, bus 0)
+                if channel == self.mic_channel and bus == 0:
+                    # In TotalMix OSC: 0 = unmuted, 1 = muted
+                    new_mute_state = bool(args[0]) if args else False
 
-        except Exception as e:
-            logger.error(f"Error handling mute update: {e}")
+                    if new_mute_state != self._mic_muted:
+                        self._mic_muted = new_mute_state
+                        logger.info(
+                            f"Mic channel {channel} mute state: {'MUTED' if new_mute_state else 'UNMUTED'}"
+                        )
 
-    def _handle_volume_update(self, address: str, channel_index: int, *args):
-        """Handle volume update from TotalMix."""
-        try:
-            if channel_index == self.mic_channel:
-                # Volume is 0.0 to 1.0
-                new_level = float(args[0]) if args else 0.0
+                        # Broadcast state change
+                        asyncio.create_task(self._broadcast_mic_state())
 
-                if abs(new_level - self._mic_level) > 0.01:  # Threshold to avoid spam
-                    self._mic_level = new_level
-                    logger.debug(f"Mic channel {channel_index} level: {new_level:.2f}")
+                        # Call registered callbacks
+                        for callback in self._callbacks:
+                            try:
+                                callback(self._mic_muted)
+                            except Exception as e:
+                                logger.error(f"Error in mute callback: {e}")
+            except (ValueError, IndexError) as e:
+                logger.debug(f"Failed to parse mute address {address}: {e}")
 
-                    # Broadcast level update
-                    asyncio.create_task(self._broadcast_mic_level())
-
-        except Exception as e:
-            logger.error(f"Error handling volume update: {e}")
-
-    def _handle_pan_update(self, address: str, channel_index: int, *args):
-        """Handle pan update from TotalMix."""
-        # We can track pan if needed, but for now just log it
-        if channel_index == self.mic_channel:
+    def _handle_solo_update(self, address: str, *args):
+        """Handle solo state update from TotalMix."""
+        parts = address.split("/")
+        if len(parts) >= 5:
+            bus = parts[3]
+            channel = parts[4]
             logger.debug(
-                f"Mic channel {channel_index} pan: {args[0] if args else 'unknown'}"
+                f"Solo update: bus={bus}, channel={channel}, state={args[0] if args else 'unknown'}"
             )
+
+    def _handle_volume_update(self, address: str, *args):
+        """Handle volume update from TotalMix with /1/volume/<bus>/<channel> format."""
+        parts = address.split("/")
+        if len(parts) >= 5:
+            try:
+                bus = int(parts[3]) - 1
+                channel = int(parts[4]) - 1
+
+                if channel == self.mic_channel and bus == 0:
+                    new_level = float(args[0]) if args else 0.0
+                    if abs(new_level - self._mic_level) > 0.01:
+                        self._mic_level = new_level
+                        logger.debug(f"Mic channel {channel} level: {new_level:.2f}")
+                        asyncio.create_task(self._broadcast_mic_level())
+            except (ValueError, IndexError) as e:
+                logger.debug(f"Failed to parse volume address {address}: {e}")
+
+    def _handle_pan_update(self, address: str, *args):
+        """Handle pan update from TotalMix."""
+        logger.debug(f"Pan update: address={address}, args={args}")
 
     def _handle_bus_input(self, address: str, *args):
         """Handle bus input selection."""
@@ -245,6 +261,9 @@ class RMETotalMixService:
         """Broadcast mic mute state to Redis."""
         try:
             if not self._redis_client:
+                logger.warning(
+                    "Redis client not initialized, cannot broadcast mic state"
+                )
                 return
 
             message = {
@@ -259,10 +278,12 @@ class RMETotalMixService:
             }
 
             # Publish to audio events channel
-            await self._redis_client.publish("events:audio", json.dumps(message))
+            num_subscribers = await self._redis_client.publish(
+                "events:audio", json.dumps(message)
+            )
 
             logger.debug(
-                f"Broadcasted mic mute state: {'MUTED' if self._mic_muted else 'UNMUTED'}"
+                f"Broadcasted mic mute state: {'MUTED' if self._mic_muted else 'UNMUTED'} to {num_subscribers} subscribers"
             )
 
         except Exception as e:
