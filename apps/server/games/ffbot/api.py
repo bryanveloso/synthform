@@ -39,6 +39,15 @@ class FFBotStatsData(Schema):
     job_level: int = 0
     exp: int | None = None
     gil: int | None = None
+    unit: str | None = None
+    freehirecount: int = 0
+    freehire_available: bool = False
+    wins_until_freehire: int = 0
+    jobap: int = 0
+    artifact_bonuses: dict = {}
+    job_slots: dict = {}
+    job_bonuses: dict = {}
+    card_passive: str = ""
 
 
 class FFBotEvent(Schema):
@@ -145,16 +154,43 @@ async def process_ffbot_event(data: dict) -> None:
                 "exp": player_stats.exp,
                 "gil": player_stats.gil,
                 "collection": player_stats.collection,
+                "collection_total": 100,  # This would need to come from game config
                 "ascension": player_stats.ascension,
                 "wins": player_stats.wins,
                 "freehirecount": player_stats.freehirecount,
+                "freehire_available": player_stats.freehirecount > 49,
+                "wins_until_freehire": max(0, 50 - player_stats.freehirecount),
                 "season": player_stats.season,
                 "unit": player_stats.unit,
                 "esper": player_stats.esper,
                 "preference": player_stats.preferedstat,
                 "job": player_stats.m1,
                 "job_level": player_stats.jobap,
+                "jobap": player_stats.jobap,
                 "card": player_stats.card,
+                "card_passive": player_stats.card_passive,
+                "artifact": player_stats.card,  # artifact maps to card field
+                "artifact_bonuses": {
+                    "hp": player_stats.arti_hp,
+                    "atk": player_stats.arti_atk,
+                    "mag": player_stats.arti_mag,
+                    "spi": player_stats.arti_spi,
+                },
+                "job_slots": {
+                    "m1": player_stats.m1 or "",
+                    "m2": player_stats.m2 or "",
+                    "m3": player_stats.m3 or "",
+                    "m4": player_stats.m4 or "",
+                    "m5": player_stats.m5 or "",
+                    "m6": player_stats.m6 or "",
+                    "m7": player_stats.m7 or "",
+                },
+                "job_bonuses": {
+                    "hp": player_stats.job_hp,
+                    "atk": player_stats.job_atk,
+                    "mag": player_stats.job_mag,
+                    "spi": player_stats.job_spi,
+                },
             }
 
             # For stats events, the game sends data under 'data' field
@@ -213,6 +249,9 @@ async def update_player_stats(member, stats_data: dict):
         "wins",
         "esper",
         "unit",
+        "exp",
+        "gil",
+        "freehirecount",
     ]:
         if field in stats_data and stats_data[field] is not None:
             setattr(stats, field, stats_data[field])
@@ -235,6 +274,52 @@ async def update_player_stats(member, stats_data: dict):
     if "artifact" in stats_data:
         stats.card = stats_data["artifact"]
         fields_to_update.append("card")
+
+    # Card passive
+    if "card_passive" in stats_data:
+        stats.card_passive = stats_data["card_passive"]
+        fields_to_update.append("card_passive")
+
+    # Handle artifact bonuses if sent
+    if "artifact_bonuses" in stats_data:
+        bonuses = stats_data["artifact_bonuses"]
+        if "hp" in bonuses:
+            stats.arti_hp = bonuses["hp"]
+            fields_to_update.append("arti_hp")
+        if "atk" in bonuses:
+            stats.arti_atk = bonuses["atk"]
+            fields_to_update.append("arti_atk")
+        if "mag" in bonuses:
+            stats.arti_mag = bonuses["mag"]
+            fields_to_update.append("arti_mag")
+        if "spi" in bonuses:
+            stats.arti_spi = bonuses["spi"]
+            fields_to_update.append("arti_spi")
+
+    # Handle job bonuses if sent
+    if "job_bonuses" in stats_data:
+        bonuses = stats_data["job_bonuses"]
+        if "hp" in bonuses:
+            stats.job_hp = bonuses["hp"]
+            fields_to_update.append("job_hp")
+        if "atk" in bonuses:
+            stats.job_atk = bonuses["atk"]
+            fields_to_update.append("job_atk")
+        if "mag" in bonuses:
+            stats.job_mag = bonuses["mag"]
+            fields_to_update.append("job_mag")
+        if "spi" in bonuses:
+            stats.job_spi = bonuses["spi"]
+            fields_to_update.append("job_spi")
+
+    # Handle job slots if sent
+    if "job_slots" in stats_data:
+        slots = stats_data["job_slots"]
+        for i in range(1, 8):
+            slot_key = f"m{i}"
+            if slot_key in slots:
+                setattr(stats, slot_key, slots[slot_key])
+                fields_to_update.append(slot_key)
 
     if fields_to_update:
         fields_to_update.append("updated_at")
