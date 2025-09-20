@@ -68,10 +68,13 @@ class EventsConfig(AppConfig):
                 loop.create_task(rme_service.startup()),
             ]
 
+            # Wait for all startup tasks to complete
+            loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+
             logger.info("✅ Background services started")
 
-            # Wait for all tasks to complete
-            loop.run_until_complete(asyncio.gather(*tasks))
+            # Keep the loop running for background tasks
+            loop.run_forever()
 
         except Exception as e:
-            logger.error(f"Error starting background services: {e}")
+            logger.error(f"Error starting background services: {e}", exc_info=True)
