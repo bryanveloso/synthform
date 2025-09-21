@@ -37,6 +37,7 @@ services:
     restart: unless-stopped
     ports:
       - "7175:7175"
+      - "9001:9001/udp"
 
   server:
     build:
