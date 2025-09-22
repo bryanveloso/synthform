@@ -62,7 +62,7 @@ class OBSService:
 
         # Initialize Redis client
         if not self._redis_client:
-            self._redis_client = redis.Redis.from_url(
+            self._redis_client = redis.from_url(
                 settings.REDIS_URL or "redis://redis:6379/0"
             )
 
