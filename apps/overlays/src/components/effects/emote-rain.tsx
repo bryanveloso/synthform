@@ -269,9 +269,16 @@ export const EmoteRain = memo(function EmoteRain() {
       // Instead of removing immediately, let it fall by removing collision
       // The renderEmotes loop will clean it up when it goes off screen
       if (emoteBody.body) {
+        // Wake up the body if it's sleeping
+        Matter.Sleeping.set(emoteBody.body, false)
         // Make the body non-colliding so it falls through the ground
         emoteBody.body.collisionFilter.group = -1
         emoteBody.body.collisionFilter.mask = 0
+        // Give it a small downward velocity to ensure it starts falling
+        Matter.Body.setVelocity(emoteBody.body, {
+          x: emoteBody.body.velocity.x,
+          y: 2
+        })
       }
       timeoutIdsRef.current.delete(timeoutId)
     }, 45000)
