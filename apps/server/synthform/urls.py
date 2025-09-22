@@ -23,18 +23,20 @@ from django.urls import path
 from ninja import NinjaAPI
 
 from campaigns.api import router as campaigns_router
-from games.ffbot.api import api as ffbot_api
+from games.ffbot.api import router as ffbot_router
 
 from .health import health_check
 
 # Create main API instance
 api = NinjaAPI(csrf=False)
 
+# Add routers to main API
+api.add_router("/campaigns/", campaigns_router)
+api.add_router("/games/ffbot/", ffbot_router)
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health_check"),
     path("events/", include("events.urls")),
-    path("api/", api.urls),  # Main API
-    path("api/campaigns/", campaigns_router.urls),  # Campaigns API
-    path("api/games/", ffbot_api.urls),  # FFBot django-ninja API
+    path("api/", api.urls),  # Main API with all routers
 ]

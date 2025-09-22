@@ -8,7 +8,7 @@ from datetime import datetime
 
 import redis.asyncio as redis
 from django.conf import settings
-from ninja import NinjaAPI
+from ninja import Router
 from ninja import Schema
 from pydantic import Field
 
@@ -17,8 +17,8 @@ from games.ffbot.models import Player
 
 logger = logging.getLogger(__name__)
 
-# Create the FFBot API
-api = NinjaAPI(urls_namespace="ffbot", csrf=False)
+# Create the FFBot Router
+router = Router(tags=["ffbot"])
 
 
 # Pydantic schemas for request/response validation
@@ -74,9 +74,7 @@ class AcceptedResponse(Schema):
     status: str = "accepted"
 
 
-@api.post(
-    "/ffbot", response={202: AcceptedResponse}, summary="Receive FFBot game events"
-)
+@router.post("/", response={202: AcceptedResponse}, summary="Receive FFBot game events")
 async def ffbot_event(request, event: FFBotEvent):
     """
     Receives FFBot game events and returns 202 immediately.
