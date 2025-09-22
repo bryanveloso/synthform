@@ -28,9 +28,13 @@ export const EmoteRain = memo(function EmoteRain() {
     // Create abort controller for event listeners
     abortControllerRef.current = new AbortController()
 
-    // Create engine
+    // Create engine with optimizations for many bodies
     const engine = Matter.Engine.create()
     engine.gravity.scale = 0.0008 // Adjust gravity strength
+
+    // Enable sleeping to reduce jitter when emotes pile up
+    engine.enableSleeping = true
+
     engineRef.current = engine
 
     // Create boundaries (ground at actual bottom of viewport)
@@ -224,11 +228,12 @@ export const EmoteRain = memo(function EmoteRain() {
     const x = Math.random() * 1920
     const y = -50
 
-    // Create body
+    // Create body with sleep settings to reduce jitter when settled
     const body = Matter.Bodies.circle(x, y, 28, {
       restitution: 0.6,
       friction: 0.3,
       density: 0.001,
+      sleepThreshold: 60, // Bodies sleep after 60 frames of low activity (stops jiggling)
       render: {
         visible: false
       }
@@ -258,7 +263,7 @@ export const EmoteRain = memo(function EmoteRain() {
     // Preload image with the specific emote body ID
     preloadEmote(emoteId, emoteBody.id)
 
-    // Remove ground collision after 60 seconds so emote falls off screen
+    // Remove ground collision after 45 seconds so emote falls off screen
     const timeoutId = setTimeout(() => {
       // Instead of removing immediately, let it fall by removing collision
       // The renderEmotes loop will clean it up when it goes off screen
@@ -268,7 +273,7 @@ export const EmoteRain = memo(function EmoteRain() {
         emoteBody.body.collisionFilter.mask = 0
       }
       timeoutIdsRef.current.delete(timeoutId)
-    }, 60000)
+    }, 45000)
     timeoutIdsRef.current.add(timeoutId)
   }, [preloadEmote, removeEmote])
 
