@@ -161,8 +161,13 @@ export const EmoteRain = memo(function EmoteRain() {
     // Create new image if not cached
     if (!existingImg) {
       const img = new Image()
-      // Always try v2 API with animated format first
-      img.src = `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/animated/dark/2.0`
+
+      // Check if this is a template ID (starts with "emotesv2_") or numeric ID
+      const isTemplateId = emoteId.startsWith('emotesv2_')
+
+      // Both animated and static emotes use "default" in v2 API
+      // The server automatically provides the animated version if it exists
+      img.src = `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/2.0`
 
       img.onload = () => {
         // Update ALL bodies with this emote ID
@@ -174,17 +179,13 @@ export const EmoteRain = memo(function EmoteRain() {
       }
 
       // Try fallbacks if loading fails
-      let attemptCount = 0
       img.onerror = () => {
-        attemptCount++
-        if (attemptCount === 1) {
-          // Try static v2
-          img.src = `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/2.0`
-        } else if (attemptCount === 2) {
-          // Try v1 API as last resort
+        // For template IDs (v2 emotes), there's no v1 fallback
+        // For numeric IDs, try v1 API as fallback
+        if (!isTemplateId) {
           img.src = `https://static-cdn.jtvnw.net/emoticons/v1/${emoteId}/2.0`
         }
-        // If it fails 3 times, emote doesn't exist
+        // If it fails, emote doesn't exist
       }
 
       emoteImagesRef.current.set(emoteId, img)
