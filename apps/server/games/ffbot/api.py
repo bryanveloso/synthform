@@ -34,7 +34,6 @@ class FFBotStatsData(Schema):
     ascension: int = 0
     wins: int = 0
     esper: str = ""
-    artifact: str = ""
     job: str = ""
     job_level: int = 0
     exp: int | None = None
@@ -44,9 +43,9 @@ class FFBotStatsData(Schema):
     freehire_available: bool = False
     wins_until_freehire: int = 0
     jobap: int = 0
-    artifact_bonuses: dict = {}
     job_slots: dict = {}
     job_bonuses: dict = {}
+    card: str = ""
     card_passive: str = ""
 
 
@@ -169,13 +168,6 @@ async def process_ffbot_event(data: dict) -> None:
                 "jobap": player_stats.jobap,
                 "card": player_stats.card,
                 "card_passive": player_stats.card_passive,
-                "artifact": player_stats.card,  # artifact maps to card field
-                "artifact_bonuses": {
-                    "hp": player_stats.arti_hp,
-                    "atk": player_stats.arti_atk,
-                    "mag": player_stats.arti_mag,
-                    "spi": player_stats.arti_spi,
-                },
                 "job_slots": {
                     "m1": player_stats.m1 or "",
                     "m2": player_stats.m2 or "",
@@ -186,10 +178,10 @@ async def process_ffbot_event(data: dict) -> None:
                     "m7": player_stats.m7 or "",
                 },
                 "job_bonuses": {
-                    "hp": player_stats.job_hp,
-                    "atk": player_stats.job_atk,
-                    "mag": player_stats.job_mag,
-                    "spi": player_stats.job_spi,
+                    "hp": getattr(player_stats, "job_hp", 0),
+                    "atk": getattr(player_stats, "job_atk", 0),
+                    "mag": getattr(player_stats, "job_mag", 0),
+                    "spi": getattr(player_stats, "job_spi", 0),
                 },
             }
 
@@ -270,31 +262,15 @@ async def update_player_stats(member, stats_data: dict):
         stats.jobap = stats_data["job_level"]
         fields_to_update.append("jobap")
 
-    # Card/artifact fields (artifact maps to card)
-    if "artifact" in stats_data:
-        stats.card = stats_data["artifact"]
+    # Card field
+    if "card" in stats_data:
+        stats.card = stats_data["card"]
         fields_to_update.append("card")
 
     # Card passive
     if "card_passive" in stats_data:
         stats.card_passive = stats_data["card_passive"]
         fields_to_update.append("card_passive")
-
-    # Handle artifact bonuses if sent
-    if "artifact_bonuses" in stats_data:
-        bonuses = stats_data["artifact_bonuses"]
-        if "hp" in bonuses:
-            stats.arti_hp = bonuses["hp"]
-            fields_to_update.append("arti_hp")
-        if "atk" in bonuses:
-            stats.arti_atk = bonuses["atk"]
-            fields_to_update.append("arti_atk")
-        if "mag" in bonuses:
-            stats.arti_mag = bonuses["mag"]
-            fields_to_update.append("arti_mag")
-        if "spi" in bonuses:
-            stats.arti_spi = bonuses["spi"]
-            fields_to_update.append("arti_spi")
 
     # Handle job bonuses if sent
     if "job_bonuses" in stats_data:
@@ -457,34 +433,7 @@ async def update_after_esper(member, event_data: dict):
     return stats
 
 
-async def update_after_artifact(member, event_data: dict):
-    """Update player's artifact and bonuses."""
-    stats, _ = await Player.objects.aget_or_create(member=member)
-
-    artifact = event_data.get("artifact", "")
-    bonuses = event_data.get("bonuses", {})
-
-    if artifact:
-        stats.card = artifact  # artifact maps to card field
-
-    # Update artifact bonuses
-    if bonuses:
-        stats.arti_hp = bonuses.get("hp", 0)
-        stats.arti_atk = bonuses.get("atk", 0)
-        stats.arti_mag = bonuses.get("mag", 0)
-        stats.arti_spi = bonuses.get("spi", 0)
-
-    fields_to_update = [
-        "card",
-        "arti_hp",
-        "arti_atk",
-        "arti_mag",
-        "arti_spi",
-        "updated_at",
-    ]
-    await stats.asave(update_fields=fields_to_update)
-
-    return stats
+# Artifact handler removed - artifacts are from a previous season and no longer used
 
 
 async def update_after_job(member, event_data: dict):
@@ -568,7 +517,6 @@ EVENT_HANDLERS = {
     "preference": update_after_preference,
     "ascension_confirm": update_after_ascension,
     "esper": update_after_esper,
-    "artifact": update_after_artifact,
     "job": update_after_job,
     "card": update_after_card,
     "mastery": update_after_mastery,
@@ -579,4 +527,4 @@ EVENT_HANDLERS = {
 NO_PLAYER_EVENTS = {"save", "party_wipe", "new_run", "battle_victory"}
 
 # Display-only events (get stats but don't update)
-DISPLAY_ONLY_EVENTS = {"ascension_preview", "missing", "attack", "join"}
+DISPLAY_ONLY_EVENTS = {"ascension_preview", "missing", "attack", "join", "artifact"}
