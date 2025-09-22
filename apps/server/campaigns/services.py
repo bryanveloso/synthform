@@ -94,6 +94,27 @@ class CampaignService:
                 f"🎉 Milestone unlocked! {unlocked_milestone.threshold}: {unlocked_milestone.title}"
             )
 
+            # Publish milestone unlock event
+            from synthform.websocket import publish_to_overlay
+
+            await publish_to_overlay("campaign:milestone", result["milestone_unlocked"])
+
+        # Publish metric update
+        from synthform.websocket import publish_to_overlay
+
+        await publish_to_overlay(
+            "campaign:update",
+            {
+                "campaign_id": str(campaign.id),
+                "total_subs": metric.total_subs,
+                "total_resubs": metric.total_resubs,
+                "total_bits": metric.total_bits,
+                "timer_seconds_remaining": metric.timer_seconds_remaining,
+                "timer_seconds_added": timer_added,
+                "extra_data": metric.extra_data,
+            },
+        )
+
         return result
 
     @staticmethod

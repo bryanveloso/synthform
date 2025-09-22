@@ -20,14 +20,21 @@ from __future__ import annotations
 from django.contrib import admin
 from django.urls import include
 from django.urls import path
+from ninja import NinjaAPI
 
+from campaigns.api import router as campaigns_router
 from games.ffbot.api import api as ffbot_api
 
 from .health import health_check
+
+# Create main API instance
+api = NinjaAPI(csrf=False)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health_check"),
     path("events/", include("events.urls")),
+    path("api/", api.urls),  # Main API
+    path("api/campaigns/", campaigns_router.urls),  # Campaigns API
     path("api/games/", ffbot_api.urls),  # FFBot django-ninja API
 ]
