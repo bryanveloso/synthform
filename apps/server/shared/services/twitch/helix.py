@@ -85,11 +85,14 @@ class HelixService:
             token_data = tokens[0]
             self._broadcaster_id = token_data["user_id"]
 
-            # Create a TwitchIO client
+            # Create a TwitchIO client with keep-alive
             self._client = twitchio.Client(
                 client_id=settings.TWITCH_CLIENT_ID,
                 client_secret=settings.TWITCH_CLIENT_SECRET,
             )
+
+            # Ensure the client's session stays alive
+            self._client._http._keepalive = True
 
             # Override load_tokens to load tokens from our database
             async def load_tokens(path=None):
