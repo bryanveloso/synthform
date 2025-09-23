@@ -2,11 +2,12 @@ import { useGSAP } from '@gsap/react'
 import { useRef } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Canvas } from '@/components/ui/canvas'
-import { Circle, Frame } from '@/components/ui/window'
 import { LimitBreak } from '@/components/coworking/limitbreak'
 import { Timeline } from '@/components/coworking/timeline'
 import { Status } from '@/components/coworking/status'
+import { Campaign } from '@/components/coworking/campaign'
+import { Canvas } from '@/components/ui/canvas'
+import { Circle, Frame } from '@/components/ui/window'
 import { animateOverlayEntrance } from '@/lib/animations'
 
 export const Route = createFileRoute('/coworking')({
@@ -67,10 +68,20 @@ function RouteComponent() {
           </Frame>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="bg-shark-960 inset-shadow relative flex min-w-0 items-center justify-between">
-          <Timeline />
-          <LimitBreak />
+        {/* Bottom Bar - Layered chyron system */}
+        <div className="bg-shark-960 inset-shadow relative min-w-0">
+          {/* Base layer: Campaign (z-10) */}
+          <div className="relative z-10 flex items-center justify-between py-2">
+            <Campaign />
+            <LimitBreak />
+          </div>
+
+          {/* Timeline layer: Overlays on top (z-20) */}
+          <div className="absolute inset-0 z-20 flex items-center">
+            <Timeline />
+          </div>
+
+          {/* Decorative borders */}
           <div className="absolute top-0 h-1 w-full bg-[#040506]"></div>
           <div className="from-marigold to-lime absolute bottom-0 h-[1px] w-full bg-gradient-to-l"></div>
         </div>
