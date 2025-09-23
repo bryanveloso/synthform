@@ -20,7 +20,7 @@ const Milestone: FC<{ next: Milestone }> = ({ next }) => {
 }
 
 export const Campaign: FC = () => {
-  const { campaign, totalSubs, nextMilestone, totalDuration,formatDurationDisplay } = useCampaign()
+  const { campaign, totalSubsWithResubs, nextMilestone, totalDuration, formatDurationDisplay } = useCampaign()
 
   return (
     <div className="relative overflow-x-hidden">
@@ -34,7 +34,7 @@ export const Campaign: FC = () => {
           </span>
         </div>
         <div className="font-sans tabular-nums">
-          {totalSubs}/{nextMilestone?.threshold} subs
+          {totalSubsWithResubs}/{nextMilestone?.threshold} subs
         </div>
         <Milestone next={nextMilestone!} />
       </div>

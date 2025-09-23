@@ -28,6 +28,9 @@ export function useCampaign() {
   const totalDurationFromCompleted = campaign?.metric?.total_duration ?? 0
   const streamStartedAt = campaign?.metric?.stream_started_at ?? null
 
+  // Combined count for display and milestone tracking
+  const totalSubsWithResubs = totalSubs + totalResubs
+
   // Update current stream duration every second
   useEffect(() => {
     if (!streamStartedAt) {
@@ -69,48 +72,47 @@ export function useCampaign() {
 
   // Computed: Milestones
   const milestones = campaign?.milestones ?? []
-  const unlockedMilestones = milestones.filter(m => m.is_unlocked)
-  const lockedMilestones = milestones.filter(m => !m.is_unlocked)
-  const nextMilestone = lockedMilestones.sort((a, b) => a.threshold - b.threshold)[0] as Milestone | undefined
+  const unlockedMilestones = milestones.filter((m) => m.is_unlocked)
+  const lockedMilestones = milestones.filter((m) => !m.is_unlocked)
+  const nextMilestone = lockedMilestones.sort((a, b) => a.threshold - b.threshold)[0] as
+    | Milestone
+    | undefined
 
-  // Computed: Progress
+  // Computed: Progress (based on combined total for milestones)
   const progress = nextMilestone
-    ? Math.min(100, (totalSubs / nextMilestone.threshold) * 100)
+    ? Math.min(100, (totalSubsWithResubs / nextMilestone.threshold) * 100)
     : 100 // All milestones complete
 
   const subsToNextMilestone = nextMilestone
-    ? Math.max(0, nextMilestone.threshold - totalSubs)
+    ? Math.max(0, nextMilestone.threshold - totalSubsWithResubs)
     : 0
 
   const milestonesUnlocked = unlockedMilestones.length
   const milestonesTotal = milestones.length
-  const milestonesProgress = milestonesTotal > 0
-    ? (milestonesUnlocked / milestonesTotal) * 100
-    : 0
+  const milestonesProgress = milestonesTotal > 0 ? (milestonesUnlocked / milestonesTotal) * 100 : 0
 
   // Helper: Calculate time to add for an event
-  const calculateTimeForEvent = useCallback((
-    type: 'sub' | 'gift' | 'bits',
-    tier: 1 | 2 | 3 = 1,
-    amount: number = 1
-  ): number => {
-    if (!campaign) return 0
+  const calculateTimeForEvent = useCallback(
+    (type: 'sub' | 'gift' | 'bits', tier: 1 | 2 | 3 = 1, amount: number = 1): number => {
+      if (!campaign) return 0
 
-    switch (type) {
-      case 'sub':
-        if (tier === 3) return secondsPerTier3
-        if (tier === 2) return secondsPerTier2
-        return secondsPerSub
-      case 'gift':
-        // Gifts are always tier 1 * amount
-        return secondsPerSub * amount
-      case 'bits':
-        // Could add bits calculation if configured
-        return 0
-      default:
-        return 0
-    }
-  }, [campaign, secondsPerSub, secondsPerTier2, secondsPerTier3])
+      switch (type) {
+        case 'sub':
+          if (tier === 3) return secondsPerTier3
+          if (tier === 2) return secondsPerTier2
+          return secondsPerSub
+        case 'gift':
+          // Gifts are always tier 1 * amount
+          return secondsPerSub * amount
+        case 'bits':
+          // Could add bits calculation if configured
+          return 0
+        default:
+          return 0
+      }
+    },
+    [campaign, secondsPerSub, secondsPerTier2, secondsPerTier3],
+  )
 
   // Helper: Format timer display
   const formatTimerDisplay = useCallback((seconds: number): string => {
@@ -146,6 +148,7 @@ export function useCampaign() {
     // Metrics
     totalSubs,
     totalResubs,
+    totalSubsWithResubs,
     totalBits,
     totalDuration,
     streamStartedAt,

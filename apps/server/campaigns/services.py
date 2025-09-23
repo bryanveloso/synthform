@@ -93,9 +93,10 @@ class CampaignService:
             CampaignService._process_subscription_sync
         )(campaign, tier)
 
-        # Check for milestone unlocks
+        # Check for milestone unlocks based on combined total (subs + resubs)
+        combined_total = metric.total_subs + metric.total_resubs
         unlocked_milestone = await CampaignService._check_milestone_unlock(
-            campaign, metric.total_subs
+            campaign, combined_total
         )
 
         result = {
@@ -158,11 +159,47 @@ class CampaignService:
 
         metric = await sync_to_async(CampaignService._process_resub_sync)(campaign)
 
-        return {
+        # Check for milestone unlocks based on combined total (subs + resubs)
+        combined_total = metric.total_subs + metric.total_resubs
+        unlocked_milestone = await CampaignService._check_milestone_unlock(
+            campaign, combined_total
+        )
+
+        result = {
             "campaign_id": str(campaign.id),
             "campaign_name": campaign.name,
             "total_resubs": metric.total_resubs,
+            "combined_total": combined_total,
         }
+
+        if unlocked_milestone:
+            result["milestone_unlocked"] = {
+                "id": str(unlocked_milestone.id),
+                "threshold": unlocked_milestone.threshold,
+                "title": unlocked_milestone.title,
+                "description": unlocked_milestone.description,
+            }
+            logger.info(
+                f"🎉 Milestone unlocked! {unlocked_milestone.threshold}: {unlocked_milestone.title}"
+            )
+            # Publish milestone unlock to Redis
+            await CampaignService._publish_to_redis(
+                "campaign:milestone", result["milestone_unlocked"]
+            )
+
+        # Publish metric update to Redis
+        await CampaignService._publish_to_redis(
+            "campaign:update",
+            {
+                "campaign_id": str(campaign.id),
+                "total_subs": metric.total_subs,
+                "total_resubs": metric.total_resubs,
+                "total_bits": metric.total_bits,
+                "extra_data": metric.extra_data,
+            },
+        )
+
+        return result
 
     @staticmethod
     def _process_bits_sync(campaign: Campaign, bits: int) -> Metric:
