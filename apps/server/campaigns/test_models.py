@@ -363,7 +363,15 @@ class MetricModelTest(TestCase):
 
     def test_metric_defaults(self):
         """Test default values for metric fields."""
-        metric = Metric.objects.create(campaign=self.campaign)
+        # Create a new campaign for this test
+        new_campaign = Campaign.objects.create(
+            name="Default Test Campaign",
+            slug="default-test",
+            description="Test defaults",
+            start_date=timezone.now(),
+            end_date=timezone.now() + timedelta(days=1),
+        )
+        metric = Metric.objects.create(campaign=new_campaign)
 
         self.assertEqual(metric.total_subs, 0)
         self.assertEqual(metric.total_resubs, 0)

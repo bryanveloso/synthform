@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from asgiref.sync import async_to_sync
-from django.test import TransactionTestCase
+from django.test import TestCase
 from django.utils import timezone
 
 from campaigns.models import Campaign
@@ -14,7 +14,7 @@ from campaigns.models import Milestone
 from campaigns.services import campaign_service
 
 
-class CampaignActivationTest(TransactionTestCase):
+class CampaignActivationTest(TestCase):
     """Test that events only process when campaigns are active."""
 
     def setUp(self):
@@ -242,7 +242,7 @@ class CampaignActivationTest(TransactionTestCase):
         self.assertEqual(Metric.objects.count(), 1)
 
 
-class CampaignEventRoutingTest(TransactionTestCase):
+class CampaignEventRoutingTest(TestCase):
     """Test that events are properly routed based on campaign state."""
 
     def test_full_event_flow_with_campaign_activation(self):

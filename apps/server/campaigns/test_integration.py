@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from asgiref.sync import async_to_sync
-from django.test import TransactionTestCase
+from django.test import TestCase
 from django.utils import timezone
 
 from campaigns.models import Campaign
@@ -14,7 +14,7 @@ from campaigns.models import Milestone
 from campaigns.services import campaign_service
 
 
-class CampaignIntegrationTest(TransactionTestCase):
+class CampaignIntegrationTest(TestCase):
     """Test complete campaign workflows end-to-end."""
 
     def setUp(self):
@@ -40,21 +40,18 @@ class CampaignIntegrationTest(TransactionTestCase):
                 threshold=10,
                 title="Bronze Goal",
                 description="First milestone",
-                announcement_text="Bronze goal reached!",
             ),
             Milestone.objects.create(
                 campaign=self.campaign,
                 threshold=25,
                 title="Silver Goal",
                 description="Second milestone",
-                announcement_text="Silver goal reached!",
             ),
             Milestone.objects.create(
                 campaign=self.campaign,
                 threshold=50,
                 title="Gold Goal",
                 description="Third milestone",
-                announcement_text="Gold goal reached!",
             ),
         ]
 
@@ -257,17 +254,18 @@ class CampaignIntegrationTest(TransactionTestCase):
                 self.campaign, tier=1, is_gift=False
             )
 
-        # Process gift subs
+        # Process gift subs - the 5th one should trigger milestone at 10
         for _i in range(10):
             result = async_to_sync(campaign_service.process_subscription)(
                 self.campaign, tier=1, is_gift=True
             )
+            # Check if milestone was unlocked at sub 10
+            if result["total_subs"] == 10:
+                self.assertIn("milestone_unlocked", result)
+                self.assertEqual(result["milestone_unlocked"]["threshold"], 10)
 
         # All subs should be counted equally
         self.assertEqual(result["total_subs"], 15)
-
-        # Gift subs should also trigger milestones
-        self.assertIn("milestone_unlocked", result)
 
     def test_error_recovery_workflow(self):
         """Test that the service recovers from errors gracefully."""

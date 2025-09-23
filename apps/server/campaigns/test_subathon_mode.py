@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from asgiref.sync import async_to_sync
-from django.test import TransactionTestCase
+from django.test import TestCase
 from django.utils import timezone
 
 from campaigns.models import Campaign
@@ -13,7 +13,7 @@ from campaigns.models import Metric
 from campaigns.services import campaign_service
 
 
-class SubathonModeTest(TransactionTestCase):
+class SubathonModeTest(TestCase):
     """Test that subathon features require both active campaign AND timer_mode."""
 
     def setUp(self):

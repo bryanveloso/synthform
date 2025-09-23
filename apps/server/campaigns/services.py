@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from datetime import UTC
+from datetime import datetime
 from typing import Any
 
+import redis.asyncio as redis
 from asgiref.sync import sync_to_async
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
@@ -34,11 +39,10 @@ class CampaignService:
     ) -> tuple[Metric, int]:
         """Synchronous helper for process_subscription."""
         with transaction.atomic():
-            try:
-                metric = Metric.objects.select_for_update().get(campaign=campaign)
-            except Metric.DoesNotExist:
-                # Create metric if it doesn't exist
-                metric = Metric.objects.create(campaign=campaign)
+            # Use get_or_create with select_for_update to handle race conditions
+            metric, created = Metric.objects.select_for_update().get_or_create(
+                campaign=campaign, defaults={}
+            )
 
             # Update sub count
             metric.total_subs = F("total_subs") + 1
@@ -112,16 +116,13 @@ class CampaignService:
             logger.info(
                 f"🎉 Milestone unlocked! {unlocked_milestone.threshold}: {unlocked_milestone.title}"
             )
+            # Publish milestone unlock to Redis
+            await CampaignService._publish_to_redis(
+                "campaign:milestone", result["milestone_unlocked"]
+            )
 
-            # Publish milestone unlock event
-            from synthform.websocket import publish_to_overlay
-
-            await publish_to_overlay("campaign:milestone", result["milestone_unlocked"])
-
-        # Publish metric update
-        from synthform.websocket import publish_to_overlay
-
-        await publish_to_overlay(
+        # Publish metric update to Redis
+        await CampaignService._publish_to_redis(
             "campaign:update",
             {
                 "campaign_id": str(campaign.id),
@@ -140,10 +141,9 @@ class CampaignService:
     def _process_resub_sync(campaign: Campaign) -> Metric:
         """Synchronous helper for process_resub."""
         with transaction.atomic():
-            try:
-                metric = Metric.objects.select_for_update().get(campaign=campaign)
-            except Metric.DoesNotExist:
-                metric = Metric.objects.create(campaign=campaign)
+            metric, created = Metric.objects.select_for_update().get_or_create(
+                campaign=campaign, defaults={}
+            )
 
             metric.total_resubs = F("total_resubs") + 1
             metric.save()
@@ -168,10 +168,9 @@ class CampaignService:
     def _process_bits_sync(campaign: Campaign, bits: int) -> Metric:
         """Synchronous helper for process_bits."""
         with transaction.atomic():
-            try:
-                metric = Metric.objects.select_for_update().get(campaign=campaign)
-            except Metric.DoesNotExist:
-                metric = Metric.objects.create(campaign=campaign)
+            metric, created = Metric.objects.select_for_update().get_or_create(
+                campaign=campaign, defaults={}
+            )
 
             metric.total_bits = F("total_bits") + bits
             metric.save()
@@ -218,10 +217,9 @@ class CampaignService:
     def _start_timer_sync(campaign: Campaign) -> Metric:
         """Synchronous helper for start_timer."""
         with transaction.atomic():
-            try:
-                metric = Metric.objects.select_for_update().get(campaign=campaign)
-            except Metric.DoesNotExist:
-                metric = Metric.objects.create(campaign=campaign)
+            metric, created = Metric.objects.select_for_update().get_or_create(
+                campaign=campaign, defaults={}
+            )
 
             # Initialize or add to timer
             if not metric.timer_started_at:
@@ -284,10 +282,9 @@ class CampaignService:
     def _update_vote_sync(campaign: Campaign, option: str, votes: int = 1) -> Metric:
         """Synchronous helper for update_vote."""
         with transaction.atomic():
-            try:
-                metric = Metric.objects.select_for_update().get(campaign=campaign)
-            except Metric.DoesNotExist:
-                metric = Metric.objects.create(campaign=campaign)
+            metric, created = Metric.objects.select_for_update().get_or_create(
+                campaign=campaign, defaults={}
+            )
 
             # Initialize voting data if not present
             if "ffxiv_votes" not in metric.extra_data:
@@ -322,6 +319,26 @@ class CampaignService:
             "campaign_id": str(campaign.id),
             "voting_update": metric.extra_data["ffxiv_votes"],
         }
+
+    @staticmethod
+    async def _publish_to_redis(event_type: str, data: dict) -> None:
+        """Publish campaign events to Redis for real-time updates."""
+        redis_client = None
+        try:
+            redis_client = redis.from_url(settings.REDIS_URL)
+            redis_message = {
+                "event_type": event_type,
+                "source": "campaign",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "payload": data,
+            }
+            await redis_client.publish("events:campaign", json.dumps(redis_message))
+            logger.debug(f"Published {event_type} to Redis")
+        except Exception as e:
+            logger.error(f"Failed to publish to Redis: {e}")
+        finally:
+            if redis_client:
+                await redis_client.close()
 
 
 # Global instance

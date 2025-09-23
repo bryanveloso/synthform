@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import {
@@ -287,17 +288,64 @@ export const useRealtimeStore = create<RealtimeStore>()(
         case 'campaign:sync':
           set({ campaign: payload as Campaign })
           break
-        case 'campaign:update':
-          set({ campaignUpdate: payload as CampaignUpdatePayload })
+        case 'campaign:update': {
+          // Store the update AND merge into main campaign state
+          const update = payload as CampaignUpdatePayload
+          set((state) => ({
+            campaignUpdate: update,
+            // Merge the update into the campaign's metric
+            campaign: state.campaign ? {
+              ...state.campaign,
+              metric: {
+                ...state.campaign.metric,
+                total_subs: update.total_subs ?? state.campaign.metric.total_subs,
+                total_resubs: update.total_resubs ?? state.campaign.metric.total_resubs,
+                total_bits: update.total_bits ?? state.campaign.metric.total_bits,
+                timer_seconds_remaining: update.timer_seconds_remaining ?? state.campaign.metric.timer_seconds_remaining,
+                extra_data: update.extra_data ?? state.campaign.metric.extra_data,
+              }
+            } : null
+          }))
           break
-        case 'campaign:milestone':
-          set({ milestoneUnlocked: payload as MilestoneUnlockedPayload })
+        }
+        case 'campaign:milestone': {
+          // Store the milestone AND update the campaign's milestones
+          const milestone = payload as MilestoneUnlockedPayload
+          set((state) => ({
+            milestoneUnlocked: milestone,
+            // Update the milestone in the campaign's milestones array
+            campaign: state.campaign ? {
+              ...state.campaign,
+              milestones: state.campaign.milestones.map(m =>
+                m.id === milestone.id
+                  ? { ...m, is_unlocked: true, unlocked_at: new Date().toISOString() }
+                  : m
+              )
+            } : null
+          }))
           break
+        }
         case 'campaign:timer:started':
         case 'campaign:timer:paused':
-        case 'campaign:timer:tick':
-          set({ timerUpdate: payload as TimerUpdatePayload })
+        case 'campaign:timer:tick': {
+          // Store the timer update AND merge into campaign metric
+          const timerPayload = payload as TimerUpdatePayload
+          set((state) => ({
+            timerUpdate: timerPayload,
+            // Update timer fields in the campaign's metric
+            campaign: state.campaign ? {
+              ...state.campaign,
+              metric: {
+                ...state.campaign.metric,
+                timer_seconds_remaining: timerPayload.timer_seconds_remaining ?? state.campaign.metric.timer_seconds_remaining,
+                timer_started_at: timerPayload.timer_started ? new Date().toISOString() : state.campaign.metric.timer_started_at,
+                timer_paused_at: timerPayload.timer_paused ? new Date().toISOString() :
+                                 (timerPayload.timer_started === false ? null : state.campaign.metric.timer_paused_at),
+              }
+            } : null
+          }))
           break
+        }
 
         // Limit break messages
         case 'limitbreak:sync':

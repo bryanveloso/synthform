@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from datetime import UTC
+from datetime import datetime
 from typing import Any
 
+import redis.asyncio as redis
 from asgiref.sync import sync_to_async
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from ninja import Router
 
@@ -116,10 +121,22 @@ async def start_timer(request) -> dict[str, Any]:
 
     result = await campaign_service.start_timer(campaign)
 
-    # Publish WebSocket update
-    from synthform.websocket import publish_to_overlay
-
-    await publish_to_overlay("campaign:timer:started", result)
+    # Publish timer start to Redis
+    redis_client = None
+    try:
+        redis_client = redis.from_url(settings.REDIS_URL)
+        redis_message = {
+            "event_type": "campaign:timer:started",
+            "source": "campaign",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": result,
+        }
+        await redis_client.publish("events:campaign", json.dumps(redis_message))
+    except Exception as e:
+        logger.error(f"Failed to publish timer start: {e}")
+    finally:
+        if redis_client:
+            await redis_client.close()
 
     return result
 
@@ -133,9 +150,21 @@ async def pause_timer(request) -> dict[str, Any]:
 
     result = await campaign_service.pause_timer(campaign)
 
-    # Publish WebSocket update
-    from synthform.websocket import publish_to_overlay
-
-    await publish_to_overlay("campaign:timer:paused", result)
+    # Publish timer pause to Redis
+    redis_client = None
+    try:
+        redis_client = redis.from_url(settings.REDIS_URL)
+        redis_message = {
+            "event_type": "campaign:timer:paused",
+            "source": "campaign",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": result,
+        }
+        await redis_client.publish("events:campaign", json.dumps(redis_message))
+    except Exception as e:
+        logger.error(f"Failed to publish timer pause: {e}")
+    finally:
+        if redis_client:
+            await redis_client.close()
 
     return result

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from asgiref.sync import async_to_sync
+from django.test import TestCase
 from django.test import TransactionTestCase
 from django.utils import timezone
 
@@ -14,7 +15,7 @@ from campaigns.models import Milestone
 from campaigns.services import CampaignService
 
 
-class CampaignServiceTest(TransactionTestCase):
+class CampaignServiceTest(TestCase):
     """Test CampaignService functionality with async methods."""
 
     def setUp(self):
