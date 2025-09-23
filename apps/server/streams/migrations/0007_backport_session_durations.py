@@ -15,6 +15,10 @@ def backport_session_durations(apps, schema_editor):
 
     # Get all sessions that need duration data
     sessions = Session.objects.filter(duration=0)
+    total_sessions = sessions.count()
+
+    if total_sessions > 0:
+        print(f"Backporting duration data for {total_sessions} sessions...")
 
     for session in sessions:
         # Find stream.online event for this date
@@ -57,6 +61,9 @@ def backport_session_durations(apps, schema_editor):
                     session.duration = int(duration_delta.total_seconds())
 
             session.save()
+
+    if total_sessions > 0:
+        print(f"Successfully backported duration data for {total_sessions} sessions.")
 
 
 def reverse_backport(apps, schema_editor):
