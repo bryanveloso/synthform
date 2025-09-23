@@ -88,7 +88,9 @@ class RainwaveService:
             logger.info("Attempting to reset Rainwave circuit breaker")
 
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(30.0, connect=10.0)
+            ) as client:
                 # Include auth to get user tuned_in status
                 response = await client.get(
                     f"{self.base_url}/info",
