@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useGSAP } from '@gsap/react'
 import { gsap } from 'gsap'
 import { useTimeline } from '@/hooks/use-timeline'
@@ -39,19 +39,73 @@ const getType = (event: TimelineEvent) => {
   }
 }
 
-export const Timeline = () => {
+interface TimelineProps {
+  autoHideDelay?: number // ms before auto-hiding (default: 30000)
+  showOnNewEvents?: boolean // whether to show when new events arrive (default: true)
+}
+
+export const Timeline = ({ autoHideDelay = 30000, showOnNewEvents = true }: TimelineProps = {}) => {
   const { events: timelineEvents, isStale } = useTimeline(15)
+  const [isVisible, setIsVisible] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const eventRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const animatedEvents = useRef<Set<string>>(new Set())
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastEventCountRef = useRef(0)
 
-  // Cleanup refs on unmount
+  // Auto-hide management
+  const startHideTimer = useCallback(() => {
+    // Clear existing timer
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+    }
+
+    // Set new timer
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsVisible(false)
+    }, autoHideDelay)
+  }, [autoHideDelay])
+
+  // Show timeline when new events arrive
+  useEffect(() => {
+    if (showOnNewEvents && timelineEvents.length > lastEventCountRef.current && timelineEvents.length > 0) {
+      setIsVisible(true)
+      startHideTimer()
+    }
+    lastEventCountRef.current = timelineEvents.length
+  }, [timelineEvents.length, showOnNewEvents, startHideTimer])
+
+  // Animate visibility changes
+  useGSAP(() => {
+    if (containerRef.current) {
+      if (isVisible) {
+        gsap.to(containerRef.current, {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          ease: 'power3.out',
+        })
+      } else {
+        gsap.to(containerRef.current, {
+          opacity: 0,
+          y: 20,
+          duration: 0.3,
+          ease: 'power2.in',
+        })
+      }
+    }
+  }, [isVisible])
+
+  // Cleanup refs and timers on unmount
   useEffect(() => {
     const refs = eventRefs.current
     const animated = animatedEvents.current
     return () => {
       refs.clear()
       animated.clear()
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current)
+      }
     }
   }, [])
 
@@ -99,7 +153,14 @@ export const Timeline = () => {
   }, [timelineEvents])
 
   return (
-    <div ref={containerRef} className="relative overflow-x-hidden" data-timeline>
+    <div
+      ref={containerRef}
+      className={cn(
+        'bg-shark-960 relative overflow-x-hidden transition-opacity',
+        !isVisible && 'pointer-events-none',
+      )}
+      style={{ opacity: 0 }}
+      data-timeline>
       <div className="to-shark-960 absolute right-0 z-10 h-full w-48 bg-gradient-to-r from-transparent"></div>
       <div className="flex items-center gap-2 pl-6">
         <div className="from-shark-880 to-shark-920 rounded-sm bg-gradient-to-b p-2 inset-ring-1 inset-ring-white/5 outline-1">

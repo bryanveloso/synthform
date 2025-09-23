@@ -20,7 +20,7 @@ const Item: FC<PropsWithChildren> = ({ children }) => {
 
 export const Follow = ({ event }: { event: ChannelFollowEvent }) => (
   <Item>
-    <div>{event.data.payload.user_display_name || event.data.user_name}</div>
+    <div>{event.data.payload.user_display_name || event.data.payload.user_name}</div>
     <div className="font-caps text-shark-680 text-base whitespace-nowrap">Follow</div>
   </Item>
 )
@@ -29,7 +29,7 @@ export const Subscription = ({ event }: { event: ChannelSubscribeEvent }) => (
   <Item>
     <div>
       {/* {JSON.stringify(event.data.payload)} */}
-      {event.data.payload.user_display_name || event.data.user_name}
+      {event.data.payload.user_display_name || event.data.payload.user_name}
     </div>
     <div className="font-caps text-shark-680 text-base whitespace-nowrap">Subscription</div>
   </Item>
@@ -39,7 +39,7 @@ export const SubscriptionGift = ({ event }: { event: SubscriptionGiftEvent }) =>
   <Item>
     <div>
       {/* {JSON.stringify(event.data.payload)} */}
-      {event.data.payload.user_display_name || event.data.user_name} × {event.data.payload.total}
+      {event.data.payload.user_display_name || event.data.payload.user_name} × {event.data.payload.total}
     </div>
     <div className="font-caps text-shark-680 text-base whitespace-nowrap">Gift</div>
   </Item>
@@ -49,7 +49,7 @@ export const SubscriptionMessage = ({ event }: { event: SubscriptionMessageEvent
   <Item>
     <div>
       {/* {JSON.stringify(event.data.payload)} */}
-      {event.data.payload.user_display_name || event.data.user_name}
+      {event.data.payload.user_display_name || event.data.payload.user_name}
     </div>
     <div className="font-caps text-shark-680 text-base whitespace-nowrap">
       {event.data.payload.cumulative_months} Months
@@ -84,7 +84,7 @@ export const RedemptionAdd = ({ event }: { event: ChannelPointsRedemptionEvent }
 export const Raid = ({ event }: { event: ChannelRaidEvent }) => (
   <Item>
     <div>
-      {event.data.payload.from_broadcaster_user_display_name} + {event.data.payload.viewers}
+      {event.data.payload.from_broadcaster_user_display_name || event.data.payload.from_broadcaster_user_name} + {event.data.payload.viewers}
     </div>
     <div className="font-caps text-shark-680 text-base whitespace-nowrap">Raid</div>
   </Item>

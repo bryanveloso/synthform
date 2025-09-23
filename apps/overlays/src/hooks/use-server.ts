@@ -72,7 +72,7 @@ class ServerConnection {
       import.meta.env.DEV ||
       window.location.hostname === 'localhost' ||
       window.location.hostname === 'zelan'
-    const host = import.meta.env.VITE_WS_HOST || (isDev ? 'zelan' : 'saya')
+    const host = import.meta.env.VITE_WS_HOST || (isDev ? 'synthform' : 'saya')
     const port = import.meta.env.VITE_WS_PORT || '7175'
     return `${protocol}//${host}:${port}/ws/overlay/`
   }

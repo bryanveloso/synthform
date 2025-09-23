@@ -79,7 +79,7 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
 
   // Local state for history and processing timeout
   const [alertHistory, setAlertHistory] = useState<Alert[]>([])
-  const processTimeoutRef = useRef<NodeJS.Timeout | undefined>()
+  const processTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   // Transform store alerts to include additional properties
   const alertQueue = useMemo(() => {
