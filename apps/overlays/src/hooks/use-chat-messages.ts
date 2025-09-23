@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useServer } from './use-server'
+import { useRealtimeStore } from '@/store/realtime'
 import type { ChatMessage, EmoteFragment } from '@/types/server'
 
 export type { ChatMessage, EmoteFragment }
@@ -7,45 +7,38 @@ export type { ChatMessage, EmoteFragment }
 interface UseChatMessagesOptions {
   onMessage?: (message: ChatMessage) => void
   onEmote?: (emoteId: string, emoteSetId?: string) => void
+  maxMessages?: number
 }
 
 export function useChatMessages(options: UseChatMessagesOptions = {}) {
-  const { data } = useServer(['chat:message'] as const)
+  const { onMessage, onEmote, maxMessages = 50 } = options
   const processedRef = useRef<Set<string>>(new Set())
 
-  // Destructure callbacks to use directly in dependencies
-  const { onMessage, onEmote } = options
+  // Get chat messages from store - no useEffect, no store actions on mount
+  const allMessages = useRealtimeStore((state) => state.chat.messages)
+  const isConnected = useRealtimeStore((state) => state.isConnected)
 
+  // Slice to requested max
+  const messages = allMessages.slice(-maxMessages)
+  const latestMessage = messages[messages.length - 1] || undefined
+
+  // Process new messages with callbacks
   useEffect(() => {
-    const chatMessage = data['chat:message']
-    console.log('[useChatMessages] Raw message:', chatMessage)
-    if (!chatMessage) return
+    if (!latestMessage) return
 
-    // The message IS the payload directly from the server
-    const messageKey = `${chatMessage.id || Date.now()}`
+    const messageKey = latestMessage.id || `${Date.now()}`
 
-    // Skip if we've already processed this message
+    // Skip if already processed
     if (processedRef.current.has(messageKey)) return
     processedRef.current.add(messageKey)
 
-    const message: ChatMessage = {
-      id: messageKey,
-      text: chatMessage.text || '',
-      user_name: chatMessage.user_name || 'Unknown',
-      user_display_name: chatMessage.user_display_name || chatMessage.user_name || 'Unknown',
-      fragments: chatMessage.fragments || []
-    }
+    // Call callbacks
+    onMessage?.(latestMessage)
 
-    // Call the onMessage callback if provided
-    onMessage?.(message)
-
-    // Process emotes and call onEmote for each
-    if (onEmote && message.fragments) {
-      console.log('[useChatMessages] Processing fragments:', message.fragments)
-      message.fragments.forEach(fragment => {
-        console.log('[useChatMessages] Fragment:', fragment)
+    // Process emotes
+    if (onEmote && latestMessage.fragments) {
+      latestMessage.fragments.forEach(fragment => {
         if (fragment.type === 'emote' && fragment.emote?.id) {
-          console.log('[useChatMessages] Found emote:', fragment.emote.id, 'set:', fragment.emote.emote_set_id)
           onEmote(fragment.emote.id, fragment.emote.emote_set_id)
         }
       })
@@ -56,9 +49,12 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       const entries = Array.from(processedRef.current)
       processedRef.current = new Set(entries.slice(-50))
     }
-  }, [data['chat:message'], onMessage, onEmote])
+  }, [latestMessage, onMessage, onEmote])
 
   return {
-    latestMessage: data['chat:message'] as ChatMessage | undefined
+    messages,
+    latestMessage,
+    messageCount: messages.length,
+    isConnected
   }
 }
