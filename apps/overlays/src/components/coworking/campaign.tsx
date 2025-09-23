@@ -29,7 +29,7 @@ export const Campaign: FC = () => {
           <span className="font-caps from-lime to-marigold bg-linear-to-r bg-clip-text text-xl text-transparent">
             {campaign?.name}
           </span>
-          <span className="ml-2 font-sans text-sm">
+          <span className="ml-2 font-sans text-sm tabular-nums">
             {formatDurationDisplay(totalDuration)}
           </span>
         </div>

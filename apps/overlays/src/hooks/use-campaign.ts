@@ -7,6 +7,9 @@ import type { Milestone } from '@/types/campaign'
  * Campaign data comes through WebSocket messages, no API fetching needed.
  */
 export function useCampaign() {
+  // Track current stream duration with ticker - MUST be before other hooks
+  const [currentStreamDuration, setCurrentStreamDuration] = useState(0)
+
   // Store selectors - data comes from WebSocket
   const campaign = useRealtimeStore((state) => state.campaign)
   const isConnected = useRealtimeStore((state) => state.isConnected)
@@ -25,9 +28,7 @@ export function useCampaign() {
   const totalDurationFromCompleted = campaign?.metric?.total_duration ?? 0
   const streamStartedAt = campaign?.metric?.stream_started_at ?? null
 
-  // Track current stream duration with ticker
-  const [currentStreamDuration, setCurrentStreamDuration] = useState(0)
-
+  // Update current stream duration every second
   useEffect(() => {
     if (!streamStartedAt) {
       setCurrentStreamDuration(0)

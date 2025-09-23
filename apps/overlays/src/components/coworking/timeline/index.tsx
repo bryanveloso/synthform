@@ -50,7 +50,7 @@ export const Timeline = ({ autoHideDelay = 30000, showOnNewEvents = true }: Time
   const containerRef = useRef<HTMLDivElement>(null)
   const eventRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const animatedEvents = useRef<Set<string>>(new Set())
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hideTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const lastEventCountRef = useRef(0)
 
   // Auto-hide management
