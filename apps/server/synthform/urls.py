@@ -27,8 +27,8 @@ from games.ffbot.api import router as ffbot_router
 
 from .health import health_check
 
-# Create main API instance
-api = NinjaAPI(csrf=False)
+# Create main API instance with unique namespace
+api = NinjaAPI(urls_namespace="main", csrf=False)
 
 # Add routers to main API
 api.add_router("/campaigns/", campaigns_router)
