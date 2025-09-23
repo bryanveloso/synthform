@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from asgiref.sync import sync_to_async
+from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
@@ -27,6 +29,50 @@ class CampaignService:
             return None
 
     @staticmethod
+    def _process_subscription_sync(
+        campaign: Campaign, tier: int = 1
+    ) -> tuple[Metric, int]:
+        """Synchronous helper for process_subscription."""
+        with transaction.atomic():
+            try:
+                metric = Metric.objects.select_for_update().get(campaign=campaign)
+            except Metric.DoesNotExist:
+                # Create metric if it doesn't exist
+                metric = Metric.objects.create(campaign=campaign)
+
+            # Update sub count
+            metric.total_subs = F("total_subs") + 1
+
+            # Add timer seconds if timer mode is active
+            timer_added = 0
+            if campaign.timer_mode and metric.timer_started_at:
+                if tier == 1:
+                    timer_added = campaign.seconds_per_sub
+                elif tier == 2:
+                    timer_added = campaign.seconds_per_tier2
+                elif tier == 3:
+                    timer_added = campaign.seconds_per_tier3
+
+                metric.timer_seconds_remaining = (
+                    F("timer_seconds_remaining") + timer_added
+                )
+
+            metric.save()
+
+            # Refresh to get actual values from F() expressions
+            metric.refresh_from_db()
+
+            # Apply cap if configured
+            if (
+                campaign.max_timer_seconds
+                and metric.timer_seconds_remaining > campaign.max_timer_seconds
+            ):
+                metric.timer_seconds_remaining = campaign.max_timer_seconds
+                metric.save(update_fields=["timer_seconds_remaining"])
+
+            return metric, timer_added
+
+    @staticmethod
     async def process_subscription(
         campaign: Campaign, tier: int = 1, is_gift: bool = False
     ) -> dict[str, Any]:
@@ -38,36 +84,10 @@ class CampaignService:
         if not campaign:
             return {}
 
-        try:
-            metric = await Metric.objects.select_for_update().aget(campaign=campaign)
-        except Metric.DoesNotExist:
-            # Create metric if it doesn't exist
-            metric = await Metric.objects.acreate(campaign=campaign)
-
-        # Update sub count
-        metric.total_subs = F("total_subs") + 1
-
-        # Add timer seconds if timer mode is active
-        timer_added = 0
-        if campaign.timer_mode and metric.timer_started_at:
-            if tier == 1:
-                timer_added = campaign.seconds_per_sub
-            elif tier == 2:
-                timer_added = campaign.seconds_per_tier2
-            elif tier == 3:
-                timer_added = campaign.seconds_per_tier3
-
-            metric.timer_seconds_remaining = F("timer_seconds_remaining") + timer_added
-
-            # Apply cap if configured
-            if campaign.max_timer_seconds:
-                # This needs to be done in a separate query after save
-                pass
-
-        await metric.asave()
-
-        # Refresh to get actual values
-        await metric.arefresh_from_db()
+        # Use sync_to_async for transaction operations
+        metric, timer_added = await sync_to_async(
+            CampaignService._process_subscription_sync
+        )(campaign, tier)
 
         # Check for milestone unlocks
         unlocked_milestone = await CampaignService._check_milestone_unlock(
@@ -117,19 +137,26 @@ class CampaignService:
         return result
 
     @staticmethod
+    def _process_resub_sync(campaign: Campaign) -> Metric:
+        """Synchronous helper for process_resub."""
+        with transaction.atomic():
+            try:
+                metric = Metric.objects.select_for_update().get(campaign=campaign)
+            except Metric.DoesNotExist:
+                metric = Metric.objects.create(campaign=campaign)
+
+            metric.total_resubs = F("total_resubs") + 1
+            metric.save()
+            metric.refresh_from_db()
+            return metric
+
+    @staticmethod
     async def process_resub(campaign: Campaign) -> dict[str, Any]:
         """Process a resub message for the campaign."""
         if not campaign:
             return {}
 
-        try:
-            metric = await Metric.objects.select_for_update().aget(campaign=campaign)
-        except Metric.DoesNotExist:
-            metric = await Metric.objects.acreate(campaign=campaign)
-
-        metric.total_resubs = F("total_resubs") + 1
-        await metric.asave()
-        await metric.arefresh_from_db()
+        metric = await sync_to_async(CampaignService._process_resub_sync)(campaign)
 
         return {
             "campaign_id": str(campaign.id),
@@ -138,19 +165,26 @@ class CampaignService:
         }
 
     @staticmethod
+    def _process_bits_sync(campaign: Campaign, bits: int) -> Metric:
+        """Synchronous helper for process_bits."""
+        with transaction.atomic():
+            try:
+                metric = Metric.objects.select_for_update().get(campaign=campaign)
+            except Metric.DoesNotExist:
+                metric = Metric.objects.create(campaign=campaign)
+
+            metric.total_bits = F("total_bits") + bits
+            metric.save()
+            metric.refresh_from_db()
+            return metric
+
+    @staticmethod
     async def process_bits(campaign: Campaign, bits: int) -> dict[str, Any]:
         """Process a bits cheer for the campaign."""
         if not campaign:
             return {}
 
-        try:
-            metric = await Metric.objects.select_for_update().aget(campaign=campaign)
-        except Metric.DoesNotExist:
-            metric = await Metric.objects.acreate(campaign=campaign)
-
-        metric.total_bits = F("total_bits") + bits
-        await metric.asave()
-        await metric.arefresh_from_db()
+        metric = await sync_to_async(CampaignService._process_bits_sync)(campaign, bits)
 
         return {
             "campaign_id": str(campaign.id),
@@ -181,28 +215,35 @@ class CampaignService:
         return None
 
     @staticmethod
+    def _start_timer_sync(campaign: Campaign) -> Metric:
+        """Synchronous helper for start_timer."""
+        with transaction.atomic():
+            try:
+                metric = Metric.objects.select_for_update().get(campaign=campaign)
+            except Metric.DoesNotExist:
+                metric = Metric.objects.create(campaign=campaign)
+
+            # Initialize or add to timer
+            if not metric.timer_started_at:
+                metric.timer_seconds_remaining = campaign.timer_initial_seconds
+            else:
+                metric.timer_seconds_remaining = (
+                    F("timer_seconds_remaining") + campaign.timer_initial_seconds
+                )
+
+            metric.timer_started_at = timezone.now()
+            metric.timer_paused_at = None
+            metric.save()
+            metric.refresh_from_db()
+            return metric
+
+    @staticmethod
     async def start_timer(campaign: Campaign) -> dict[str, Any]:
         """Start or restart the subathon timer."""
         if not campaign or not campaign.timer_mode:
             return {"error": "Campaign does not have timer mode enabled"}
 
-        try:
-            metric = await Metric.objects.select_for_update().aget(campaign=campaign)
-        except Metric.DoesNotExist:
-            metric = await Metric.objects.acreate(campaign=campaign)
-
-        # Initialize or add to timer
-        if not metric.timer_started_at:
-            metric.timer_seconds_remaining = campaign.timer_initial_seconds
-        else:
-            metric.timer_seconds_remaining = (
-                F("timer_seconds_remaining") + campaign.timer_initial_seconds
-            )
-
-        metric.timer_started_at = timezone.now()
-        metric.timer_paused_at = None
-        await metric.asave()
-        await metric.arefresh_from_db()
+        metric = await sync_to_async(CampaignService._start_timer_sync)(campaign)
 
         return {
             "campaign_id": str(campaign.id),
@@ -211,23 +252,53 @@ class CampaignService:
         }
 
     @staticmethod
+    def _pause_timer_sync(campaign: Campaign) -> Metric | None:
+        """Synchronous helper for pause_timer."""
+        with transaction.atomic():
+            try:
+                metric = Metric.objects.select_for_update().get(campaign=campaign)
+                metric.timer_paused_at = timezone.now()
+                metric.save()
+                return metric
+            except Metric.DoesNotExist:
+                return None
+
+    @staticmethod
     async def pause_timer(campaign: Campaign) -> dict[str, Any]:
         """Pause the subathon timer."""
         if not campaign or not campaign.timer_mode:
             return {"error": "Campaign does not have timer mode enabled"}
 
-        try:
-            metric = await Metric.objects.aget(campaign=campaign)
-            metric.timer_paused_at = timezone.now()
-            await metric.asave()
+        metric = await sync_to_async(CampaignService._pause_timer_sync)(campaign)
 
+        if metric:
             return {
                 "campaign_id": str(campaign.id),
                 "timer_paused": True,
                 "timer_seconds_remaining": metric.timer_seconds_remaining,
             }
-        except Metric.DoesNotExist:
-            return {"error": "No metric found for campaign"}
+
+        return {"error": "No metric found for campaign"}
+
+    @staticmethod
+    def _update_vote_sync(campaign: Campaign, option: str, votes: int = 1) -> Metric:
+        """Synchronous helper for update_vote."""
+        with transaction.atomic():
+            try:
+                metric = Metric.objects.select_for_update().get(campaign=campaign)
+            except Metric.DoesNotExist:
+                metric = Metric.objects.create(campaign=campaign)
+
+            # Initialize voting data if not present
+            if "ffxiv_votes" not in metric.extra_data:
+                metric.extra_data["ffxiv_votes"] = {}
+
+            # Update vote count
+            current_votes = metric.extra_data["ffxiv_votes"].get(option, 0)
+            metric.extra_data["ffxiv_votes"][option] = current_votes + votes
+
+            metric.save()
+            return metric
 
     @staticmethod
     async def update_vote(
@@ -243,20 +314,9 @@ class CampaignService:
         if not campaign:
             return {}
 
-        try:
-            metric = await Metric.objects.select_for_update().aget(campaign=campaign)
-        except Metric.DoesNotExist:
-            metric = await Metric.objects.acreate(campaign=campaign)
-
-        # Initialize voting data if not present
-        if "ffxiv_votes" not in metric.extra_data:
-            metric.extra_data["ffxiv_votes"] = {}
-
-        # Update vote count
-        current_votes = metric.extra_data["ffxiv_votes"].get(option, 0)
-        metric.extra_data["ffxiv_votes"][option] = current_votes + votes
-
-        await metric.asave()
+        metric = await sync_to_async(CampaignService._update_vote_sync)(
+            campaign, option, votes
+        )
 
         return {
             "campaign_id": str(campaign.id),
