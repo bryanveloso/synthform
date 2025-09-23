@@ -425,6 +425,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Alert layer - starts with empty queue
         await self._send_message("alerts", "sync", [])
 
+        # Campaign layer - get active campaign
+        campaign_state = await self._get_campaign_state()
+        if campaign_state:
+            await self._send_message("campaign", "sync", campaign_state)
+
         # Limit break layer - get current state
         limit_break_state = await self._get_limit_break_state()
         # Always send sync message, even if state is empty
@@ -726,6 +731,93 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         except Exception as e:
             logger.error(f"Error getting music state: {e}")
+            return None
+
+    async def _get_campaign_state(self) -> dict | None:
+        """Get current campaign state with metrics and milestones."""
+        from campaigns.models import Campaign, Metric, Milestone
+
+        try:
+            # Get active campaign
+            campaign = await Campaign.objects.filter(is_active=True).afirst()
+            if not campaign:
+                logger.info("No active campaign found")
+                return None
+
+            # Get metric
+            try:
+                metric = await Metric.objects.select_related("campaign").aget(
+                    campaign=campaign
+                )
+            except Metric.DoesNotExist:
+                # Create metric if it doesn't exist
+                metric = await Metric.objects.acreate(campaign=campaign)
+
+            # Get milestones
+            milestones = []
+            async for milestone in Milestone.objects.filter(campaign=campaign).order_by(
+                "threshold"
+            ):
+                milestones.append(
+                    {
+                        "id": str(milestone.id),
+                        "threshold": milestone.threshold,
+                        "title": milestone.title,
+                        "description": milestone.description,
+                        "is_unlocked": milestone.is_unlocked,
+                        "unlocked_at": milestone.unlocked_at.isoformat()
+                        if milestone.unlocked_at
+                        else None,
+                        "image_url": milestone.image_url,
+                    }
+                )
+
+            campaign_data = {
+                "id": str(campaign.id),
+                "name": campaign.name,
+                "slug": campaign.slug,
+                "description": campaign.description,
+                "start_date": campaign.start_date.isoformat()
+                if campaign.start_date
+                else None,
+                "end_date": campaign.end_date.isoformat()
+                if campaign.end_date
+                else None,
+                "is_active": campaign.is_active,
+                "timer_mode": campaign.timer_mode,
+                "timer_initial_seconds": campaign.timer_initial_seconds,
+                "seconds_per_sub": campaign.seconds_per_sub,
+                "seconds_per_tier2": campaign.seconds_per_tier2,
+                "seconds_per_tier3": campaign.seconds_per_tier3,
+                "max_timer_seconds": campaign.max_timer_seconds,
+                "metric": {
+                    "id": str(metric.id),
+                    "total_subs": metric.total_subs,
+                    "total_resubs": metric.total_resubs,
+                    "total_bits": metric.total_bits,
+                    "total_donations": float(metric.total_donations),
+                    "timer_seconds_remaining": metric.timer_seconds_remaining,
+                    "timer_started_at": metric.timer_started_at.isoformat()
+                    if metric.timer_started_at
+                    else None,
+                    "timer_paused_at": metric.timer_paused_at.isoformat()
+                    if metric.timer_paused_at
+                    else None,
+                    "extra_data": metric.extra_data,
+                    "updated_at": metric.updated_at.isoformat()
+                    if metric.updated_at
+                    else None,
+                },
+                "milestones": milestones,
+            }
+
+            logger.info(
+                f"Sending campaign sync: {campaign.name} with {len(milestones)} milestones"
+            )
+            return campaign_data
+
+        except Exception as e:
+            logger.error(f"Error getting campaign state: {e}")
             return None
 
     async def _get_status_state(self) -> dict | None:
