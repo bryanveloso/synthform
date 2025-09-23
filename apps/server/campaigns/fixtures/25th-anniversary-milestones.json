@@ -8,198 +8,176 @@
     {
       "threshold": 25,
       "title": "Anniversary Edition Ava Reveal",
-      "description": "The reveal of a new 'Anniversary Edition' Ava!",
-      "announcement_text": "🎉 NEW AVA UNLOCKED! Check out the Anniversary Edition design!"
+      "description": "The reveal of a new \"Anniversary Edition\" Ava!"
     },
     {
       "threshold": 50,
       "title": "Pineapple on Pizza",
-      "description": "Bryan plays Pineapple on Pizza (It's 10-15min and free on Steam.)",
-      "announcement_text": "🍕 Time for some controversial pizza gameplay!"
+      "description": "Bryan plays Pineapple on Pizza (It's 10-15min and free on Steam.)"
     },
     {
       "threshold": 75,
       "title": "New Standard Emotes",
-      "description": "New standard emotes featuring Ava's new design using suggestions from Discord!",
-      "announcement_text": "✨ NEW EMOTES incoming! Ava's anniversary design in emote form!"
+      "description": "New standard emotes featuring Ava's new design using suggestions you made in the Discord thread!"
     },
     {
       "threshold": 100,
       "title": "New Animated Emotes",
-      "description": "New animated emotes featuring Ava's new design! These will take Aivy more time to finish.",
-      "announcement_text": "🎬 ANIMATED EMOTES unlocked! These will roll out as they're completed!"
+      "description": "New animated emotes featuring Ava's new design using suggestions you made in the Discord thread! These will take Aivy substantially more time to finish so they will come in as the celebration rolls on."
     },
     {
       "threshold": 125,
       "title": "Guild Wars 2 Solo Run",
-      "description": "Bryan begins a Solo Run of Guild Wars 2.",
-      "announcement_text": "⚔️ GUILD WARS 2 solo adventure begins!"
+      "description": "Bryan begins a Solo Run of Guild Wars 2."
     },
     {
       "threshold": 150,
       "title": "UFO 50",
-      "description": "Bryan plays UFO 50. :bardHop:",
-      "announcement_text": "👾 UFO 50 TIME! 50 games in one!"
+      "description": "Bryan plays UFO 50. :bardHop:"
     },
     {
       "threshold": 175,
       "title": "Cursed Halo 1",
-      "description": "Bryan plays Cursed Halo 1 (with Will).",
-      "announcement_text": "💀 CURSED HALO with Will! This is going to be chaos!"
+      "description": "Bryan plays Cursed Halo 1 (with Will)."
     },
     {
       "threshold": 200,
       "title": "Jackbox Collection Party",
-      "description": "Jackbox Collection Party with the community!",
-      "announcement_text": "🎮 JACKBOX PARTY TIME! Get ready to join!"
+      "description": "Jackbox Collection Party with the community!"
     },
     {
       "threshold": 225,
       "title": "Lands of Lore: The Throne of Chaos",
-      "description": "Bryan plays Lands of Lore: The Throne of Chaos. UNFINISHED BUSINESS - a game that scared Bryan off dungeon crawlers in his youth.",
-      "announcement_text": "🏰 Time to face childhood fears - LANDS OF LORE!"
+      "description": "Bryan plays Lands of Lore: The Throne of Chaos. (UNFINISHED BUSINESS.) This is a game that scared Bryan off of dungeon crawlers in general in his youth."
     },
     {
       "threshold": 250,
       "title": "Mighty No. 9",
-      "description": "Bryan replays Mighty No. 9 (not to be confused with CR's Mighty Nein)",
-      "announcement_text": "🤖 MIGHTY NO. 9 - Let's give it another shot!"
+      "description": "Bryan replays Mighty No. 9 (not to be confused with CR's Mighty Nein)"
     },
     {
       "threshold": 275,
       "title": "Hollow Knight Randomizer",
-      "description": "Hollow Knight Randomizer run!",
-      "announcement_text": "🦗 HOLLOW KNIGHT RANDOMIZER! Everything is chaos!"
+      "description": "Hollow Knight Randomizer!"
     },
     {
       "threshold": 300,
       "title": "Hollow Knight Archipelago",
-      "description": "Hollow Knight Archipelago with Spoonee!",
-      "announcement_text": "🏝️ HOLLOW KNIGHT ARCHIPELAGO with Spoonee!"
+      "description": "Hollow Knight Archipelago with Spoonee!"
     },
     {
       "threshold": 325,
       "title": "Kaizo IronMON Returns",
-      "description": "Bryan Returns to Kaizo IronMON runs.",
-      "announcement_text": "⚡ KAIZO IRONMON IS BACK! Maximum difficulty Pokémon!"
+      "description": "Bryan Returns to Kaizo IronMON runs."
     },
     {
       "threshold": 350,
       "title": "Workshop Streams",
-      "description": "Workshop streams! (When Bryan's house is officially done being renovated, of course.)",
-      "announcement_text": "🔨 WORKSHOP STREAMS unlocked! Coming when the renovation is done!"
+      "description": "Workshop streams! (When Bryan's house is officially done being renovated, of course.)"
     },
     {
       "threshold": 375,
       "title": "GRIME",
-      "description": "Bryan plays GRIME. We could be persuaded to add an incentive for the super boss.",
-      "announcement_text": "💀 GRIME TIME! Surreal action-adventure awaits!"
+      "description": "Bryan plays GRIME."
     },
     {
       "threshold": 400,
       "title": "Minecraft Dig Race",
-      "description": "Bryan races his white self, aka Tom (Pldknight), in Minecraft to see who can dig down the fastest.",
-      "announcement_text": "⛏️ MINECRAFT DIG RACE! Bryan vs Tom - who reaches bedrock first?"
+      "description": "Bryan races his white self, aka Tom (Pldknight), in Minecraft to see who can dig down the fastest."
     },
     {
       "threshold": 425,
       "title": "REPO",
-      "description": "Bryan plays REPO with the community.",
-      "announcement_text": "📦 REPO with the community! Multiplayer mayhem!"
+      "description": "Bryan plays REPO with the community."
     },
     {
       "threshold": 450,
       "title": "Puzzle Agent",
-      "description": "Bryan plays Puzzle Agent.",
-      "announcement_text": "🔍 PUZZLE AGENT! Mystery and puzzles in Scoggins, Minnesota!"
+      "description": "Bryan plays Puzzle Agent."
     },
     {
       "threshold": 475,
       "title": "Dark Souls 2 Randomizer",
-      "description": "Bryan subjects himself to the Dark Souls 2 Randomizer.",
-      "announcement_text": "⚔️ DARK SOULS 2 RANDOMIZER! Pure masochism mode activated!"
+      "description": "Bryan subjects himself to the Dark Souls 2 Randomizer."
     },
     {
       "threshold": 500,
       "title": "100 DDR Songs",
-      "description": "Bryan does 100 DDR Songs (like old times!) Over the course of hours/days within the subathon. Bryan's excuse to get back in shape.",
-      "announcement_text": "💃 100 DDR SONGS! Time to dance like it's 2005!"
+      "description": "Bryan does 100 DDR Songs (like old times!) Don't worry Bryan will take breaks between songs. This will be over the course of hours, maybe days within the subathon. It might go over. It probably will. This is Bryan's excuse to get back in shape, and will be scheduled after he's moved back into his office."
     },
     {
       "threshold": 525,
-      "title": "Sekiro Returns",
-      "description": "Bryan returns to Sekiro. UNFINISHED BUSINESS: We will have our revenge Owl!",
-      "announcement_text": "🗡️ SEKIRO RETURNS! Owl, your time has come!"
+      "title": "GRIME Superboss",
+      "description": "Bryan challenges the GRIME superboss."
     },
     {
       "threshold": 550,
-      "title": "Chicken Nuggets Overlay",
-      "description": "Bryan brings back the Chicken Nuggets falling on stream for gift subs! (Subathon Edition)",
-      "announcement_text": "🍗 CHICKEN NUGGETS ARE BACK! Nuggets rain for every gift sub!"
+      "title": "Sekiro Returns",
+      "description": "Bryan returns to Sekiro. (UNFINISHED BUSINESS: We will have our revenge Owl!)"
     },
     {
       "threshold": 575,
-      "title": "Date Everything",
-      "description": "Bryan plays Date Everything!",
-      "announcement_text": "💝 DATE EVERYTHING! Romance literally anything!"
+      "title": "Chicken Nuggets Overlay",
+      "description": "Bryan brings back the Chicken Nuggets falling on stream for gift subs! (Subathon Edition)"
     },
     {
       "threshold": 600,
       "title": "Bizhawk Shuffler",
-      "description": "Bizhawk Shuffler - Bryan Edition (Gift subs can add games to the shuffler.)",
-      "announcement_text": "🎰 BIZHAWK SHUFFLER! Retro game chaos - gifters choose games!"
+      "description": "Bizhawk Shuffler - Bryan Edition (Gift subs can add games to the shuffler.)"
     },
     {
       "threshold": 625,
-      "title": "TBD #1",
-      "description": "To be determined if we get this far!",
-      "announcement_text": "🎯 625 SUBS! Milestone to be revealed!"
+      "title": "Date Everything",
+      "description": "Bryan plays Date Everything!"
     },
     {
       "threshold": 650,
-      "title": "TBD #2",
-      "description": "To be determined if we get this far!",
-      "announcement_text": "🎯 650 SUBS! Milestone to be revealed!"
+      "title": "Renovated House Cooking Stream",
+      "description": "RENOVATED HOUSE COOKING STREAM! 🍪"
     },
     {
       "threshold": 675,
-      "title": "TBD #3",
-      "description": "To be determined if we get this far!",
-      "announcement_text": "🎯 675 SUBS! Milestone to be revealed!"
+      "title": "Celeste",
+      "description": "Bryan plays Celeste."
     },
     {
       "threshold": 700,
       "title": "Rondo of Octobervania",
-      "description": "We redo Octobervania, and Bryan doesn't get to skip Rondo this time!",
-      "announcement_text": "🦇 RONDO OF OCTOBERVANIA! No skipping allowed!"
+      "description": "Rondo of Octobervania — We redo Octobervania, and I don't get to skip Rondo this time!"
     },
     {
       "threshold": 725,
-      "title": "TBD #4",
-      "description": "To be determined if we get this far!",
-      "announcement_text": "🎯 725 SUBS! Milestone to be revealed!"
+      "title": "Crowd Control Game",
+      "description": "Chat votes on Bryan's first Crowd Control game."
     },
     {
       "threshold": 750,
       "title": "Xenoblade Chronicles X",
-      "description": "Bryan plays Xenoblade Chronicles X. (And Bryan cannot turn the background music off.)",
-      "announcement_text": "🤖 XENOBLADE CHRONICLES X! Music stays ON!"
+      "description": "Bryan plays Xenoblade Chronicles X. (And Bryan cannot turn the background music off.)"
     },
     {
       "threshold": 777,
       "title": "Speedrun PB",
-      "description": "Bryan derusts his Speedrunning skills and gets a new PB.",
-      "announcement_text": "🏃 SPEEDRUN TIME! Bryan hunts for a new personal best!"
+      "description": "Bryan derusts his speedrunning skills and gets a new PB."
     },
     {
-      "threshold": 1000,
+      "threshold": 888,
+      "title": "Celeste C-Sides",
+      "description": "Bryan challenges the Celeste C-Sides (if Bryan completes Celeste with a positive impression)."
+    },
+    {
+      "threshold": 999,
+      "title": "New Speedrun",
+      "description": "Bryan learns a new speedrun."
+    },
+    {
+      "threshold": 1111,
       "title": "Final Fantasy One-Shot",
-      "description": "Bryan DMs a Final Fantasy One-Shot.",
-      "announcement_text": "🎲 THE ULTIMATE GOAL! Bryan DMs a Final Fantasy tabletop one-shot!"
+      "description": "Bryan DMs a Final Fantasy One-Shot."
     }
   ],
   "metadata": {
-    "total_milestones": 33,
-    "max_threshold": 1000
+    "total_milestones": 35,
+    "max_threshold": 1111
   }
 }

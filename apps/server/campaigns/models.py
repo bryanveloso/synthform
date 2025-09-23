@@ -59,7 +59,6 @@ class Milestone(models.Model):
 
     # Optional media
     image_url = models.URLField(blank=True)
-    announcement_text = models.TextField(blank=True)  # Custom unlock message
 
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)

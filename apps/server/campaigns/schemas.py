@@ -18,7 +18,6 @@ class MilestoneResponse(BaseModel):
     is_unlocked: bool
     unlocked_at: datetime | None
     image_url: str
-    announcement_text: str
 
 
 class MetricResponse(BaseModel):

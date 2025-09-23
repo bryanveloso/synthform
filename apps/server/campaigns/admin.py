@@ -108,7 +108,7 @@ class MilestoneAdmin(admin.ModelAdmin):
         ("Status", {"fields": ("is_unlocked", "unlocked_at")}),
         (
             "Media",
-            {"fields": ("image_url", "announcement_text"), "classes": ("collapse",)},
+            {"fields": ("image_url",), "classes": ("collapse",)},
         ),
         (
             "Metadata",

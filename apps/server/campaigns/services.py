@@ -88,7 +88,6 @@ class CampaignService:
                 "threshold": unlocked_milestone.threshold,
                 "title": unlocked_milestone.title,
                 "description": unlocked_milestone.description,
-                "announcement_text": unlocked_milestone.announcement_text,
             }
             logger.info(
                 f"🎉 Milestone unlocked! {unlocked_milestone.threshold}: {unlocked_milestone.title}"

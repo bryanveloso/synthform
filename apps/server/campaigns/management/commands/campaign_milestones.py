@@ -117,7 +117,6 @@ class Command(BaseCommand):
                     "description": description,
                     "is_unlocked": milestone_data.get("is_unlocked", False),
                     "image_url": milestone_data.get("image_url", ""),
-                    "announcement_text": milestone_data.get("announcement_text", ""),
                 }
 
                 milestone, created = Milestone.objects.update_or_create(
@@ -153,8 +152,6 @@ class Command(BaseCommand):
             # Only include optional fields if they have values
             if milestone.image_url:
                 milestone_dict["image_url"] = milestone.image_url
-            if milestone.announcement_text:
-                milestone_dict["announcement_text"] = milestone.announcement_text
 
             milestones_data.append(milestone_dict)
 
