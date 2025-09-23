@@ -40,7 +40,8 @@ class Campaign(models.Model):
         from streams.models import Session
 
         return Session.objects.filter(
-            session_date__gte=self.start_date, session_date__lte=self.end_date
+            session_date__gte=self.start_date.date(),
+            session_date__lte=self.end_date.date(),
         )
 
     def calculate_total_duration(self):
