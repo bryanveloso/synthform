@@ -694,11 +694,12 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
 
-        # Track campaign metrics
+        # Track campaign metrics - only for direct subscriptions (not gifts)
+        # Gift subscriptions are counted in _handle_channel_subscription_gift
         active_campaign = await campaign_service.get_active_campaign()
-        if active_campaign:
+        if active_campaign and not payload.gift:
             campaign_result = await campaign_service.process_subscription(
-                active_campaign, tier=payload.tier, is_gift=payload.gift
+                active_campaign, tier=payload.tier, is_gift=False
             )
 
             # Add campaign data to payload for Redis
