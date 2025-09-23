@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useRealtimeStore } from '@/store/realtime'
 import type { Milestone } from '@/types/campaign'
 
@@ -22,8 +22,36 @@ export function useCampaign() {
   const totalResubs = campaign?.metric?.total_resubs ?? 0
   const totalBits = campaign?.metric?.total_bits ?? 0
   const timerSeconds = campaign?.metric?.timer_seconds_remaining ?? 0
-  const totalDuration = campaign?.metric?.total_duration ?? 0
+  const totalDurationFromCompleted = campaign?.metric?.total_duration ?? 0
   const streamStartedAt = campaign?.metric?.stream_started_at ?? null
+
+  // Track current stream duration with ticker
+  const [currentStreamDuration, setCurrentStreamDuration] = useState(0)
+
+  useEffect(() => {
+    if (!streamStartedAt) {
+      setCurrentStreamDuration(0)
+      return
+    }
+
+    // Calculate initial duration
+    const startTime = new Date(streamStartedAt).getTime()
+    const updateDuration = () => {
+      const duration = Math.floor((Date.now() - startTime) / 1000)
+      setCurrentStreamDuration(duration)
+    }
+
+    // Set initial value
+    updateDuration()
+
+    // Update every second
+    const interval = setInterval(updateDuration, 1000)
+
+    return () => clearInterval(interval)
+  }, [streamStartedAt])
+
+  // Total duration includes completed sessions + current stream
+  const totalDuration = totalDurationFromCompleted + currentStreamDuration
 
   // Computed: Timer state
   const timerStarted = campaign?.metric?.timer_started_at != null
