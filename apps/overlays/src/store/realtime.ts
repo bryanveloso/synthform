@@ -27,6 +27,65 @@ import type {
 } from '@/types/campaign'
 import { serverConnection } from '@/hooks/use-server'
 
+// Raw event interface for transformation
+interface RawEvent {
+  event_id?: string
+  id?: string
+  event_type?: string
+  type?: string
+  source?: string
+  timestamp?: string
+  username?: string
+  payload?: Record<string, any>
+  data?: {
+    timestamp: string
+    payload: Record<string, any>
+    user_name?: string
+  }
+}
+
+// Transform raw events to TimelineEvent format
+function transformTimelineEvent(rawEvent: RawEvent): TimelineEvent {
+  // If it already has the correct structure (from database), return as-is
+  if (rawEvent.type && rawEvent.type.includes('.') && rawEvent.data) {
+    return rawEvent as TimelineEvent
+  }
+
+  // Transform raw event from Redis
+  const source = rawEvent.source || 'twitch'
+  let eventType = rawEvent.event_type || rawEvent.type || ''
+
+  // Handle consolidated chat.notification events from Twitch
+  // These come through with a notice_type that tells us the real event type
+  if (eventType === 'channel.chat.notification' && rawEvent.payload?.notice_type) {
+    const noticeTypeMap: Record<string, string> = {
+      'sub': 'channel.subscribe',
+      'resub': 'channel.subscription.message',
+      'sub_gift': 'channel.subscription.gift',
+      'community_sub_gift': 'channel.subscription.gift',
+      'gift_paid_upgrade': 'channel.subscription.gift',
+      'prime_paid_upgrade': 'channel.subscribe',
+      'raid': 'channel.raid',
+      'unraid': 'channel.raid',
+      'pay_it_forward': 'channel.subscription.gift',
+      'announcement': 'channel.announcement',
+      'bits_badge_tier': 'channel.cheer',
+      'charity_donation': 'channel.charity_donation',
+    }
+    eventType = noticeTypeMap[rawEvent.payload.notice_type] || eventType
+  }
+
+  return {
+    id: rawEvent.event_id || rawEvent.id || `${Date.now()}`,
+    type: `${source}.${eventType}`,
+    data: {
+      timestamp: rawEvent.timestamp || new Date().toISOString(),
+      payload: rawEvent.payload || {},
+      user_name: rawEvent.username || rawEvent.payload?.user_name || 'Unknown',
+    },
+  } as TimelineEvent
+}
+
 // Alert queue state from use-alerts
 interface AlertQueueState {
   currentAlert: AlertData | null
@@ -54,6 +113,7 @@ interface FFBotState {
 interface TimelineState {
   events: TimelineEvent[]
   latestEvent: TimelineEvent | null
+  maxEvents: number
 }
 
 // Chat state
@@ -125,6 +185,8 @@ interface RealtimeStore {
   // Timeline actions
   addTimelineEvent: (event: TimelineEvent) => void
   syncTimeline: (events: TimelineEvent[]) => void
+  clearTimeline: () => void
+  setTimelineMaxEvents: (max: number) => void
 
   // Chat actions
   addChatMessage: (message: ChatMessage) => void
@@ -158,6 +220,7 @@ export const useRealtimeStore = create<RealtimeStore>()(
     timeline: {
       events: [],
       latestEvent: null,
+      maxEvents: 10,
     },
 
     // Chat initial state
@@ -388,21 +451,62 @@ export const useRealtimeStore = create<RealtimeStore>()(
 
     // Timeline actions
     addTimelineEvent: (event) => {
+      set((state) => {
+        // Transform the event if needed
+        const transformedEvent = transformTimelineEvent(event as any)
+
+        // Add to beginning and trim to max
+        const events = [transformedEvent, ...state.timeline.events].slice(
+          0,
+          state.timeline.maxEvents
+        )
+
+        return {
+          timeline: {
+            ...state.timeline,
+            events,
+            latestEvent: transformedEvent,
+          },
+        }
+      })
+    },
+
+    syncTimeline: (events) => {
+      set((state) => {
+        // Transform all events and slice to max
+        const rawEvents = Array.isArray(events) ? events : [events]
+        const transformedEvents = rawEvents
+          .map((e) => transformTimelineEvent(e as any))
+          .slice(0, state.timeline.maxEvents)
+
+        return {
+          timeline: {
+            ...state.timeline,
+            events: transformedEvents,
+            latestEvent: transformedEvents[0] || null,
+          },
+        }
+      })
+    },
+
+    clearTimeline: () => {
       set((state) => ({
         timeline: {
-          events: [...state.timeline.events, event],
-          latestEvent: event,
+          ...state.timeline,
+          events: [],
+          latestEvent: null,
         },
       }))
     },
 
-    syncTimeline: (events) => {
-      set({
+    setTimelineMaxEvents: (max) => {
+      set((state) => ({
         timeline: {
-          events,
-          latestEvent: events[events.length - 1] || null,
+          ...state.timeline,
+          maxEvents: max,
+          events: state.timeline.events.slice(0, max),
         },
-      })
+      }))
     },
 
     // Chat actions
