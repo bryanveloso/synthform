@@ -8,6 +8,18 @@ from django.db import models
 class Session(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session_date = models.DateField(unique=True, db_index=True)
+
+    # Stream timing fields
+    started_at = models.DateTimeField(
+        null=True, blank=True, help_text="When the stream went live"
+    )
+    ended_at = models.DateTimeField(
+        null=True, blank=True, help_text="When the stream went offline"
+    )
+    duration = models.IntegerField(
+        default=0, help_text="Total seconds streamed in this session"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -15,6 +27,19 @@ class Session(models.Model):
     def stream_session_id(self):
         """Generates the stream_YYYY_MM_DD format from the session_date."""
         return f"stream_{self.session_date.strftime('%Y_%m_%d')}"
+
+    @property
+    def is_live(self):
+        """Check if this session is currently live."""
+        return self.started_at is not None and self.ended_at is None
+
+    def calculate_duration(self):
+        """Calculate and update duration based on start/end times."""
+        if self.started_at and self.ended_at:
+            delta = self.ended_at - self.started_at
+            self.duration = int(delta.total_seconds())
+            return self.duration
+        return 0
 
     def __str__(self):
         return self.stream_session_id

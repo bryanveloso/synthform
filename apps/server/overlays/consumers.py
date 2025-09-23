@@ -735,7 +735,9 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
     async def _get_campaign_state(self) -> dict | None:
         """Get current campaign state with metrics and milestones."""
-        from campaigns.models import Campaign, Metric, Milestone
+        from campaigns.models import Campaign
+        from campaigns.models import Metric
+        from campaigns.models import Milestone
 
         try:
             # Get active campaign
@@ -772,6 +774,16 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     }
                 )
 
+            # Calculate total duration and get current session info
+            from channels.db import database_sync_to_async
+
+            total_duration = await database_sync_to_async(
+                campaign.calculate_total_duration
+            )()
+            current_session_start = await database_sync_to_async(
+                campaign.get_current_session_start
+            )()
+
             campaign_data = {
                 "id": str(campaign.id),
                 "name": campaign.name,
@@ -807,12 +819,16 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     "updated_at": metric.updated_at.isoformat()
                     if metric.updated_at
                     else None,
+                    "total_duration": total_duration,
+                    "stream_started_at": current_session_start.isoformat()
+                    if current_session_start
+                    else None,
                 },
                 "milestones": milestones,
             }
 
             logger.info(
-                f"Sending campaign sync: {campaign.name} with {len(milestones)} milestones"
+                f"Sending campaign sync: {campaign.name} with {len(milestones)} milestones, duration: {total_duration}s"
             )
             return campaign_data
 

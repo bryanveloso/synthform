@@ -832,6 +832,21 @@ class TwitchEventHandler:
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
+
+        # Track session start
+        from django.utils import timezone
+
+        from streams.models import Session
+
+        today = timezone.now().date()
+        session, created = await Session.objects.aget_or_create(
+            session_date=today, defaults={"started_at": payload.started_at}
+        )
+        if not created and not session.started_at:
+            # If session exists but hasn't been started yet today
+            session.started_at = payload.started_at
+            await session.asave()
+
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(f"Processed StreamOnline: {payload.broadcaster.name} went live")
 
@@ -843,6 +858,23 @@ class TwitchEventHandler:
         }
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
+
+        # Track session end
+        from django.utils import timezone
+
+        from streams.models import Session
+
+        today = timezone.now().date()
+        try:
+            session = await Session.objects.aget(session_date=today)
+            if session.started_at and not session.ended_at:
+                session.ended_at = timezone.now()
+                session.duration = session.calculate_duration()
+                await session.asave()
+                logger.info(f"Session ended with duration: {session.duration} seconds")
+        except Session.DoesNotExist:
+            logger.warning(f"No session found for {today} when stream went offline")
+
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(f"Processed StreamOffline: {payload.broadcaster.name} went offline")
 

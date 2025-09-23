@@ -104,6 +104,122 @@ class CampaignModelTest(TestCase):
         active_campaigns = Campaign.objects.filter(is_active=True)
         self.assertEqual(active_campaigns.count(), 2)
 
+    def test_get_sessions(self):
+        """Test getting sessions within campaign date range."""
+        from streams.models import Session
+
+        # Create sessions - some within range, some outside
+        yesterday = timezone.now().date() - timedelta(days=1)
+        today = timezone.now().date()
+        next_week = timezone.now().date() + timedelta(days=8)
+
+        # Within campaign range
+        session1 = Session.objects.create(session_date=today)
+        session2 = Session.objects.create(session_date=today + timedelta(days=3))
+
+        # Outside campaign range
+        Session.objects.create(session_date=yesterday)
+        Session.objects.create(session_date=next_week)
+
+        sessions = self.campaign.get_sessions()
+        self.assertEqual(sessions.count(), 2)
+        self.assertIn(session1, sessions)
+        self.assertIn(session2, sessions)
+
+    def test_calculate_total_duration_no_sessions(self):
+        """Test calculating total duration with no sessions."""
+        total = self.campaign.calculate_total_duration()
+        self.assertEqual(total, 0)
+
+    def test_calculate_total_duration_completed_sessions(self):
+        """Test calculating total duration with completed sessions."""
+        from streams.models import Session
+
+        # Create completed sessions with durations
+        today = timezone.now().date()
+        session1 = Session.objects.create(
+            session_date=today,
+            started_at=timezone.now() - timedelta(hours=5),
+            ended_at=timezone.now() - timedelta(hours=3),
+            duration=7200,  # 2 hours
+        )
+        session2 = Session.objects.create(
+            session_date=today + timedelta(days=1),
+            started_at=timezone.now() - timedelta(hours=10),
+            ended_at=timezone.now() - timedelta(hours=7),
+            duration=10800,  # 3 hours
+        )
+
+        total = self.campaign.calculate_total_duration()
+        self.assertEqual(total, 18000)  # 5 hours total
+
+    def test_calculate_total_duration_with_live_session(self):
+        """Test calculating total duration including a live session."""
+        from streams.models import Session
+
+        # Create a completed session within campaign range
+        today = timezone.now().date()
+        Session.objects.create(
+            session_date=today,
+            started_at=timezone.now() - timedelta(hours=5),
+            ended_at=timezone.now() - timedelta(hours=3),
+            duration=7200,  # 2 hours
+        )
+
+        # Create a live session (started 1 hour ago, not ended)
+        tomorrow = today + timedelta(days=1)
+        started = timezone.now() - timedelta(hours=1)
+        Session.objects.create(
+            session_date=tomorrow,
+            started_at=started,
+            ended_at=None,  # Still live
+            duration=0,  # Not calculated yet
+        )
+
+        total = self.campaign.calculate_total_duration()
+        # Should be roughly 2 hours + 1 hour = 10800 seconds
+        self.assertGreaterEqual(total, 10700)  # Allow some margin for test execution
+        self.assertLessEqual(total, 10900)
+
+    def test_get_current_session_start_no_live(self):
+        """Test getting current session start when not live."""
+        start = self.campaign.get_current_session_start()
+        self.assertIsNone(start)
+
+    def test_get_current_session_start_with_live(self):
+        """Test getting current session start when live."""
+        from streams.models import Session
+
+        # Create a live session
+        now = timezone.now()
+        today = now.date()
+        started = now - timedelta(hours=2)
+
+        session = Session.objects.create(
+            session_date=today,
+            started_at=started,
+            ended_at=None,  # Still live
+        )
+
+        start = self.campaign.get_current_session_start()
+        self.assertEqual(start, started)
+
+    def test_get_current_session_start_ignores_ended(self):
+        """Test that ended sessions are not considered current."""
+        from streams.models import Session
+
+        # Create an ended session today
+        today = timezone.now().date()
+        Session.objects.create(
+            session_date=today,
+            started_at=timezone.now() - timedelta(hours=4),
+            ended_at=timezone.now() - timedelta(hours=2),  # Ended
+            duration=7200,
+        )
+
+        start = self.campaign.get_current_session_start()
+        self.assertIsNone(start)
+
 
 class MilestoneModelTest(TestCase):
     """Test Milestone model functionality."""
@@ -124,7 +240,6 @@ class MilestoneModelTest(TestCase):
             title="UFO 50",
             description="Bryan plays UFO 50",
             image_url="https://example.com/ufo50.jpg",
-            announcement_text="UFO 50 unlocked! Let's go!",
         )
 
     def test_milestone_creation(self):

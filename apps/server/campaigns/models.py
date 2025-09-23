@@ -35,6 +35,54 @@ class Campaign(models.Model):
     class Meta:
         ordering = ["-start_date"]
 
+    def get_sessions(self):
+        """Get all streaming sessions within this campaign's date range."""
+        from streams.models import Session
+
+        return Session.objects.filter(
+            session_date__gte=self.start_date, session_date__lte=self.end_date
+        )
+
+    def calculate_total_duration(self):
+        """Calculate total streaming duration for this campaign."""
+        from django.db.models import Sum
+        from django.utils import timezone
+
+        sessions = self.get_sessions()
+
+        # Sum up completed sessions
+        total_seconds = (
+            sessions.filter(duration__gt=0).aggregate(Sum("duration"))["duration__sum"]
+            or 0
+        )
+
+        # Add current session if streaming
+        current_session = sessions.filter(
+            started_at__isnull=False, ended_at__isnull=True
+        ).first()
+
+        if current_session and current_session.started_at:
+            elapsed = timezone.now() - current_session.started_at
+            total_seconds += int(elapsed.total_seconds())
+
+        return total_seconds
+
+    def get_current_session_start(self):
+        """Get the start time of the current streaming session if live."""
+        from django.utils import timezone
+
+        current_session = (
+            self.get_sessions()
+            .filter(
+                started_at__isnull=False,
+                ended_at__isnull=True,
+                session_date=timezone.now().date(),
+            )
+            .first()
+        )
+
+        return current_session.started_at if current_session else None
+
     def __str__(self):
         return self.name
 
