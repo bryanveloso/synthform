@@ -85,14 +85,11 @@ class HelixService:
             token_data = tokens[0]
             self._broadcaster_id = token_data["user_id"]
 
-            # Create a TwitchIO client with keep-alive
+            # Create a TwitchIO client
             self._client = twitchio.Client(
                 client_id=settings.TWITCH_CLIENT_ID,
                 client_secret=settings.TWITCH_CLIENT_SECRET,
             )
-
-            # Ensure the client's session stays alive
-            self._client._http._keepalive = True
 
             # Override load_tokens to load tokens from our database
             async def load_tokens(path=None):
@@ -113,6 +110,17 @@ class HelixService:
 
             # Now login which will call load_tokens
             await self._client.login()
+
+            # After login, ensure the HTTP session has keepalive
+            if hasattr(self._client, "_http") and hasattr(
+                self._client._http, "_session"
+            ):
+                # Set keepalive on the actual aiohttp session
+                if self._client._http._session:
+                    connector = self._client._http._session.connector
+                    if connector:
+                        connector._keepalive = True
+                        connector._keepalive_timeout = 30
 
             # Fetch the broadcaster User object - this will use the authenticated token
             users = await self._client.fetch_users(ids=[int(self._broadcaster_id)])
@@ -345,7 +353,15 @@ class HelixService:
         """Close the Helix client connection."""
         if self._client:
             try:
-                # Close the TwitchIO client to properly clean up aiohttp ClientSession
+                # Close the HTTP session first if it exists
+                if hasattr(self._client, "_http") and self._client._http:
+                    if (
+                        hasattr(self._client._http, "_session")
+                        and self._client._http._session
+                    ):
+                        await self._client._http._session.close()
+
+                # Then close the TwitchIO client
                 await self._client.close()
             except Exception as e:
                 logger.warning(f"Error closing TwitchIO client: {e}")
