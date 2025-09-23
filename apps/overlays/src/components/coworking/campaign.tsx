@@ -30,7 +30,7 @@ export const Campaign: FC = () => {
             {campaign?.name}
           </span>
           <span className="ml-2 font-sans text-sm tabular-nums">
-            {formatDurationDisplay(totalDuration)}
+            {/* {formatDurationDisplay(totalDuration)} */}
           </span>
         </div>
         <div className="font-sans tabular-nums">
