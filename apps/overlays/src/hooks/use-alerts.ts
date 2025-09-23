@@ -1,18 +1,16 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useRealtimeStore } from '@/store/realtime'
 import { alertSoundConfig } from '@/config/alert-sounds'
+import type { AlertData } from '@/types/server'
 
-export interface Alert {
-  id: string
+export interface Alert extends AlertData {
   type: 'follow' | 'subscription' | 'resub' | 'gift' | 'cheer' | 'raid' | 'tip'
-  username: string
-  message?: string
-  amount?: number
-  tier?: 'Tier 1' | 'Tier 2' | 'Tier 3'
-  months?: number // For resubs
+  username?: string
   duration: number
   priority: number
-  timestamp: Date
   soundFile?: string
+  tier?: 'Tier 1' | 'Tier 2' | 'Tier 3'
+  months?: number
 }
 
 export type QueueStatus = 'processing' | 'paused' | 'bypassed' | 'idle'
@@ -30,12 +28,13 @@ export interface AlertQueueState {
 export interface AlertQueueConfig {
   maxVisibleQueue?: number // How many alerts to show in stack (default: 4)
   autoProcess?: boolean // Auto-process queue (default: true)
-  soundEnabled?: boolean
-  priorityMap?: Record<Alert['type'], number>
-  isPaused?: boolean // Pause processing but keep queueing
-  bypassMode?: boolean // Skip all alerts entirely
+  soundEnabled?: boolean // DASHBOARD UI: Global sound on/off toggle
+  priorityMap?: Record<Alert['type'], number> // DASHBOARD UI: Priority editor with drag-drop reordering
+  isPaused?: boolean // DASHBOARD UI: Pause button with visual state indicator
+  bypassMode?: boolean // DASHBOARD UI: Bypass toggle (emergency skip all)
 }
 
+// DASHBOARD UI NEEDED: Priority editor with visual preview of queue order
 const DEFAULT_PRIORITY_MAP: Record<Alert['type'], number> = {
   gift: 5,      // Highest - most generous
   tip: 4,       // Direct support
@@ -46,6 +45,7 @@ const DEFAULT_PRIORITY_MAP: Record<Alert['type'], number> = {
   raid: 0,      // Lowest - already getting attention
 }
 
+// DASHBOARD UI NEEDED: Duration slider per event type (1-10 seconds)
 const DEFAULT_DURATIONS: Record<Alert['type'], number> = {
   follow: 3000,
   subscription: 5000,
@@ -56,6 +56,7 @@ const DEFAULT_DURATIONS: Record<Alert['type'], number> = {
   tip: 5000,
 }
 
+// DASHBOARD UI NEEDED: History viewer with filters and clear button
 const MAX_HISTORY = 20 // Keep last 20 processed alerts
 
 export function useAlertQueue(config: AlertQueueConfig = {}) {
@@ -68,11 +69,41 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
     bypassMode = false,
   } = config
 
-  const [alertQueue, setAlertQueue] = useState<Alert[]>([])
-  const [currentAlert, setCurrentAlert] = useState<Alert | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
+  // Get state from store
+  const alerts = useRealtimeStore((state) => state.alerts)
+  const addAlertToStore = useRealtimeStore((state) => state.addAlert)
+  const removeCurrentAlert = useRealtimeStore((state) => state.removeCurrentAlert)
+  const clearAlertQueueStore = useRealtimeStore((state) => state.clearAlertQueue)
+  const setAlertAnimating = useRealtimeStore((state) => state.setAlertAnimating)
+  const setPausedState = useRealtimeStore((state) => state.setPausedState)
+
+  // Local state for history and processing timeout
   const [alertHistory, setAlertHistory] = useState<Alert[]>([])
   const processTimeoutRef = useRef<NodeJS.Timeout | undefined>()
+
+  // Transform store alerts to include additional properties
+  const alertQueue = useMemo(() => {
+    return alerts.queue.map(alert => ({
+      ...alert,
+      username: alert.user_name,
+      duration: DEFAULT_DURATIONS[alert.type as Alert['type']] || 5000,
+      priority: priorityMap[alert.type as Alert['type']] || 0,
+      soundFile: undefined,
+    } as Alert))
+  }, [alerts.queue, priorityMap])
+
+  const currentAlert = useMemo(() => {
+    if (!alerts.currentAlert) return null
+    return {
+      ...alerts.currentAlert,
+      username: alerts.currentAlert.user_name,
+      duration: DEFAULT_DURATIONS[alerts.currentAlert.type as Alert['type']] || 5000,
+      priority: priorityMap[alerts.currentAlert.type as Alert['type']] || 0,
+      soundFile: undefined,
+    } as Alert
+  }, [alerts.currentAlert, priorityMap])
+
+  const isProcessing = alerts.isAnimating
 
   // Get visible portion of queue for stack display
   const visibleQueue = alertQueue.slice(0, maxVisibleQueue)
@@ -81,11 +112,16 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
   // Determine current queue status
   const queueStatus: QueueStatus = bypassMode
     ? 'bypassed'
-    : isPaused
+    : alerts.isPaused
       ? 'paused'
       : isProcessing
         ? 'processing'
         : 'idle'
+
+  // Update paused state in store when config changes
+  useEffect(() => {
+    setPausedState(isPaused)
+  }, [isPaused, setPausedState])
 
   // Select sound file based on event magnitude
   const selectSoundFile = useCallback((alert: Alert): string | undefined => {
@@ -117,86 +153,92 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
     return config.sounds?.[1] || config.defaultSound
   }, [soundEnabled])
 
-  // Add alert to queue with priority insertion
+  // Add alert to queue
   const addAlert = useCallback((alertData: Omit<Alert, 'id' | 'priority' | 'timestamp' | 'duration' | 'soundFile'>) => {
     // Skip entirely if bypass mode is on
     if (bypassMode) return
 
-    const alert: Alert = {
-      ...alertData,
+    // Convert to store format
+    const storeAlert: AlertData = {
       id: `alert-${Date.now()}-${Math.random()}`,
-      priority: priorityMap[alertData.type],
-      timestamp: new Date(),
-      duration: DEFAULT_DURATIONS[alertData.type],
+      type: alertData.type,
+      message: alertData.message || '',
+      user_name: alertData.username,
+      amount: alertData.amount,
+      timestamp: new Date().toISOString(),
     }
 
-    // Select appropriate sound file
-    alert.soundFile = selectSoundFile(alert)
-
-    setAlertQueue(prev => {
-      // Insert based on priority (higher priority first)
-      const newQueue = [...prev]
-      const insertIndex = newQueue.findIndex(a => a.priority < alert.priority)
-
-      if (insertIndex === -1) {
-        // Lowest priority or empty queue
-        newQueue.push(alert)
-      } else {
-        // Insert before lower priority alerts
-        newQueue.splice(insertIndex, 0, alert)
-      }
-
-      return newQueue
-    })
-  }, [priorityMap, selectSoundFile, bypassMode])
+    // Add to store (store handles priority queue insertion)
+    addAlertToStore(storeAlert)
+  }, [bypassMode, addAlertToStore])
 
   // Process next alert in queue
   const processNext = useCallback(() => {
-    if (alertQueue.length === 0) {
-      setCurrentAlert(null)
-      setIsProcessing(false)
+    if (alerts.queue.length === 0) {
+      removeCurrentAlert()
+      setAlertAnimating(false)
       return
     }
 
-    const nextAlert = alertQueue[0]
-    setCurrentAlert(nextAlert)
-    setAlertQueue(prev => prev.slice(1))
-    setIsProcessing(true)
+    // Get first alert from queue and set as current
+    const nextAlert = alerts.queue[0]
+
+    // Update store to move alert from queue to current
+    useRealtimeStore.setState((state) => ({
+      alerts: {
+        ...state.alerts,
+        currentAlert: nextAlert,
+        queue: state.alerts.queue.slice(1),
+      },
+    }))
+
+    setAlertAnimating(true)
 
     // Clear any existing timeout
     if (processTimeoutRef.current) {
       clearTimeout(processTimeoutRef.current)
     }
 
+    const duration = DEFAULT_DURATIONS[nextAlert.type as Alert['type']] || 5000
+
     // Schedule completion
     processTimeoutRef.current = setTimeout(() => {
       // Add to history when alert completes
-      setAlertHistory(prev => [nextAlert, ...prev].slice(0, MAX_HISTORY))
-      setCurrentAlert(null)
-      setIsProcessing(false)
-    }, nextAlert.duration)
-  }, [alertQueue])
+      const historyAlert = {
+        ...nextAlert,
+        username: nextAlert.user_name,
+        duration,
+        priority: priorityMap[nextAlert.type as Alert['type']] || 0,
+        soundFile: undefined,
+      } as Alert
+
+      setAlertHistory(prev => [historyAlert, ...prev].slice(0, MAX_HISTORY))
+      removeCurrentAlert()
+      setAlertAnimating(false)
+    }, duration)
+  }, [alerts.queue, removeCurrentAlert, setAlertAnimating, priorityMap])
 
   // Clear current alert (for manual control)
   const clearCurrent = useCallback(() => {
     if (processTimeoutRef.current) {
       clearTimeout(processTimeoutRef.current)
     }
-    setCurrentAlert(null)
-    setIsProcessing(false)
-  }, [])
+    removeCurrentAlert()
+    setAlertAnimating(false)
+  }, [removeCurrentAlert, setAlertAnimating])
 
   // Clear entire queue
   const clearQueue = useCallback(() => {
-    setAlertQueue([])
+    clearAlertQueueStore()
     clearCurrent()
-  }, [clearCurrent])
+  }, [clearAlertQueueStore, clearCurrent])
 
   // Auto-process queue when not processing and queue has items
   useEffect(() => {
     if (!autoProcess) return
-    if (isPaused) return // Don't process when paused
-    if (isProcessing || alertQueue.length === 0) return
+    if (alerts.isPaused) return // Don't process when paused
+    if (isProcessing || alerts.queue.length === 0) return
+    if (alerts.currentAlert) return // Already have a current alert
 
     // Small delay to allow for animations
     const processTimer = setTimeout(() => {
@@ -204,7 +246,7 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
     }, 100)
 
     return () => clearTimeout(processTimer)
-  }, [autoProcess, isPaused, isProcessing, alertQueue.length, processNext])
+  }, [autoProcess, alerts.isPaused, isProcessing, alerts.queue.length, alerts.currentAlert, processNext])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -226,7 +268,7 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
     alertHistory,
 
     // Control flags
-    isPaused,
+    isPaused: alerts.isPaused,
     isBypassed: bypassMode,
 
     // Actions

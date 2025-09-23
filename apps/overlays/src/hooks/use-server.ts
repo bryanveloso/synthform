@@ -88,12 +88,13 @@ class ServerConnection {
         }
       })
 
-      entriesToDelete.forEach(key => this.cache.delete(key))
+      entriesToDelete.forEach((key) => this.cache.delete(key))
 
       // Also limit cache size
       if (this.cache.size > MAX_CACHE_SIZE) {
-        const sortedEntries = Array.from(this.cache.entries())
-          .sort((a, b) => a[1].timestamp - b[1].timestamp)
+        const sortedEntries = Array.from(this.cache.entries()).sort(
+          (a, b) => a[1].timestamp - b[1].timestamp,
+        )
         const toRemove = sortedEntries.slice(0, this.cache.size - MAX_CACHE_SIZE)
         toRemove.forEach(([key]) => this.cache.delete(key))
       }
@@ -163,7 +164,7 @@ class ServerConnection {
       // Notify subscribers
       const subscribers = this.subscribers.get(messageType)
       if (subscribers) {
-        subscribers.forEach(callback => {
+        subscribers.forEach((callback) => {
           try {
             callback(payload)
           } catch (error) {
@@ -178,11 +179,36 @@ class ServerConnection {
 
   private isValidMessageType(type: string): type is MessageType {
     const validTypes: MessageType[] = [
-      'base:sync', 'base:update', 'timeline:push', 'timeline:sync',
-      'obs:update', 'obs:sync', 'ticker:sync', 'alert:show',
-      'alerts:sync', 'alerts:push', 'limitbreak:executed',
-      'limitbreak:sync', 'limitbreak:update', 'music:sync',
-      'music:update', 'status:sync', 'status:update', 'chat:message'
+      'base:sync',
+      'base:update',
+      'timeline:push',
+      'timeline:sync',
+      'obs:update',
+      'obs:sync',
+      'ticker:sync',
+      'alert:show',
+      'alerts:sync',
+      'alerts:push',
+      'limitbreak:executed',
+      'limitbreak:sync',
+      'limitbreak:update',
+      'music:sync',
+      'music:update',
+      'status:sync',
+      'status:update',
+      'chat:message',
+      'audio:rme:status',
+      'audio:rme:update',
+      'ffbot:stats',
+      'ffbot:hire',
+      'ffbot:change',
+      'ffbot:save',
+      'campaign:sync',
+      'campaign:update',
+      'campaign:milestone',
+      'campaign:timer:started',
+      'campaign:timer:paused',
+      'campaign:timer:tick',
     ]
     return validTypes.includes(type as MessageType)
   }
@@ -200,7 +226,7 @@ class ServerConnection {
 
     const delay = Math.min(
       this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
-      MAX_RECONNECT_DELAY
+      MAX_RECONNECT_DELAY,
     )
     this.reconnectAttempts++
 
@@ -219,7 +245,7 @@ class ServerConnection {
 
   subscribe<T extends MessageType>(
     messageType: T,
-    callback: (data: PayloadType<T>) => void
+    callback: (data: PayloadType<T>) => void,
   ): PayloadType<T> | undefined {
     // Initialize subscriber set if it doesn't exist
     if (!this.subscribers.has(messageType)) {
@@ -243,10 +269,7 @@ class ServerConnection {
     return undefined
   }
 
-  unsubscribe<T extends MessageType>(
-    messageType: T,
-    callback: (data: PayloadType<T>) => void
-  ) {
+  unsubscribe<T extends MessageType>(messageType: T, callback: (data: PayloadType<T>) => void) {
     const subscribers = this.subscribers.get(messageType)
     if (subscribers) {
       subscribers.delete(callback as (data: unknown) => void)
@@ -270,7 +293,7 @@ class ServerConnection {
     // Notify connection state subscribers using a special key
     const connectionSubscribers = this.subscribers.get('__connection__' as any)
     if (connectionSubscribers) {
-      connectionSubscribers.forEach(callback => {
+      connectionSubscribers.forEach((callback) => {
         try {
           callback(connected)
         } catch (error) {
@@ -329,12 +352,9 @@ const serverConnection = new ServerConnection()
 // Main hook
 export function useServer<T extends readonly MessageType[]>(
   messageTypes: T,
-  options?: UseServerOptions
+  options?: UseServerOptions,
 ) {
-  const [data, dispatch] = useReducer(
-    dataReducer<T>,
-    {} as ServerData<T>
-  )
+  const [data, dispatch] = useReducer(dataReducer<T>, {} as ServerData<T>)
   const [isConnected, setIsConnected] = useState(false)
 
   // Use refs for stable references
@@ -351,17 +371,11 @@ export function useServer<T extends readonly MessageType[]>(
   // Subscribe to connection state
   useEffect(() => {
     const connectionKey = '__connection__' as MessageType
-    serverConnection.subscribe(
-      connectionKey,
-      handleConnectionChange as (data: unknown) => void
-    )
+    serverConnection.subscribe(connectionKey, handleConnectionChange as (data: unknown) => void)
     setIsConnected(serverConnection.isConnected())
 
     return () => {
-      serverConnection.unsubscribe(
-        connectionKey,
-        handleConnectionChange as (data: unknown) => void
-      )
+      serverConnection.unsubscribe(connectionKey, handleConnectionChange as (data: unknown) => void)
     }
   }, [handleConnectionChange])
 
@@ -373,7 +387,7 @@ export function useServer<T extends readonly MessageType[]>(
     const initialData: Partial<ServerData<T>> = {}
 
     // Create subscriptions
-    messageTypes.forEach(messageType => {
+    messageTypes.forEach((messageType) => {
       // Check if we already have a callback for this message type
       if (callbacksRef.current.has(messageType)) {
         return // Skip if already subscribed
@@ -388,7 +402,10 @@ export function useServer<T extends readonly MessageType[]>(
       }
 
       callbacksRef.current.set(messageType, callback)
-      const cachedData = serverConnection.subscribe(messageType, callback as (data: PayloadType<typeof messageType>) => void)
+      const cachedData = serverConnection.subscribe(
+        messageType,
+        callback as (data: PayloadType<typeof messageType>) => void,
+      )
 
       // If we have cached data, set it immediately
       if (cachedData !== undefined) {
@@ -413,10 +430,7 @@ export function useServer<T extends readonly MessageType[]>(
     }
   }, [messageTypesKey])
 
-  const send = useCallback(<T extends MessageType>(
-    messageType: T,
-    payload: PayloadType<T>
-  ) => {
+  const send = useCallback(<T extends MessageType>(messageType: T, payload: PayloadType<T>) => {
     return serverConnection.send(messageType, payload)
   }, [])
 

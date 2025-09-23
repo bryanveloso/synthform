@@ -10,13 +10,21 @@ import type {
   SetSceneCommand,
 } from './obs'
 import type { RMEMicStatus } from '@/hooks/use-rme'
+import type {
+  Campaign,
+  CampaignUpdatePayload,
+  MilestoneUnlockedPayload,
+  TimerUpdatePayload,
+} from './campaign'
 
-// Connection state enum
-export enum ConnectionState {
-  Disconnected = 'disconnected',
-  Connecting = 'connecting',
-  Connected = 'connected',
-}
+// Connection state
+export const ConnectionState = {
+  Disconnected: 'disconnected',
+  Connecting: 'connecting',
+  Connected: 'connected',
+} as const
+
+export type ConnectionState = typeof ConnectionState[keyof typeof ConnectionState]
 
 // Stream status types
 export interface StreamStatus {
@@ -58,6 +66,58 @@ export interface ChatMessage {
   user_name: string
   user_display_name: string
   fragments: EmoteFragment[]
+}
+
+// FFBot types
+export interface FFBotMember {
+  id: string
+  username: string
+  display_name: string
+}
+
+export interface FFBotStatsData {
+  lv: number
+  atk: number
+  mag: number
+  spi: number
+  hp: number
+  collection: number
+  ascension: number
+  wins: number
+  preference?: string
+  esper?: string
+  artifact?: string
+  job?: string
+  job_level?: number
+}
+
+export interface FFBotStatsMessage {
+  player: string
+  member?: FFBotMember
+  data: FFBotStatsData
+  timestamp: string
+}
+
+export interface FFBotHireMessage {
+  player: string
+  member?: FFBotMember
+  character: string
+  cost: number
+  timestamp: string
+}
+
+export interface FFBotChangeMessage {
+  player: string
+  member?: FFBotMember
+  from: string
+  to: string
+  timestamp: string
+}
+
+export interface FFBotSaveMessage {
+  player_count: number
+  metadata?: Record<string, any>
+  timestamp: string
 }
 
 
@@ -136,10 +196,20 @@ export interface MessagePayloadMap {
   'status:sync': StreamStatus
   'status:update': StreamStatus
   'chat:message': ChatMessage
-  'audio:mic:status': RMEMicStatus
-  'audio:mic:update': RMEMicStatus
-  'audio:mic:mute': { data: { muted: boolean } }
-  'audio:mic:level': { data: { level: number } }
+  'audio:rme:status': RMEMicStatus
+  'audio:rme:update': RMEMicStatus
+  // FFBot game events
+  'ffbot:stats': FFBotStatsMessage
+  'ffbot:hire': FFBotHireMessage
+  'ffbot:change': FFBotChangeMessage
+  'ffbot:save': FFBotSaveMessage
+  // Campaign events
+  'campaign:sync': Campaign
+  'campaign:update': CampaignUpdatePayload
+  'campaign:milestone': MilestoneUnlockedPayload
+  'campaign:timer:started': TimerUpdatePayload
+  'campaign:timer:paused': TimerUpdatePayload
+  'campaign:timer:tick': TimerUpdatePayload
 }
 
 // Extract valid message types
