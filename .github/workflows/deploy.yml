@@ -39,31 +39,25 @@ jobs:
       run: |
         # Check what changed in this push (all commits since the previous push)
         CHANGED_FILES=$(git diff --name-only ${{ github.event.before }}..HEAD 2>/dev/null || git ls-files)
-        
-        # Server changes (Django app, but not Twitch service)
-        if echo "$CHANGED_FILES" | grep -q "apps/server" && ! echo "$CHANGED_FILES" | grep -q "apps/server/events/services/twitch.py"; then
-          echo "Server code changed, rebuilding server and celery containers"
-          docker compose -f docker-compose.prod.yml up --build -d server celery
+
+        # Server changes (includes both Django app and Twitch service since they share code)
+        if echo "$CHANGED_FILES" | grep -q "apps/server"; then
+          echo "Server code changed, rebuilding server, twitch, and celery containers"
+          docker compose -f docker-compose.prod.yml up --build -d server twitch celery
         fi
-        
-        # Twitch service changes
-        if echo "$CHANGED_FILES" | grep -q "apps/server/events/services/twitch.py\|apps/server/events/models.py"; then
-          echo "Twitch service code changed, rebuilding twitch container"
-          docker compose -f docker-compose.prod.yml up --build -d twitch
-        fi
-        
+
         # Overlays changes
         if echo "$CHANGED_FILES" | grep -q "apps/overlays"; then
           echo "Overlay code changed, rebuilding overlays container"
           docker compose -f docker-compose.prod.yml up --build -d overlays
         fi
-        
+
         # Infrastructure changes (compose files, Dockerfiles)
         if echo "$CHANGED_FILES" | grep -q "docker-compose\|Dockerfile"; then
           echo "Infrastructure changed, rebuilding all containers"
           docker compose -f docker-compose.prod.yml up --build -d --remove-orphans
         fi
-        
+
         # Ensure all services are running (non-destructive)
         docker compose -f docker-compose.prod.yml up -d
     
