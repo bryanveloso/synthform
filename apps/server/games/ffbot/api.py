@@ -87,6 +87,82 @@ async def ffbot_event(request, event: FFBotEvent):
     return 202, {"status": "accepted"}
 
 
+@router.get("/players/{username}", summary="Get player stats by username")
+async def get_player_stats(request, username: str):
+    """
+    Get FFBot player stats by username.
+    Returns 404 if player not found.
+    """
+    try:
+        # Get member by username (case-insensitive)
+        member = await Member.objects.filter(username__iexact=username).afirst()
+
+        if not member:
+            # Try display_name as fallback
+            member = await Member.objects.filter(display_name__iexact=username).afirst()
+
+        if not member:
+            return 404, {"error": "Player not found"}
+
+        # Get player stats
+        try:
+            player = await Player.objects.select_related("member").aget(member=member)
+        except Player.DoesNotExist:
+            return 404, {"error": "No stats found for this player"}
+
+        # Build response matching what the bot expects
+        response = {
+            "player": username,
+            "member": {
+                "id": str(member.id),
+                "username": member.username,
+                "display_name": member.display_name,
+            },
+            "data": {
+                "lv": player.lv,
+                "atk": player.atk,
+                "mag": player.mag,
+                "spi": player.spi,
+                "hp": player.hp,
+                "gil": player.gil,
+                "exp": player.exp,
+                "collection": player.collection,
+                "ascension": player.ascension,
+                "wins": player.wins,
+                "unit": player.unit,
+                "esper": player.esper,
+                "preference": player.preferedstat,
+                "freehirecount": player.freehirecount,
+                "freehire_available": player.freehirecount >= 50,
+                "job": player.m1,
+                "job_level": player.jobap,
+                "job_slots": {
+                    "m1": player.m1 or "",
+                    "m2": player.m2 or "",
+                    "m3": player.m3 or "",
+                    "m4": player.m4 or "",
+                    "m5": player.m5 or "",
+                    "m6": player.m6 or "",
+                    "m7": player.m7 or "",
+                },
+                "job_bonuses": {
+                    "hp": player.job_hp,
+                    "atk": player.job_atk,
+                    "mag": player.job_mag,
+                    "spi": player.job_spi,
+                },
+                "card": player.card,
+                "card_passive": player.card_passive,
+            },
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+        return response
+    except Exception as e:
+        logger.error(f"Error fetching player stats for {username}: {e}", exc_info=True)
+        return 500, {"error": "Internal server error"}
+
+
 async def process_ffbot_event(data: dict) -> None:
     """Process FFBot event asynchronously."""
     try:
