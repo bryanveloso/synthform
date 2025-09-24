@@ -268,7 +268,35 @@ export const EmoteRain = memo(function EmoteRain() {
     const timeoutId = setTimeout(() => {
       // Instead of removing immediately, let it fall by removing collision
       // The renderEmotes loop will clean it up when it goes off screen
-      if (emoteBody.body) {
+      if (emoteBody.body && engineRef.current) {
+        // Wake up any bodies that might be resting on this one
+        // Recursively wake bodies to cascade through stacks
+        const wokenBodies = new Set<Matter.Body>()
+        const bodiesToCheck = [emoteBody.body]
+
+        while (bodiesToCheck.length > 0) {
+          const currentBody = bodiesToCheck.pop()!
+          if (wokenBodies.has(currentBody)) continue
+          wokenBodies.add(currentBody)
+
+          // Find bodies near this one
+          const nearbyBodies = Matter.Query.region(
+            engineRef.current.world.bodies,
+            {
+              min: { x: currentBody.position.x - 60, y: currentBody.position.y - 60 },
+              max: { x: currentBody.position.x + 60, y: currentBody.position.y + 60 }
+            }
+          )
+
+          nearbyBodies.forEach(body => {
+            if (!wokenBodies.has(body) && body !== emoteBody.body) {
+              Matter.Sleeping.set(body, false)
+              // Add to check list to cascade further
+              bodiesToCheck.push(body)
+            }
+          })
+        }
+
         // Wake up the body if it's sleeping
         Matter.Sleeping.set(emoteBody.body, false)
         // Make the body non-colliding so it falls through the ground
