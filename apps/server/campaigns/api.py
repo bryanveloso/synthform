@@ -54,7 +54,6 @@ async def get_active_campaign(request) -> CampaignResponse | None:
                 is_unlocked=milestone.is_unlocked,
                 unlocked_at=milestone.unlocked_at,
                 image_url=milestone.image_url,
-                announcement_text=milestone.announcement_text,
             )
         )
 
