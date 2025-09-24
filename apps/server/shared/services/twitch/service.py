@@ -336,10 +336,11 @@ class TwitchService(twitchio.Client):
                 eventsub.ChannelPredictionEndSubscription(broadcaster_user_id=user_id),
                 # Charity events
                 eventsub.CharityDonationSubscription(broadcaster_user_id=user_id),
-                # Hype Train events
-                eventsub.HypeTrainBeginSubscription(broadcaster_user_id=user_id),
-                eventsub.HypeTrainProgressSubscription(broadcaster_user_id=user_id),
-                eventsub.HypeTrainEndSubscription(broadcaster_user_id=user_id),
+                # Hype Train events - DISABLED: TwitchIO bug crashes on null shared_train_participants
+                # TODO: Re-enable when TwitchIO fixes iteration over None in BaseHypeTrain.__init__
+                # eventsub.HypeTrainBeginSubscription(broadcaster_user_id=user_id),
+                # eventsub.HypeTrainProgressSubscription(broadcaster_user_id=user_id),
+                # eventsub.HypeTrainEndSubscription(broadcaster_user_id=user_id),
                 # Goal events
                 eventsub.GoalBeginSubscription(broadcaster_user_id=user_id),
                 eventsub.GoalProgressSubscription(broadcaster_user_id=user_id),

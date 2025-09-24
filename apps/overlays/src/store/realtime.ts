@@ -115,6 +115,7 @@ interface TimelineState {
   events: TimelineEvent[]
   latestEvent: TimelineEvent | null
   maxEvents: number
+  lastPushTime: number
 }
 
 // Chat state
@@ -222,6 +223,7 @@ export const useRealtimeStore = create<RealtimeStore>()(
       events: [],
       latestEvent: null,
       maxEvents: 10,
+      lastPushTime: 0,
     },
 
     // Chat initial state
@@ -514,6 +516,7 @@ export const useRealtimeStore = create<RealtimeStore>()(
             ...state.timeline,
             events,
             latestEvent: transformedEvent,
+            lastPushTime: Date.now(),
           },
         }
       })

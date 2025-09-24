@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useGSAP } from '@gsap/react'
 import { gsap } from 'gsap'
 import { useTimeline } from '@/hooks/use-timeline'
+import { useRealtimeStore } from '@/store/realtime'
 import { cn } from '@/lib/utils'
 import type { TimelineEvent } from '@/types/events'
 
@@ -46,12 +47,12 @@ interface TimelineProps {
 
 export const Timeline = ({ autoHideDelay = 30000, showOnNewEvents = true }: TimelineProps = {}) => {
   const { events: timelineEvents, isStale } = useTimeline(15)
+  const lastPushTime = useRealtimeStore((state) => state.timeline.lastPushTime)
   const [isVisible, setIsVisible] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const eventRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const animatedEvents = useRef<Set<string>>(new Set())
   const hideTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
-  const lastEventCountRef = useRef(0)
 
   // Auto-hide management
   const startHideTimer = useCallback(() => {
@@ -66,14 +67,14 @@ export const Timeline = ({ autoHideDelay = 30000, showOnNewEvents = true }: Time
     }, autoHideDelay)
   }, [autoHideDelay])
 
-  // Show timeline when new events arrive
+  // Show timeline when push events arrive
   useEffect(() => {
-    if (showOnNewEvents && timelineEvents.length > lastEventCountRef.current && timelineEvents.length > 0) {
-      setIsVisible(true)
-      startHideTimer()
-    }
-    lastEventCountRef.current = timelineEvents.length
-  }, [timelineEvents.length, showOnNewEvents, startHideTimer])
+    if (!showOnNewEvents || !lastPushTime) return
+
+    // Show timeline and start timer when lastPushTime changes
+    setIsVisible(true)
+    startHideTimer()
+  }, [lastPushTime, showOnNewEvents, startHideTimer])
 
   // Animate visibility changes
   useGSAP(() => {
