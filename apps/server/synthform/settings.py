@@ -258,3 +258,26 @@ RME_TOTALMIX_RECEIVE_PORT = env(
 RME_MIC_CHANNEL = env(
     "RME_MIC_CHANNEL", default=0
 )  # 0-based channel index (0 = Input 1)
+
+# Logging configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "httpx": {
+            "handlers": ["console"],
+            "level": "WARNING",  # Only show warnings and errors, not INFO logs
+            "propagate": False,
+        },
+        "httpcore": {
+            "handlers": ["console"],
+            "level": "WARNING",  # Also silence httpcore logs
+            "propagate": False,
+        },
+    },
+}
