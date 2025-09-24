@@ -64,8 +64,9 @@ class Command(BaseCommand):
 
             # Dump from production
             self.stdout.write("Dumping data from production...")
+            ssh_cmd = f'docker exec {container} sh -c "{dump_cmd} \\$DATABASE_URL"'
             result = subprocess.run(
-                ["ssh", server, f'docker exec {container} {dump_cmd} "$DATABASE_URL"'],
+                ["ssh", server, ssh_cmd],
                 stdout=open(dump_file, "w"),
                 stderr=subprocess.PIPE,
                 text=True,
