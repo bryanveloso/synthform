@@ -63,18 +63,37 @@ export const Timeline = ({ autoHideDelay = 30000, showOnNewEvents = true }: Time
 
     // Set new timer
     hideTimeoutRef.current = setTimeout(() => {
+      console.log('Timer expired, hiding timeline')
       setIsVisible(false)
     }, autoHideDelay)
   }, [autoHideDelay])
 
   // Show timeline when push events arrive
+  const prevPushTime = useRef(0)
   useEffect(() => {
-    if (!showOnNewEvents || !lastPushTime) return
+    if (!showOnNewEvents) return
 
-    // Show timeline and start timer when lastPushTime changes
-    setIsVisible(true)
-    startHideTimer()
+    // Only show if lastPushTime actually changed to a new value
+    if (lastPushTime > 0 && lastPushTime !== prevPushTime.current) {
+      console.log('Showing timeline, starting hide timer')
+      setIsVisible(true)
+      startHideTimer()
+      prevPushTime.current = lastPushTime
+    }
   }, [lastPushTime, showOnNewEvents, startHideTimer])
+
+  // TEMPORARY: Test trigger with 'T' key
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 't' || e.key === 'T') {
+        console.log('Test trigger: showing timeline')
+        setIsVisible(true)
+        startHideTimer()
+      }
+    }
+    window.addEventListener('keypress', handleKeyPress)
+    return () => window.removeEventListener('keypress', handleKeyPress)
+  }, [startHideTimer])
 
   // Animate visibility changes
   useGSAP(() => {
@@ -89,7 +108,7 @@ export const Timeline = ({ autoHideDelay = 30000, showOnNewEvents = true }: Time
       } else {
         gsap.to(containerRef.current, {
           opacity: 0,
-          y: 20,
+          y: 48,
           duration: 0.3,
           ease: 'power2.in',
         })
@@ -160,7 +179,7 @@ export const Timeline = ({ autoHideDelay = 30000, showOnNewEvents = true }: Time
         'bg-shark-960 relative overflow-x-hidden transition-opacity',
         !isVisible && 'pointer-events-none',
       )}
-      style={{ opacity: 0 }}
+      style={{ opacity: 0, transform: 'translateY(48px)' }}
       data-timeline>
       <div className="to-shark-960 absolute right-0 z-10 h-full w-48 bg-gradient-to-r from-transparent"></div>
       <div className="flex items-center gap-2 pl-6">
