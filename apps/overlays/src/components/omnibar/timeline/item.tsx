@@ -1,47 +1,96 @@
 import type {
+  ChatNotificationEvent,
   ChannelFollowEvent,
-  ChannelSubscribeEvent,
-  SubscriptionGiftEvent,
-  SubscriptionMessageEvent,
   CheerEvent,
   ChannelPointsRedemptionEvent,
-  ChannelRaidEvent,
 } from '@/types/events'
+
+export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) => {
+  const payload = event.data.payload
+  const { notice_type, chatter_display_name, chatter_user_name } = payload
+
+  switch (notice_type) {
+    case 'sub':
+      return (
+        <div>
+          <div className="font-caps">New Sub</div>
+          <div>{chatter_display_name || chatter_user_name}</div>
+        </div>
+      )
+    case 'resub':
+      return (
+        <div>
+          <div className="font-caps">Resub</div>
+          <div>
+            {chatter_display_name || chatter_user_name} × {payload.resub?.cumulative_months || '?'}
+          </div>
+        </div>
+      )
+    case 'sub_gift':
+      return (
+        <div>
+          <div className="font-caps">Gift</div>
+          <div>
+            {payload.sub_gift?.recipient?.display_name ||
+              payload.sub_gift?.recipient?.name ||
+              'Unknown'}
+          </div>
+        </div>
+      )
+    case 'community_sub_gift':
+      return (
+        <div>
+          <div className="font-caps">Gift</div>
+          <div>
+            {chatter_display_name || chatter_user_name} × {payload.community_sub_gift?.total || '?'}
+          </div>
+        </div>
+      )
+    case 'raid':
+      return (
+        <div>
+          <div className="font-caps">Raid</div>
+          <div>
+            {payload.raid?.user?.display_name ||
+              payload.raid?.user?.name ||
+              chatter_display_name ||
+              chatter_user_name}{' '}
+            + {payload.raid?.viewer_count || '?'}
+          </div>
+        </div>
+      )
+    case 'bits_badge_tier':
+      return (
+        <div>
+          <div className="font-caps">Bits Badge</div>
+          <div>
+            {chatter_display_name || chatter_user_name} {payload.bits_badge_tier?.tier || ''}
+          </div>
+        </div>
+      )
+    case 'charity_donation':
+      return (
+        <div>
+          <div className="font-caps">Charity</div>
+          <div>
+            {chatter_display_name || chatter_user_name} ${payload.charity_donation?.amount.value || '?'}
+          </div>
+        </div>
+      )
+    default:
+      return (
+        <div>
+          <div className="font-caps">{notice_type}</div>
+          <div>{chatter_display_name || chatter_user_name}</div>
+        </div>
+      )
+  }
+}
 
 export const Follow = ({ event }: { event: ChannelFollowEvent }) => (
   <div>
     <div className="font-caps">Follow</div>
     <div>{event.data.payload.user_display_name || event.data.user_name}</div>
-  </div>
-)
-
-export const Subscription = ({ event }: { event: ChannelSubscribeEvent }) => (
-  <div>
-    <div className="font-caps">Subscription</div>
-    <div>
-      {/* {JSON.stringify(event.data.payload)} */}
-      {event.data.payload.user_display_name || event.data.user_name}
-    </div>
-  </div>
-)
-
-export const SubscriptionGift = ({ event }: { event: SubscriptionGiftEvent }) => (
-  <div>
-    <div className="font-caps">Gift</div>
-    <div>
-      {/* {JSON.stringify(event.data.payload)} */}
-      {event.data.payload.user_display_name || event.data.user_name} × {event.data.payload.total}
-    </div>
-  </div>
-)
-
-export const SubscriptionMessage = ({ event }: { event: SubscriptionMessageEvent }) => (
-  <div>
-    <div className="font-caps">Resub</div>
-    <div>
-      {/* {JSON.stringify(event.data.payload)} */}
-      {event.data.payload.user_display_name || event.data.user_name} × {event.data.payload.cumulative_months}
-    </div>
   </div>
 )
 
@@ -68,11 +117,3 @@ export const RedemptionAdd = ({ event }: { event: ChannelPointsRedemptionEvent }
   </div>
 )
 
-export const Raid = ({ event }: { event: ChannelRaidEvent }) => (
-  <div>
-    <div className="font-caps">Raid</div>
-    <div>
-      {event.data.payload.from_broadcaster_user_display_name} × {event.data.payload.viewers}
-    </div>
-  </div>
-)

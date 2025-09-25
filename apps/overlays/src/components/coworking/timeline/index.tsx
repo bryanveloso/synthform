@@ -4,41 +4,13 @@ import { gsap } from 'gsap'
 import { useTimeline } from '@/hooks/use-timeline'
 import { useRealtimeStore } from '@/store/realtime'
 import { cn } from '@/lib/utils'
-import type { TimelineEvent } from '@/types/events'
-
+import { getEventComponent } from '@/components/shared/timeline/events'
 import {
+  ChatNotification,
   Cheer,
   Follow,
-  Subscription,
-  SubscriptionGift,
-  SubscriptionMessage,
   RedemptionAdd,
-  Raid,
-  ChatNotification,
 } from './item'
-
-const getType = (event: TimelineEvent) => {
-  switch (event.type) {
-    case 'twitch.channel.chat.notification':
-      return <ChatNotification event={event} />
-    case 'twitch.channel.cheer':
-      return <Cheer event={event} />
-    case 'twitch.channel.follow':
-      return <Follow event={event} />
-    case 'twitch.channel.subscribe':
-      return <Subscription event={event} />
-    case 'twitch.channel.subscription.gift':
-      return <SubscriptionGift event={event} />
-    case 'twitch.channel.subscription.message':
-      return <SubscriptionMessage event={event} />
-    case 'twitch.channel.raid':
-      return <Raid event={event} />
-    case 'twitch.channel.channel_points_custom_reward_redemption.add':
-      return <RedemptionAdd event={event} />
-    default:
-      return null
-  }
-}
 
 interface TimelineProps {
   autoHideDelay?: number // ms before auto-hiding (default: 30000)
@@ -202,7 +174,12 @@ export const Timeline = ({ autoHideDelay = 30000, showOnNewEvents = true }: Time
           </svg>
         </div>
         {timelineEvents.map((event) => {
-          const component = getType(event)
+          const component = getEventComponent(event, {
+            ChatNotification,
+            Cheer,
+            Follow,
+            RedemptionAdd,
+          })
           if (!component) return null
 
           return (
