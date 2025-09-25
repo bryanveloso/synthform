@@ -518,7 +518,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             logger.error(f"Unexpected error querying latest event: {e}")
             return None
 
-    async def _get_recent_events(self, limit: int = 10) -> list[dict]:
+    async def _get_recent_events(self, limit: int = 20) -> list[dict]:
         """Query database for recent timeline-worthy events."""
         from events.models import Event
 
