@@ -1,6 +1,5 @@
 import { useGSAP } from '@gsap/react'
 import { useRef } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
 
 import { LimitBreak } from '@/components/coworking/limitbreak'
 import { Timeline } from '@/components/coworking/timeline'
@@ -10,11 +9,7 @@ import { Canvas } from '@/components/ui/canvas'
 import { Circle, Frame } from '@/components/ui/window'
 import { animateOverlayEntrance } from '@/lib/animations'
 
-export const Route = createFileRoute('/coworking')({
-  component: RouteComponent,
-})
-
-function RouteComponent() {
+export const Coworking = () => {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Animate entire overlay on mount
