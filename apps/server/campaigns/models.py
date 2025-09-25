@@ -4,6 +4,48 @@ import uuid
 
 from django.db import models
 
+# Import Member from events app for foreign key relationship
+from events.models import Member
+
+
+class Gift(models.Model):
+    """Track individual member gift subscriptions to a campaign"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Link to member and campaign
+    member = models.ForeignKey(
+        Member, on_delete=models.CASCADE, related_name="campaign_gifts"
+    )
+    campaign = models.ForeignKey(
+        "Campaign", on_delete=models.CASCADE, related_name="gifts"
+    )
+
+    # Gift sub counts by tier
+    tier1_count = models.IntegerField(default=0)
+    tier2_count = models.IntegerField(default=0)
+    tier3_count = models.IntegerField(default=0)
+
+    # Total for quick queries
+    total_count = models.IntegerField(default=0)
+
+    # Timestamps
+    first_gift_at = models.DateTimeField(null=True, blank=True)
+    last_gift_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ["member", "campaign"]
+        ordering = ["-total_count"]
+        indexes = [
+            models.Index(fields=["campaign", "-total_count"]),
+            models.Index(fields=["member", "campaign"]),
+        ]
+
+    def __str__(self):
+        return f"{self.member.display_name} - {self.campaign.name}: {self.total_count} gifts"
+
 
 class Campaign(models.Model):
     """A special streaming event (subathon, marathon, charity drive, etc.)"""

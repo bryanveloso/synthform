@@ -10,8 +10,10 @@ from django.test import TestCase
 from django.utils import timezone
 
 from campaigns.models import Campaign
+from campaigns.models import Gift
 from campaigns.models import Metric
 from campaigns.models import Milestone
+from events.models import Member
 
 
 class CampaignModelTest(TestCase):
@@ -427,3 +429,161 @@ class MetricModelTest(TestCase):
         self.metric.refresh_from_db()
 
         self.assertGreater(self.metric.updated_at, original_updated)
+
+
+class GiftModelTest(TestCase):
+    """Test Gift model functionality."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.campaign = Campaign.objects.create(
+            name="Gift Campaign",
+            slug="gift-campaign",
+            description="Campaign with gift tracking",
+            start_date=timezone.now(),
+            end_date=timezone.now() + timedelta(days=7),
+        )
+
+        self.member = Member.objects.create(
+            twitch_id="123456",
+            display_name="TestGifter",
+            username="testgifter",
+        )
+
+        self.gift = Gift.objects.create(
+            member=self.member,
+            campaign=self.campaign,
+            tier1_count=5,
+            tier2_count=2,
+            tier3_count=1,
+            total_count=8,
+        )
+
+    def test_gift_creation(self):
+        """Test creating a gift record with all fields."""
+        self.assertEqual(self.gift.member, self.member)
+        self.assertEqual(self.gift.campaign, self.campaign)
+        self.assertEqual(self.gift.tier1_count, 5)
+        self.assertEqual(self.gift.tier2_count, 2)
+        self.assertEqual(self.gift.tier3_count, 1)
+        self.assertEqual(self.gift.total_count, 8)
+        self.assertIsNone(self.gift.first_gift_at)
+        self.assertIsNone(self.gift.last_gift_at)
+
+    def test_gift_string_representation(self):
+        """Test gift __str__ method."""
+        self.assertEqual(str(self.gift), "TestGifter - Gift Campaign: 8 gifts")
+
+    def test_gift_defaults(self):
+        """Test default values for gift fields."""
+        gift = Gift.objects.create(
+            member=self.member,
+            campaign=Campaign.objects.create(
+                name="Another Campaign",
+                slug="another",
+                description="Test defaults",
+                start_date=timezone.now(),
+                end_date=timezone.now() + timedelta(days=1),
+            ),
+        )
+
+        self.assertEqual(gift.tier1_count, 0)
+        self.assertEqual(gift.tier2_count, 0)
+        self.assertEqual(gift.tier3_count, 0)
+        self.assertEqual(gift.total_count, 0)
+        self.assertIsNone(gift.first_gift_at)
+        self.assertIsNone(gift.last_gift_at)
+
+    def test_gift_unique_member_campaign(self):
+        """Test that member-campaign combination must be unique."""
+        with self.assertRaises(IntegrityError):
+            Gift.objects.create(
+                member=self.member,  # Same member
+                campaign=self.campaign,  # Same campaign
+                tier1_count=10,
+            )
+
+    def test_gift_same_member_different_campaign(self):
+        """Test that same member can have gifts in different campaigns."""
+        other_campaign = Campaign.objects.create(
+            name="Other Campaign",
+            slug="other",
+            description="Another campaign",
+            start_date=timezone.now(),
+            end_date=timezone.now() + timedelta(days=1),
+        )
+
+        gift = Gift.objects.create(
+            member=self.member,  # Same member
+            campaign=other_campaign,  # Different campaign
+            tier1_count=3,
+            total_count=3,
+        )
+
+        self.assertEqual(gift.member, self.member)
+        self.assertEqual(gift.campaign, other_campaign)
+
+    def test_gift_ordering(self):
+        """Test gifts are ordered by total_count descending."""
+        member2 = Member.objects.create(
+            twitch_id="789012",
+            display_name="BigGifter",
+            username="biggifter",
+        )
+
+        member3 = Member.objects.create(
+            twitch_id="345678",
+            display_name="SmallGifter",
+            username="smallgifter",
+        )
+
+        gift2 = Gift.objects.create(
+            member=member2,
+            campaign=self.campaign,
+            total_count=20,  # Highest
+        )
+
+        gift3 = Gift.objects.create(
+            member=member3,
+            campaign=self.campaign,
+            total_count=2,  # Lowest
+        )
+
+        gifts = list(Gift.objects.filter(campaign=self.campaign))
+        self.assertEqual(gifts[0], gift2)  # 20 gifts
+        self.assertEqual(gifts[1], self.gift)  # 8 gifts
+        self.assertEqual(gifts[2], gift3)  # 2 gifts
+
+    def test_gift_timestamps(self):
+        """Test tracking first and last gift timestamps."""
+        now = timezone.now()
+        later = now + timedelta(hours=2)
+
+        self.gift.first_gift_at = now
+        self.gift.last_gift_at = later
+        self.gift.save()
+
+        self.gift.refresh_from_db()
+        self.assertIsNotNone(self.gift.first_gift_at)
+        self.assertIsNotNone(self.gift.last_gift_at)
+        self.assertLess(self.gift.first_gift_at, self.gift.last_gift_at)
+
+    def test_gift_cascade_delete_with_member(self):
+        """Test that deleting a member deletes associated gifts."""
+        member_id = self.member.id
+        gift_id = self.gift.id
+
+        self.member.delete()
+
+        with self.assertRaises(Gift.DoesNotExist):
+            Gift.objects.get(id=gift_id)
+
+    def test_gift_cascade_delete_with_campaign(self):
+        """Test that deleting a campaign deletes associated gifts."""
+        campaign_id = self.campaign.id
+        gift_id = self.gift.id
+
+        self.campaign.delete()
+
+        with self.assertRaises(Gift.DoesNotExist):
+            Gift.objects.get(id=gift_id)

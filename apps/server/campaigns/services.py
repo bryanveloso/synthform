@@ -16,8 +16,10 @@ from django.db.models import F
 from django.utils import timezone
 
 from .models import Campaign
+from .models import Gift
 from .models import Metric
 from .models import Milestone
+from events.models import Member
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +80,20 @@ class CampaignService:
 
     @staticmethod
     async def process_subscription(
-        campaign: Campaign, tier: int = 1, is_gift: bool = False
+        campaign: Campaign,
+        tier: int = 1,
+        is_gift: bool = False,
+        gifter_id: str | None = None,
+        gifter_name: str | None = None,
     ) -> dict[str, Any]:
         """Process a subscription or gift sub for the campaign.
+
+        Args:
+            campaign: The active campaign
+            tier: Subscription tier (1, 2, or 3)
+            is_gift: Whether this is a gift subscription
+            gifter_id: Twitch ID of the gifter (for gift subs)
+            gifter_name: Display name of the gifter (for gift subs)
 
         Returns:
             Dict containing any milestone unlocks and updated metrics
@@ -92,6 +105,10 @@ class CampaignService:
         metric, timer_added = await sync_to_async(
             CampaignService._process_subscription_sync
         )(campaign, tier)
+
+        # Track gift if this is a gift sub
+        if is_gift and gifter_id:
+            await CampaignService._track_gift(campaign, tier, gifter_id, gifter_name)
 
         # Check for milestone unlocks based on combined total (subs + resubs)
         combined_total = metric.total_subs + metric.total_resubs
@@ -356,6 +373,98 @@ class CampaignService:
             "campaign_id": str(campaign.id),
             "voting_update": metric.extra_data["ffxiv_votes"],
         }
+
+    @staticmethod
+    def _track_gift_sync(
+        campaign: Campaign, tier: int, twitch_id: str, display_name: str | None
+    ) -> Gift:
+        """Synchronous helper for tracking gift subscriptions."""
+        with transaction.atomic():
+            # Get or create the member
+            member, created = Member.objects.get_or_create(
+                twitch_id=twitch_id,
+                defaults={"display_name": display_name or f"User{twitch_id}"},
+            )
+
+            # Update display name if it changed
+            if not created and display_name and member.display_name != display_name:
+                member.display_name = display_name
+                member.save(update_fields=["display_name", "updated_at"])
+
+            # Get or create the gift record
+            gift, created = Gift.objects.select_for_update().get_or_create(
+                member=member,
+                campaign=campaign,
+                defaults={},
+            )
+
+            # Update counts based on tier
+            if tier == 1:
+                gift.tier1_count = F("tier1_count") + 1
+            elif tier == 2:
+                gift.tier2_count = F("tier2_count") + 1
+            elif tier == 3:
+                gift.tier3_count = F("tier3_count") + 1
+
+            gift.total_count = F("total_count") + 1
+
+            # Update timestamps
+            now = timezone.now()
+            if created or not gift.first_gift_at:
+                gift.first_gift_at = now
+            gift.last_gift_at = now
+
+            gift.save()
+            gift.refresh_from_db()
+
+            return gift
+
+    @staticmethod
+    async def _track_gift(
+        campaign: Campaign, tier: int, twitch_id: str, display_name: str | None
+    ) -> Gift:
+        """Track a gift subscription from a member."""
+        return await sync_to_async(CampaignService._track_gift_sync)(
+            campaign, tier, twitch_id, display_name
+        )
+
+    @staticmethod
+    async def get_gift_leaderboard(
+        campaign: Campaign, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """Get the top gift contributors for a campaign.
+
+        Args:
+            campaign: The campaign to get leaderboard for
+            limit: Maximum number of results (default 10)
+
+        Returns:
+            List of gift records with member info
+        """
+        gifts = await sync_to_async(list)(
+            Gift.objects.filter(campaign=campaign)
+            .select_related("member")
+            .order_by("-total_count")[:limit]
+        )
+
+        return [
+            {
+                "member_id": str(gift.member.id),
+                "display_name": gift.member.display_name,
+                "username": gift.member.username,
+                "tier1_count": gift.tier1_count,
+                "tier2_count": gift.tier2_count,
+                "tier3_count": gift.tier3_count,
+                "total_count": gift.total_count,
+                "first_gift_at": gift.first_gift_at.isoformat()
+                if gift.first_gift_at
+                else None,
+                "last_gift_at": gift.last_gift_at.isoformat()
+                if gift.last_gift_at
+                else None,
+            }
+            for gift in gifts
+        ]
 
     @staticmethod
     async def _publish_to_redis(event_type: str, data: dict) -> None:

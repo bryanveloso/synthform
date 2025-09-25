@@ -12,12 +12,15 @@ import redis.asyncio as redis
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from ninja import Query
 from ninja import Router
 
 from .models import Campaign
+from .models import Gift
 from .models import Metric
 from .models import Milestone
 from .schemas import CampaignResponse
+from .schemas import GiftLeaderboardResponse
 from .schemas import MetricResponse
 from .schemas import MilestoneResponse
 from .services import campaign_service
@@ -167,3 +170,63 @@ async def pause_timer(request) -> dict[str, Any]:
             await redis_client.close()
 
     return result
+
+
+@router.get("/{campaign_id}/gifts/leaderboard", response=list[GiftLeaderboardResponse])
+async def get_gift_leaderboard(
+    request, campaign_id: str, limit: int = Query(10, gt=0, le=100)
+) -> list[GiftLeaderboardResponse]:
+    """Get the top gift contributors for a campaign.
+
+    Args:
+        campaign_id: The campaign ID
+        limit: Number of results to return (1-100, default 10)
+    """
+    campaign = await sync_to_async(get_object_or_404)(Campaign, id=campaign_id)
+    leaderboard = await campaign_service.get_gift_leaderboard(campaign, limit)
+
+    return [
+        GiftLeaderboardResponse(
+            member_id=entry["member_id"],
+            display_name=entry["display_name"],
+            username=entry["username"],
+            tier1_count=entry["tier1_count"],
+            tier2_count=entry["tier2_count"],
+            tier3_count=entry["tier3_count"],
+            total_count=entry["total_count"],
+            first_gift_at=entry["first_gift_at"],
+            last_gift_at=entry["last_gift_at"],
+        )
+        for entry in leaderboard
+    ]
+
+
+@router.get("/active/gifts/leaderboard", response=list[GiftLeaderboardResponse])
+async def get_active_campaign_gift_leaderboard(
+    request, limit: int = Query(10, gt=0, le=100)
+) -> list[GiftLeaderboardResponse]:
+    """Get the top gift contributors for the active campaign.
+
+    Args:
+        limit: Number of results to return (1-100, default 10)
+    """
+    campaign = await campaign_service.get_active_campaign()
+    if not campaign:
+        return []
+
+    leaderboard = await campaign_service.get_gift_leaderboard(campaign, limit)
+
+    return [
+        GiftLeaderboardResponse(
+            member_id=entry["member_id"],
+            display_name=entry["display_name"],
+            username=entry["username"],
+            tier1_count=entry["tier1_count"],
+            tier2_count=entry["tier2_count"],
+            tier3_count=entry["tier3_count"],
+            total_count=entry["total_count"],
+            first_gift_at=entry["first_gift_at"],
+            last_gift_at=entry["last_gift_at"],
+        )
+        for entry in leaderboard
+    ]

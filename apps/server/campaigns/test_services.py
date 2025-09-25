@@ -10,9 +10,11 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 
 from campaigns.models import Campaign
+from campaigns.models import Gift
 from campaigns.models import Metric
 from campaigns.models import Milestone
 from campaigns.services import CampaignService
+from events.models import Member
 
 
 class CampaignServiceTest(TestCase):
@@ -394,3 +396,155 @@ class CampaignServiceConcurrencyTest(TransactionTestCase):
         metric = Metric.objects.get(campaign=self.campaign)
         self.assertEqual(metric.extra_data["ffxiv_votes"]["viera"], 10)
         self.assertEqual(metric.extra_data["ffxiv_votes"]["lalafell"], 10)
+
+    def test_process_subscription_tracks_gift(self):
+        """Test that gift subscriptions are tracked."""
+        result = async_to_sync(self.service.process_subscription)(
+            self.campaign,
+            tier=1,
+            is_gift=True,
+            gifter_id="gifter123",
+            gifter_name="TestGifter",
+        )
+
+        # Check that gift was tracked
+        member = Member.objects.get(twitch_id="gifter123")
+        self.assertEqual(member.display_name, "TestGifter")
+
+        gift = Gift.objects.get(member=member, campaign=self.campaign)
+        self.assertEqual(gift.tier1_count, 1)
+        self.assertEqual(gift.total_count, 1)
+        self.assertIsNotNone(gift.first_gift_at)
+        self.assertIsNotNone(gift.last_gift_at)
+
+    def test_process_subscription_accumulates_gifts(self):
+        """Test that multiple gift subs accumulate correctly."""
+        # First gift
+        async_to_sync(self.service.process_subscription)(
+            self.campaign,
+            tier=1,
+            is_gift=True,
+            gifter_id="gifter123",
+            gifter_name="TestGifter",
+        )
+
+        # Second gift (tier 2)
+        async_to_sync(self.service.process_subscription)(
+            self.campaign,
+            tier=2,
+            is_gift=True,
+            gifter_id="gifter123",
+            gifter_name="TestGifter",
+        )
+
+        # Third gift (tier 1 again)
+        async_to_sync(self.service.process_subscription)(
+            self.campaign,
+            tier=1,
+            is_gift=True,
+            gifter_id="gifter123",
+            gifter_name="TestGifter",
+        )
+
+        gift = Gift.objects.get(member__twitch_id="gifter123")
+        self.assertEqual(gift.tier1_count, 2)
+        self.assertEqual(gift.tier2_count, 1)
+        self.assertEqual(gift.tier3_count, 0)
+        self.assertEqual(gift.total_count, 3)
+
+    def test_process_subscription_no_gift_tracking_without_id(self):
+        """Test that gifts aren't tracked without a gifter ID."""
+        # Gift without gifter_id
+        result = async_to_sync(self.service.process_subscription)(
+            self.campaign,
+            tier=1,
+            is_gift=True,
+            gifter_id=None,
+            gifter_name="TestGifter",
+        )
+
+        # Should not create any gift records
+        self.assertEqual(Gift.objects.count(), 0)
+
+    def test_get_gift_leaderboard(self):
+        """Test getting the gift leaderboard."""
+        # Create some members with gifts
+        member1 = Member.objects.create(
+            twitch_id="top_gifter",
+            display_name="TopGifter",
+            username="topgifter",
+        )
+        Gift.objects.create(
+            member=member1,
+            campaign=self.campaign,
+            tier1_count=50,
+            tier2_count=10,
+            tier3_count=5,
+            total_count=65,
+        )
+
+        member2 = Member.objects.create(
+            twitch_id="mid_gifter",
+            display_name="MidGifter",
+            username="midgifter",
+        )
+        Gift.objects.create(
+            member=member2,
+            campaign=self.campaign,
+            tier1_count=20,
+            total_count=20,
+        )
+
+        member3 = Member.objects.create(
+            twitch_id="small_gifter",
+            display_name="SmallGifter",
+            username="smallgifter",
+        )
+        Gift.objects.create(
+            member=member3,
+            campaign=self.campaign,
+            tier1_count=5,
+            total_count=5,
+        )
+
+        # Get leaderboard
+        leaderboard = async_to_sync(self.service.get_gift_leaderboard)(
+            self.campaign, limit=2
+        )
+
+        self.assertEqual(len(leaderboard), 2)
+        self.assertEqual(leaderboard[0]["display_name"], "TopGifter")
+        self.assertEqual(leaderboard[0]["total_count"], 65)
+        self.assertEqual(leaderboard[1]["display_name"], "MidGifter")
+        self.assertEqual(leaderboard[1]["total_count"], 20)
+
+    def test_get_gift_leaderboard_empty(self):
+        """Test getting leaderboard with no gifts."""
+        leaderboard = async_to_sync(self.service.get_gift_leaderboard)(self.campaign)
+        self.assertEqual(leaderboard, [])
+
+    def test_gift_tracking_updates_display_name(self):
+        """Test that display name is updated if it changes."""
+        # First gift with initial name
+        async_to_sync(self.service.process_subscription)(
+            self.campaign,
+            tier=1,
+            is_gift=True,
+            gifter_id="gifter123",
+            gifter_name="OldName",
+        )
+
+        member = Member.objects.get(twitch_id="gifter123")
+        self.assertEqual(member.display_name, "OldName")
+
+        # Second gift with new name
+        async_to_sync(self.service.process_subscription)(
+            self.campaign,
+            tier=1,
+            is_gift=True,
+            gifter_id="gifter123",
+            gifter_name="NewName",
+        )
+
+        member.refresh_from_db()
+        self.assertEqual(member.display_name, "NewName")

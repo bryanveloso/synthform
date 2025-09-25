@@ -760,7 +760,11 @@ class TwitchEventHandler:
             milestones_unlocked = []
             for _ in range(payload.total):
                 campaign_result = await campaign_service.process_subscription(
-                    active_campaign, tier=payload.tier, is_gift=True
+                    active_campaign,
+                    tier=payload.tier,
+                    is_gift=True,
+                    gifter_id=payload.user.id if payload.user else None,
+                    gifter_name=payload.user.display_name if payload.user else None,
                 )
 
                 # Collect any milestones that were unlocked

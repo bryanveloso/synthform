@@ -57,3 +57,17 @@ class CampaignResponse(BaseModel):
     # Related data
     metric: MetricResponse
     milestones: list[MilestoneResponse]
+
+
+class GiftLeaderboardResponse(BaseModel):
+    """Response schema for gift leaderboard entry."""
+
+    member_id: str
+    display_name: str
+    username: str | None
+    tier1_count: int
+    tier2_count: int
+    tier3_count: int
+    total_count: int
+    first_gift_at: str | None
+    last_gift_at: str | None
