@@ -15,11 +15,12 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
+from events.models import Member
+
 from .models import Campaign
 from .models import Gift
 from .models import Metric
 from .models import Milestone
-from events.models import Member
 
 logger = logging.getLogger(__name__)
 
@@ -441,8 +442,10 @@ class CampaignService:
         Returns:
             List of gift records with member info
         """
+        # Exclude the broadcaster (Avalonstar) from the leaderboard
         gifts = await sync_to_async(list)(
             Gift.objects.filter(campaign=campaign)
+            .exclude(member__display_name__iexact="Avalonstar")
             .select_related("member")
             .order_by("-total_count")[:limit]
         )

@@ -16,7 +16,6 @@ from ninja import Query
 from ninja import Router
 
 from .models import Campaign
-from .models import Gift
 from .models import Metric
 from .models import Milestone
 from .schemas import CampaignResponse

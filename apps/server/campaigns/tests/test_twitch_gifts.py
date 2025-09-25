@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-import json
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from django.test import TestCase
 from django.utils import timezone
 
-from campaigns.models import Campaign, Gift, Metric, Milestone
+from campaigns.models import Campaign
+from campaigns.models import Gift
+from campaigns.models import Metric
+from campaigns.models import Milestone
 from campaigns.services import campaign_service
-from events.models import Event, Member
+from events.models import Member
 
 
 @pytest.mark.django_db(transaction=True)
