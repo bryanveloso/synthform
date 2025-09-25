@@ -172,17 +172,19 @@ async def pause_timer(request) -> dict[str, Any]:
     return result
 
 
-@router.get("/{campaign_id}/gifts/leaderboard", response=list[GiftLeaderboardResponse])
-async def get_gift_leaderboard(
-    request, campaign_id: str, limit: int = Query(10, gt=0, le=100)
+@router.get("/active/gifts/leaderboard", response=list[GiftLeaderboardResponse])
+async def get_active_campaign_gift_leaderboard(
+    request, limit: int = Query(10, gt=0, le=100)
 ) -> list[GiftLeaderboardResponse]:
-    """Get the top gift contributors for a campaign.
+    """Get the top gift contributors for the active campaign.
 
     Args:
-        campaign_id: The campaign ID
         limit: Number of results to return (1-100, default 10)
     """
-    campaign = await sync_to_async(get_object_or_404)(Campaign, id=campaign_id)
+    campaign = await campaign_service.get_active_campaign()
+    if not campaign:
+        return []
+
     leaderboard = await campaign_service.get_gift_leaderboard(campaign, limit)
 
     return [
@@ -201,19 +203,17 @@ async def get_gift_leaderboard(
     ]
 
 
-@router.get("/active/gifts/leaderboard", response=list[GiftLeaderboardResponse])
-async def get_active_campaign_gift_leaderboard(
-    request, limit: int = Query(10, gt=0, le=100)
+@router.get("/{campaign_id}/gifts/leaderboard", response=list[GiftLeaderboardResponse])
+async def get_gift_leaderboard(
+    request, campaign_id: str, limit: int = Query(10, gt=0, le=100)
 ) -> list[GiftLeaderboardResponse]:
-    """Get the top gift contributors for the active campaign.
+    """Get the top gift contributors for a campaign.
 
     Args:
+        campaign_id: The campaign ID
         limit: Number of results to return (1-100, default 10)
     """
-    campaign = await campaign_service.get_active_campaign()
-    if not campaign:
-        return []
-
+    campaign = await sync_to_async(get_object_or_404)(Campaign, id=campaign_id)
     leaderboard = await campaign_service.get_gift_leaderboard(campaign, limit)
 
     return [
