@@ -470,6 +470,54 @@ class CampaignService:
         ]
 
     @staticmethod
+    async def sync_campaign_state() -> None:
+        """Trigger a full campaign state sync to all connected clients."""
+        campaign = await CampaignService.get_active_campaign()
+        if not campaign:
+            logger.debug("No active campaign to sync")
+            return
+
+        try:
+            # Get metric if it exists
+            metric = await Metric.objects.filter(campaign=campaign).afirst()
+
+            # Calculate current state
+            current_session_start = await sync_to_async(
+                campaign.get_current_session_start
+            )()
+            total_duration = await sync_to_async(campaign.calculate_total_duration)()
+
+            # Build sync payload
+            sync_data = {
+                "campaign_id": str(campaign.id),
+                "stream_started_at": current_session_start.isoformat()
+                if current_session_start
+                else None,
+                "total_duration": total_duration,
+            }
+
+            # Add metric data if available
+            if metric:
+                sync_data.update(
+                    {
+                        "total_subs": metric.total_subs,
+                        "total_resubs": metric.total_resubs,
+                        "total_bits": metric.total_bits,
+                        "timer_seconds_remaining": metric.timer_seconds_remaining,
+                        "extra_data": metric.extra_data,
+                    }
+                )
+
+            # Publish sync event
+            await CampaignService._publish_to_redis("campaign:sync", sync_data)
+            logger.info(
+                f"Published campaign sync for {campaign.name}, stream_started_at: {current_session_start}"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to sync campaign state: {e}")
+
+    @staticmethod
     async def _publish_to_redis(event_type: str, data: dict) -> None:
         """Publish campaign events to Redis for real-time updates."""
         redis_client = None

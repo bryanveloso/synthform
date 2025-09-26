@@ -321,9 +321,16 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # Campaign events get forwarded directly
             # event_type could be campaign:update, campaign:milestone, campaign:timer:started, etc.
             campaign_type = event_type.replace("campaign:", "")
-            await self._send_message(
-                "campaign", campaign_type, event_data.get("payload", {})
-            )
+
+            # For sync events, get fresh campaign state
+            if campaign_type == "sync":
+                campaign_state = await self._get_campaign_state()
+                if campaign_state:
+                    await self._send_message("campaign", "sync", campaign_state)
+            else:
+                await self._send_message(
+                    "campaign", campaign_type, event_data.get("payload", {})
+                )
             return
 
         # Handle OBS events differently

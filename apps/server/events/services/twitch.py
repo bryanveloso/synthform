@@ -855,6 +855,14 @@ class TwitchEventHandler:
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(f"Processed StreamOnline: {payload.broadcaster.name} went live")
 
+        # Sync campaign state when stream starts
+        from campaigns.services import campaign_service
+
+        try:
+            await campaign_service.sync_campaign_state()
+        except Exception as e:
+            logger.error(f"Failed to sync campaign state on stream online: {e}")
+
     async def _handle_stream_offline(self, event_type: str, payload):
         """Handle StreamOffline payload."""
         payload_dict = {
@@ -864,24 +872,43 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
 
-        # Track session end
+        # Track session end - find the most recent open session
         from django.utils import timezone
 
         from streams.models import Session
 
-        today = timezone.now().date()
+        # Find the most recent session that has started but not ended
         try:
-            session = await Session.objects.aget(session_date=today)
-            if session.started_at and not session.ended_at:
+            session = (
+                await Session.objects.filter(
+                    started_at__isnull=False, ended_at__isnull=True
+                )
+                .order_by("-session_date")
+                .afirst()
+            )
+
+            if session:
                 session.ended_at = timezone.now()
                 session.duration = session.calculate_duration()
                 await session.asave()
-                logger.info(f"Session ended with duration: {session.duration} seconds")
-        except Session.DoesNotExist:
-            logger.warning(f"No session found for {today} when stream went offline")
+                logger.info(
+                    f"Session {session.session_date} ended with duration: {session.duration} seconds"
+                )
+            else:
+                logger.warning("No open session found when stream went offline")
+        except Exception as e:
+            logger.error(f"Error closing session on stream offline: {e}")
 
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(f"Processed StreamOffline: {payload.broadcaster.name} went offline")
+
+        # Sync campaign state when stream ends
+        from campaigns.services import campaign_service
+
+        try:
+            await campaign_service.sync_campaign_state()
+        except Exception as e:
+            logger.error(f"Failed to sync campaign state on stream offline: {e}")
 
     async def _handle_custom_reward_add(self, event_type: str, payload):
         """Handle ChannelPointsRewardAdd payload."""
