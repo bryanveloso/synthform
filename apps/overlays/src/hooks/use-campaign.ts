@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useReducer, useEffect, useState } from 'react'
 import { useRealtimeStore } from '@/store/realtime'
 import type { Milestone } from '@/types/campaign'
 
@@ -7,8 +7,8 @@ import type { Milestone } from '@/types/campaign'
  * Campaign data comes through WebSocket messages, no API fetching needed.
  */
 export function useCampaign() {
-  // Track current stream duration with ticker - MUST be before other hooks
-  const [currentStreamDuration, setCurrentStreamDuration] = useState(0)
+  // Force re-render every second for timer
+  const [, forceRender] = useReducer((x) => x + 1, 0)
 
   // Store selectors - data comes from WebSocket
   const campaign = useRealtimeStore((state) => state.campaign)
@@ -31,31 +31,19 @@ export function useCampaign() {
   // Combined count for display and milestone tracking
   const totalSubsWithResubs = totalSubs + totalResubs
 
-  // Update current stream duration every second
+  // Update every second - just count up from the base duration
   useEffect(() => {
-    if (!streamStartedAt) {
-      setCurrentStreamDuration(0)
-      return
-    }
-
-    // Calculate initial duration
-    const startTime = new Date(streamStartedAt).getTime()
-    const updateDuration = () => {
-      const duration = Math.floor((Date.now() - startTime) / 1000)
-      setCurrentStreamDuration(duration)
-    }
-
-    // Set initial value
-    updateDuration()
-
-    // Update every second
-    const interval = setInterval(updateDuration, 1000)
+    const interval = setInterval(() => {
+      forceRender()
+    }, 1000)
 
     return () => clearInterval(interval)
-  }, [streamStartedAt])
+  }, [])
 
-  // Total duration includes completed sessions + current stream
-  const totalDuration = totalDurationFromCompleted + currentStreamDuration
+  // Total duration - if we have a base duration, add seconds since component mounted
+  const [mountTime] = useState(Date.now())
+  const secondsSinceMount = Math.floor((Date.now() - mountTime) / 1000)
+  const totalDuration = totalDurationFromCompleted + secondsSinceMount
 
   // Computed: Timer state
   const timerStarted = campaign?.metric?.timer_started_at != null
