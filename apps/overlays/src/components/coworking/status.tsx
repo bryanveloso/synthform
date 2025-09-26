@@ -59,7 +59,7 @@ export function Status() {
               { 'opacity-100': isMuted, 'opacity-0': !isMuted },
               'font-caps ring-shark-960 rounded-md bg-gradient-to-b from-rose-500 to-rose-700 px-2 ring-4 inset-ring-1 inset-ring-rose-400 transition-opacity duration-300 ease-in-out text-shadow-none',
             )}>
-            M
+            MUTED
           </div>
         )}
       </div>

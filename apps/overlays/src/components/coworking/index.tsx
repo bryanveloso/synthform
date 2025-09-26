@@ -1,6 +1,7 @@
 import { useGSAP } from '@gsap/react'
 import { useRef } from 'react'
 
+import { Alert } from '@/components/coworking/alert'
 import { LimitBreak } from '@/components/coworking/limitbreak'
 import { Timeline } from '@/components/omnibar/timeline'
 import { Status } from '@/components/coworking/status'
@@ -8,9 +9,11 @@ import { Campaign } from '@/components/shared/campaign'
 import { Canvas } from '@/components/ui/canvas'
 import { Circle, Frame } from '@/components/ui/window'
 import { animateOverlayEntrance } from '@/lib/animations'
+import { useAlertQueue } from '@/hooks/use-alerts'
 
 export const Coworking = () => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const { onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: true })
 
   // Animate entire overlay on mount
   useGSAP(() => {
@@ -21,6 +24,9 @@ export const Coworking = () => {
 
   return (
     <Canvas>
+      {/* Invisible alert sound handler */}
+      <Alert onComplete={onAlertComplete} soundEnabled={soundEnabled} />
+
       <div ref={containerRef} className="grid grid-rows-[auto_64px]">
         {/* Main Content */}
         <div className="grid grid-cols-[1fr_492px_auto] gap-3 p-6">
