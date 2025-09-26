@@ -33,7 +33,7 @@ export const Coworking = () => {
                 <Circle />
                 <div className="font-caps flex-1 text-center font-bold text-white">!coworking</div>
               </div>
-              <div className="bg-shark-960 h-[920px] w-[762px]"></div>
+              <div className="bg-shark-960 h-[920px] w-[770px]"></div>
             </Frame>
             {/* <div className="rounded-lg p-3 shadow-xl/50 inset-ring-2 inset-ring-white/10">
               <div className="transparent aspect-[39/22] h-[264px]"></div>
