@@ -1,5 +1,6 @@
-import { cn } from '@/lib/utils'
+import { useMicStatus } from '@/hooks/use-rme'
 import { useStatus } from '@/hooks/use-status'
+import { cn } from '@/lib/utils'
 
 const STATUSES = {
   online: {
@@ -30,6 +31,7 @@ const STATUSES = {
 }
 
 export function Status() {
+  const { isMuted, isConnected } = useMicStatus()
   const { status } = useStatus()
 
   // Default to online if status is not in config
@@ -43,13 +45,23 @@ export function Status() {
       <div className="from-shark-840 to-shark-880 flex items-center justify-center rounded-l-lg bg-gradient-to-b pr-4 pl-4.5">
         <div
           className={cn(
-            'outline-shark-920 size-3.5 rounded-full bg-radial-[at_50%_25%] outline-4 transition-all duration-300 ease-in-out',
+            'outline-shark-920 size-4 rounded-full bg-radial-[at_50%_25%] outline-4 transition-all duration-300 ease-in-out',
             config.color,
           )}></div>
       </div>
-      <div className="from-shark-880 to-shark-920 text-shark-240 flex-1 rounded-r-lg bg-gradient-to-b p-3 font-sans text-shadow-sm/50">
-        Bryan is currently{' '}
-        <span className={cn('font-bold', config.textColor)}>{displayMessage}</span>.
+      <div className="from-shark-880 to-shark-920 text-shark-240 flex w-full flex-1 justify-between rounded-r-lg bg-gradient-to-b p-3 font-sans text-lg text-shadow-sm/50">
+        <span>
+          Bryan is <span className={cn('font-bold', config.textColor)}>{displayMessage}</span>.
+        </span>
+        {isConnected && (
+          <div
+            className={cn(
+              { 'opacity-100': isMuted, 'opacity-0': !isMuted },
+              'font-caps ring-shark-960 rounded-md bg-gradient-to-b from-rose-500 to-rose-700 px-2 ring-4 inset-ring-1 inset-ring-rose-400 transition-opacity duration-300 ease-in-out text-shadow-none',
+            )}>
+            M
+          </div>
+        )}
       </div>
     </div>
   )
