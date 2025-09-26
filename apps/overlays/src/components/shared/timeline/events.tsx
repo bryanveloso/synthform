@@ -4,19 +4,17 @@ import type {
   ChatNotificationEvent,
   CheerEvent,
   ChannelFollowEvent,
-  ChannelPointsRedemptionEvent,
 } from '@/types/events'
 
 export interface EventComponents {
   ChatNotification: React.ComponentType<{ event: ChatNotificationEvent }>
   Cheer: React.ComponentType<{ event: CheerEvent }>
   Follow: React.ComponentType<{ event: ChannelFollowEvent }>
-  RedemptionAdd: React.ComponentType<{ event: ChannelPointsRedemptionEvent }>
 }
 
 export const getEventComponent = (
   event: TimelineEvent,
-  components: EventComponents
+  components: EventComponents,
 ): ReactElement | null => {
   switch (event.type) {
     case 'twitch.channel.chat.notification':
@@ -25,8 +23,6 @@ export const getEventComponent = (
       return <components.Cheer event={event} />
     case 'twitch.channel.follow':
       return <components.Follow event={event} />
-    case 'twitch.channel.channel_points_custom_reward_redemption.add':
-      return <components.RedemptionAdd event={event} />
     // Legacy event types that are now handled by chat.notification
     case 'twitch.channel.subscribe':
     case 'twitch.channel.subscription.gift':

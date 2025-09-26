@@ -222,7 +222,7 @@ export const useRealtimeStore = create<RealtimeStore>()(
     timeline: {
       events: [],
       latestEvent: null,
-      maxEvents: 10,
+      maxEvents: 20,
       lastPushTime: 0,
     },
 

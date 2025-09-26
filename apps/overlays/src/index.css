@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/alexandria';
+@import '@fontsource-variable/sora';
 
 @font-face {
   font-family: 'Optiker K';
@@ -56,7 +57,7 @@
   --width-canvas: 1920px;
 
   /* Typography */
-  --font-sans: 'Alexandria Variable', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-sans: 'Sora Variable', system-ui, Avenir, Helvetica, Arial, sans-serif;
   --font-caps: 'Optiker K', system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 

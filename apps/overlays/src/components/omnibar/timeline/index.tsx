@@ -1,36 +1,50 @@
-import { useTimeline } from '@/hooks/use-timeline'
 import { getEventComponent } from '@/components/shared/timeline/events'
-import {
-  ChatNotification,
-  Cheer,
-  Follow,
-  RedemptionAdd,
-} from './item'
+import { Frame, Item } from '@/components/ui/chyron'
+import { useTimeline } from '@/hooks/use-timeline'
+
+import { ChatNotification, Cheer, Follow } from './item'
+import { cn } from '@/lib/utils'
 
 export const Timeline = () => {
-  const { events: timelineEvents } = useTimeline(10)
+  const { events: timelineEvents } = useTimeline(20)
 
   return (
-    <div className="bg-shark-960 absolute right-0 bottom-0 left-0 h-12 w-full p-1 text-xs text-white">
-      <div className="flex gap-1">
-        {timelineEvents.map((event) => {
+    <Frame>
+      <div className="flex h-full items-center gap-8 p-6">
+        <div className="from-shark-840 to-shark-880 inset-ring-shark-800 flex size-8 items-center justify-center rounded-sm bg-gradient-to-b inset-ring-1">
+          <svg
+            version="1.1"
+            id="Arrow-Right-1--Streamline-Streamline-3.0"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlnsXlink="http://www.w3.org/1999/xlink"
+            x="0"
+            y="0"
+            viewBox="0 0 24 24"
+            xmlSpace="preserve"
+            enableBackground="new 0 0 24 24"
+            className="text-lime size-3">
+            <path
+              d="M19.5 12c0 0.7 -0.3 1.3 -0.8 1.7L7.5 23.6c-0.8 0.7 -2 0.6 -2.6 -0.2 -0.6 -0.8 -0.6 -1.9 0.2 -2.6l9.8 -8.6c0.1 -0.1 0.1 -0.2 0 -0.4L5.1 3.2c-0.8 -0.7 -0.8 -1.9 -0.1 -2.6 0.7 -0.7 1.8 -0.8 2.6 -0.2l11.2 9.8c0.4 0.5 0.7 1.1 0.7 1.8z"
+              fill="currentColor"
+              strokeWidth="1"></path>
+          </svg>
+        </div>
+
+        {timelineEvents.map((event, i) => {
           const component = getEventComponent(event, {
             ChatNotification,
             Cheer,
             Follow,
-            RedemptionAdd,
           })
           if (!component) return null
 
           return (
-            <div
-              key={event.id}
-              className={`from-shark-880 to-shark-920 rounded-sm bg-gradient-to-b px-4 shadow-xl/50 inset-ring inset-ring-white/5`}>
-              <div className="text-base">{component}</div>
-            </div>
+            <Item key={event.id} className={cn({ '-ml-4': i === 0 })}>
+              {component}
+            </Item>
           )
         })}
       </div>
-    </div>
+    </Frame>
   )
 }

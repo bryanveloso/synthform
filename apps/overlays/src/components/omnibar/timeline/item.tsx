@@ -1,10 +1,7 @@
-import type {
-  ChatNotificationEvent,
-  ChannelFollowEvent,
-  CheerEvent,
-  ChannelPointsRedemptionEvent,
-} from '@/types/events'
+import { Event, Username } from '@/components/ui/chyron'
+import type { ChannelFollowEvent, ChatNotificationEvent, CheerEvent } from '@/types/events'
 
+// Mega component for handling all chat notification events
 export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) => {
   const payload = event.data.payload
   const { notice_type, chatter_display_name, chatter_user_name } = payload
@@ -12,108 +9,105 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
   switch (notice_type) {
     case 'sub':
       return (
-        <div>
-          <div className="font-caps">New Sub</div>
-          <div>{chatter_display_name || chatter_user_name}</div>
-        </div>
+        <>
+          <Username>{chatter_display_name || chatter_user_name}</Username>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">New Sub</div>
+        </>
       )
+
     case 'resub':
       return (
-        <div>
-          <div className="font-caps">Resub</div>
-          <div>
-            {chatter_display_name || chatter_user_name} × {payload.resub?.cumulative_months || '?'}
-          </div>
-        </div>
+        <>
+          <Username>{chatter_display_name || chatter_user_name}</Username>
+          <Event>
+            <span className="text-lime">{payload.resub?.cumulative_months || '?'}</span> Months
+          </Event>
+        </>
       )
+
     case 'sub_gift':
       return (
-        <div>
-          <div className="font-caps">Gift</div>
-          <div>
+        <>
+          <Username>
             {payload.sub_gift?.recipient?.display_name ||
               payload.sub_gift?.recipient?.name ||
               'Unknown'}
-          </div>
-        </div>
+          </Username>
+          <Event>Recipient</Event>
+        </>
       )
+
     case 'community_sub_gift':
       return (
-        <div>
-          <div className="font-caps">Gift</div>
-          <div>
-            {chatter_display_name || chatter_user_name} × {payload.community_sub_gift?.total || '?'}
-          </div>
-        </div>
+        <>
+          <Username>{chatter_display_name || chatter_user_name}</Username>
+          <Event>
+            Gifted <span className="text-lime">×{payload.community_sub_gift?.total || '?'}</span>
+          </Event>
+        </>
       )
+
     case 'raid':
       return (
-        <div>
-          <div className="font-caps">Raid</div>
-          <div>
+        <>
+          <Username>
             {payload.raid?.user?.display_name ||
               payload.raid?.user?.name ||
               chatter_display_name ||
               chatter_user_name}{' '}
             + {payload.raid?.viewer_count || '?'}
-          </div>
-        </div>
+          </Username>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">Raid</div>
+        </>
       )
+
     case 'bits_badge_tier':
       return (
-        <div>
-          <div className="font-caps">Bits Badge</div>
-          <div>
-            {chatter_display_name || chatter_user_name} {payload.bits_badge_tier?.tier || ''}
+        <>
+          <Username>{chatter_display_name || chatter_user_name}</Username>
+          <div className="font-caps text-shark-680 text-base whitespace-nowrap">
+            Bits Badge {payload.bits_badge_tier?.tier || ''}
           </div>
-        </div>
+        </>
       )
+
     case 'charity_donation':
       return (
-        <div>
-          <div className="font-caps">Charity</div>
-          <div>
-            {chatter_display_name || chatter_user_name} ${payload.charity_donation?.amount.value || '?'}
-          </div>
-        </div>
+        <>
+          <Username>{chatter_display_name || chatter_user_name}</Username>
+          <Event>${payload.charity_donation?.amount.value || '?'} Charity</Event>
+        </>
       )
+
     default:
+      // Fallback for unknown notice types
       return (
-        <div>
-          <div className="font-caps">{notice_type}</div>
-          <div>{chatter_display_name || chatter_user_name}</div>
-        </div>
+        <>
+          <Username>{chatter_display_name || chatter_user_name}</Username>
+          <Event>
+            <span className="text-lime">{notice_type}</span>
+          </Event>
+        </>
       )
   }
 }
 
 export const Follow = ({ event }: { event: ChannelFollowEvent }) => (
-  <div>
-    <div className="font-caps">Follow</div>
-    <div>{event.data.payload.user_display_name || event.data.user_name}</div>
-  </div>
+  <>
+    <Username>{event.data.payload.user_display_name || event.data.payload.user_name}</Username>
+    <Event>Follow</Event>
+  </>
 )
 
 export const Cheer = ({ event }: { event: CheerEvent }) => (
-  <div>
-    <div className="font-caps">Cheer</div>
-    <div>
+  <>
+    <Username>
       {event.data.payload.is_anonymous
         ? 'Anonymous'
-        : event.data.payload.user_display_name || event.data.payload.user_name || 'Unknown'}{' '}
-      × {event.data.payload.bits}
-    </div>
-  </div>
+        : event.data.payload.user_display_name || event.data.payload.user_name || 'Unknown'}
+    </Username>
+    <Event>
+      Cheer <span className="text-lime">×{event.data.payload.bits}</span>
+    </Event>
+  </>
 )
-
-const OOF_ID = '5685d03e-80c2-4640-ba06-566fb8bbc4ce'
-const SIP_ID = 'cdee531b-d614-4f02-b4a0-7f5c5d9f321c'
-
-export const RedemptionAdd = ({ event }: { event: ChannelPointsRedemptionEvent }) => (
-  <div>
-    {event.data.payload.reward.id === OOF_ID && (
-      <img src="/images/emotes/oof.png" alt="OOF" className="w-8" />
-    )}
-  </div>
-)
-

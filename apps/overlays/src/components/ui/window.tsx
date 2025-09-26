@@ -1,29 +1,61 @@
-import type { FC, PropsWithChildren } from "react"
+import { forwardRef, type PropsWithChildren } from 'react'
 
-const Frame: FC<PropsWithChildren<{ toolbar?: boolean }>> = ({ children, toolbar = false }) => {
+import { cn } from '@/lib/utils'
+
+const Frame = forwardRef<
+  HTMLDivElement,
+  PropsWithChildren<{ className?: string; toolbar?: boolean }>
+>(({ children, className, toolbar = false }, ref) => {
   return (
     <div
-      className={`from-shark-880 to-shark-920 rounded-lg bg-gradient-to-b p-3 shadow-xl/50 inset-ring-2 inset-ring-white/10 ${toolbar ? 'pt-0' : ''}`}>
+      ref={ref}
+      className={cn(
+        `from-shark-880 to-shark-920 rounded-lg bg-gradient-to-b p-3 shadow-xl/50 inset-ring-2 inset-ring-white/10`,
+        { 'pt-0': toolbar },
+        className,
+      )}>
       {children}
     </div>
   )
-}
+})
+Frame.displayName = 'Frame'
 
-const Circle: FC<PropsWithChildren> = ({ children }) => {
-  return <div className="relative h-3 w-3 overflow-hidden rounded-full inset-ring-3 inset-ring-shark-760">{children}</div>
-}
+const Circle = forwardRef<HTMLDivElement, PropsWithChildren<{ className?: string }>>(
+  ({ children, className }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'inset-ring-shark-760 relative h-3 w-3 overflow-hidden rounded-full inset-ring-3',
+          className,
+        )}>
+        {children}
+      </div>
+    )
+  },
+)
+Circle.displayName = 'Circle'
 
-const Toolbar: FC<PropsWithChildren> = ({ children }) => {
-  return (<div className="flex items-center gap-2 py-2">{children}</div>)
-}
+const Toolbar = forwardRef<HTMLDivElement, PropsWithChildren<{ className?: string }>>(
+  ({ children, className }, ref) => {
+    return (
+      <div ref={ref} className={cn('flex items-center gap-2 py-2', className)}>
+        {children}
+      </div>
+    )
+  },
+)
+Toolbar.displayName = 'Toolbar'
 
-const Slot: FC<PropsWithChildren> = ({ children }) => {
-  return <div className="slot">{children}</div>
-}
+const Slot = forwardRef<HTMLDivElement, PropsWithChildren<{ className?: string }>>(
+  ({ children, className }, ref) => {
+    return (
+      <div ref={ref} className={cn('slot', className)}>
+        {children}
+      </div>
+    )
+  },
+)
+Slot.displayName = 'Slot'
 
-export {
-  Circle,
-  Frame,
-  Toolbar,
-  Slot
-}
+export { Circle, Frame, Toolbar, Slot }
