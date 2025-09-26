@@ -101,6 +101,17 @@ export const alertSoundConfig: Record<string, SoundConfig> = {
     },
   },
 
+  community_gift_bundle: {
+    sounds: {
+      1: '/sounds/gift.ogg', // Single gift
+      // 5: '/sounds/gift-5.mp3',            // 5+ gifts
+      // 10: '/sounds/gift-10.mp3',          // 10+ gifts
+      // 20: '/sounds/gift-20.mp3',          // 20+ gifts
+      // 50: '/sounds/gift-50.mp3',          // 50+ gifts (community gift)
+      // 100: '/sounds/gift-mega.mp3',       // 100+ gifts (mega gift)
+    },
+  },
+
   tip: {
     sounds: {
       1: '/sounds/tip.mp3', // Any tip
@@ -128,6 +139,19 @@ export function getAlertSound(
   if (tier && (type === 'sub' || type === 'resub' || type.includes('upgrade'))) {
     const tierNum = tier === 'Tier 3' ? 3 : tier === 'Tier 2' ? 2 : 1
     return config.sounds[tierNum] || config.sounds[1]
+  }
+
+  // For community gift bundles, use amount-based thresholds
+  if (type === 'community_gift_bundle' && amount && config.sounds) {
+    const thresholds = Object.keys(config.sounds)
+      .map(Number)
+      .sort((a, b) => b - a)
+
+    for (const threshold of thresholds) {
+      if (amount >= threshold) {
+        return config.sounds[threshold]
+      }
+    }
   }
 
   // For amount-based events

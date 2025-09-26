@@ -498,6 +498,9 @@ class TwitchEventHandler:
 
             return result if result else None
 
+        # Track community gift ID for aggregation
+        community_gift_id = None
+
         for field in notice_fields:
             if hasattr(payload, field):
                 field_value = getattr(payload, field)
@@ -505,9 +508,48 @@ class TwitchEventHandler:
                     logger.debug(
                         f"Processing notice field '{field}' for {payload.notice_type}"
                     )
-                    payload_dict[field] = serialize_twitchio_object(field_value)
+                    serialized_field = serialize_twitchio_object(field_value)
+                    payload_dict[field] = serialized_field
+
+                    # Extract community_gift_id from community_sub_gift or sub_gift
+                    if field in ["community_sub_gift", "sub_gift"] and serialized_field:
+                        # Check if this field contains a community_gift_id
+                        if isinstance(serialized_field, dict):
+                            if "community_gift_id" in serialized_field:
+                                community_gift_id = serialized_field[
+                                    "community_gift_id"
+                                ]
+                            elif (
+                                "id" in serialized_field
+                                and field == "community_sub_gift"
+                            ):
+                                # For community_sub_gift, the ID is the community_gift_id
+                                community_gift_id = serialized_field["id"]
+                                serialized_field["community_gift_id"] = (
+                                    community_gift_id
+                                )
                 else:
                     payload_dict[field] = None
+
+        # Add community_gift_id to the main payload if found
+        if community_gift_id:
+            payload_dict["community_gift_id"] = community_gift_id
+
+        # Extract tier information from serialized data
+        tier = None
+        if "sub_gift" in payload_dict and isinstance(payload_dict["sub_gift"], dict):
+            tier = payload_dict["sub_gift"].get("tier")
+        elif "community_sub_gift" in payload_dict and isinstance(
+            payload_dict["community_sub_gift"], dict
+        ):
+            tier = payload_dict["community_sub_gift"].get("tier")
+        elif "sub" in payload_dict and isinstance(payload_dict["sub"], dict):
+            tier = payload_dict["sub"].get("tier")
+        elif "resub" in payload_dict and isinstance(payload_dict["resub"], dict):
+            tier = payload_dict["resub"].get("tier")
+
+        if tier:
+            payload_dict["tier"] = tier
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)

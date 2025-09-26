@@ -390,6 +390,22 @@ export interface ChatNotificationEvent extends BaseEvent<ChatNotificationPayload
   }
 }
 
+// Community Gift Bundle Event (aggregated gift subs)
+export interface CommunityGiftBundlePayload {
+  gifter: string
+  total: number
+  tier?: string
+}
+
+export interface CommunityGiftBundleEvent extends BaseEvent<CommunityGiftBundlePayload> {
+  type: 'twitch.channel.subscription.gift.bundle'
+  data: {
+    timestamp: string
+    payload: CommunityGiftBundlePayload
+    user_name: string
+  }
+}
+
 // Union type for all timeline events
 export type TimelineEvent =
   | ChannelFollowEvent
@@ -400,6 +416,7 @@ export type TimelineEvent =
   | ChannelPointsRedemptionEvent
   | ChannelRaidEvent
   | ChatNotificationEvent
+  | CommunityGiftBundleEvent
 
 // Type guard functions
 export function isFollowEvent(event: TimelineEvent): event is ChannelFollowEvent {

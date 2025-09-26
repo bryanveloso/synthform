@@ -142,6 +142,8 @@ export interface AlertData {
   user_name?: string
   amount?: number
   timestamp: string
+  // Additional data that varies by alert type
+  [key: string]: any
 }
 
 // Ticker types (for bottom bar messages)

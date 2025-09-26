@@ -87,6 +87,10 @@ function transformTimelineEvent(rawEvent: RawEvent): TimelineEvent {
   } as TimelineEvent
 }
 
+// Constants for gift aggregation
+const COMMUNITY_GIFT_DEBOUNCE_MS = 750
+const COMMUNITY_GIFT_GC_MS = 30000
+
 // Alert queue state from use-alerts
 interface AlertQueueState {
   currentAlert: AlertData | null
@@ -124,6 +128,15 @@ interface ChatState {
   maxMessages: number
 }
 
+// Community gift aggregation state
+interface PendingCommunityGift {
+  gifterEvent: AlertData | null
+  individualGifts: AlertData[]
+  count: number
+  timeoutId: NodeJS.Timeout | null
+  gcTimeoutId: NodeJS.Timeout | null
+}
+
 // Complete store interface
 interface RealtimeStore {
   // Connection state
@@ -141,6 +154,9 @@ interface RealtimeStore {
 
   // Chat state
   chat: ChatState
+
+  // Community gift aggregation
+  pendingCommunityGifts: Map<string, PendingCommunityGift>
 
   // Campaign state
   campaign: Campaign | null
@@ -231,6 +247,9 @@ export const useRealtimeStore = create<RealtimeStore>()(
       messages: [],
       maxMessages: 50,
     },
+
+    // Community gift aggregation initial state
+    pendingCommunityGifts: new Map(),
 
     // Campaign initial state
     campaign: null,
@@ -400,14 +419,130 @@ export const useRealtimeStore = create<RealtimeStore>()(
       set({ isConnected: connected, connectionState })
     },
 
+
     // Alert queue actions (copied from use-alerts)
     addAlert: (alert) => {
-      set((state) => ({
-        alerts: {
-          ...state.alerts,
-          queue: [...state.alerts.queue, alert],
-        },
-      }))
+      const { community_gift_id, type } = alert
+
+      // Handle community gift aggregation
+      if (community_gift_id) {
+        set((state) => {
+          const pendingGifts = new Map(state.pendingCommunityGifts)
+          let bundle = pendingGifts.get(community_gift_id) || {
+            gifterEvent: null,
+            individualGifts: [],
+            count: 0,
+            timeoutId: null,
+            gcTimeoutId: null,
+          }
+
+          // Clear existing timeouts to prevent memory leaks
+          if (bundle.timeoutId) {
+            clearTimeout(bundle.timeoutId)
+          }
+          if (bundle.gcTimeoutId) {
+            clearTimeout(bundle.gcTimeoutId)
+          }
+
+          // Clear existing timeout
+          if (bundle.timeoutId) {
+            clearTimeout(bundle.timeoutId)
+          }
+
+          // Store the appropriate event
+          if (type === 'community_sub_gift') {
+            bundle.gifterEvent = alert
+          } else if (type === 'sub_gift') {
+            bundle.individualGifts.push(alert)
+            bundle.count += alert.amount || 1
+          }
+
+          // Set timeout to process the bundle
+          bundle.timeoutId = setTimeout(() => {
+            set((currentState) => {
+              const currentPendingGifts = new Map(currentState.pendingCommunityGifts)
+              const completedBundle = currentPendingGifts.get(community_gift_id)
+
+              if (completedBundle) {
+                const gifter = completedBundle.gifterEvent?.user_name || 'A kind stranger'
+                const totalGifts = completedBundle.individualGifts.length || completedBundle.count
+
+                // Create consolidated alert
+                const consolidatedAlert: AlertData = {
+                  id: `community-gift-${community_gift_id}`,
+                  type: 'community_gift_bundle',
+                  message: `${gifter} gifted ${totalGifts} sub${totalGifts !== 1 ? 's' : ''}!`,
+                  user_name: gifter,
+                  amount: totalGifts,
+                  timestamp: completedBundle.gifterEvent?.timestamp || new Date().toISOString(),
+                  community_gift_id: community_gift_id,
+                  tier: completedBundle.gifterEvent?.tier || completedBundle.individualGifts[0]?.tier,
+                }
+
+                // Add to alert queue
+                currentPendingGifts.delete(community_gift_id)
+
+                // Also add to timeline as consolidated event
+                const timelineEvent: TimelineEvent = {
+                  id: consolidatedAlert.id,
+                  type: 'twitch.channel.subscription.gift.bundle',
+                  data: {
+                    timestamp: consolidatedAlert.timestamp,
+                    payload: {
+                      gifter: gifter,
+                      total: totalGifts,
+                      tier: consolidatedAlert.tier!,
+                    },
+                    user_name: gifter,
+                  },
+                }
+
+                return {
+                  alerts: {
+                    ...currentState.alerts,
+                    queue: [...currentState.alerts.queue, consolidatedAlert],
+                  },
+                  pendingCommunityGifts: currentPendingGifts,
+                  timeline: {
+                    ...currentState.timeline,
+                    events: [timelineEvent, ...currentState.timeline.events].slice(0, currentState.timeline.maxEvents),
+                    latestEvent: timelineEvent,
+                    lastPushTime: Date.now(),
+                  },
+                }
+              }
+              return currentState
+            })
+          }, COMMUNITY_GIFT_DEBOUNCE_MS)
+
+          // Set garbage collection timeout to clean up orphaned bundles
+          bundle.gcTimeoutId = setTimeout(() => {
+            set((currentState) => {
+              const currentPendingGifts = new Map(currentState.pendingCommunityGifts)
+              if (currentPendingGifts.has(community_gift_id)) {
+                console.warn(`Garbage collecting incomplete community gift bundle: ${community_gift_id}`)
+                currentPendingGifts.delete(community_gift_id)
+                return { pendingCommunityGifts: currentPendingGifts }
+              }
+              return currentState
+            })
+          }, COMMUNITY_GIFT_GC_MS)
+
+          pendingGifts.set(community_gift_id, bundle)
+
+          return {
+            pendingCommunityGifts: pendingGifts,
+          }
+        })
+      } else {
+        // Non-community gift, add directly
+        set((state) => ({
+          alerts: {
+            ...state.alerts,
+            queue: [...state.alerts.queue, alert],
+          },
+        }))
+      }
     },
 
     removeCurrentAlert: () => {

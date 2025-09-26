@@ -2,9 +2,10 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 
 import { useRealtimeStore } from '@/store/realtime'
 import type { AlertData } from '@/types/server'
+import { getAlertSound } from '@/config/sounds'
 
 export interface Alert extends AlertData {
-  type: 'follow' | 'subscription' | 'resub' | 'gift' | 'cheer' | 'raid' | 'tip'
+  type: 'follow' | 'sub' | 'resub' | 'sub_gift' | 'community_sub_gift' | 'bits_badge_tier' | 'cheer' | 'raid' | 'tip' | 'community_gift_bundle'
   username?: string
   duration: number
   soundFile?: string
@@ -65,17 +66,18 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
       ...alert,
       username: alert.user_name,
       duration: DEFAULT_ALERT_DURATION,
-      soundFile: undefined,
+      soundFile: getAlertSound(alert.type, alert.amount, alert.tier as Alert['tier']),
     } as Alert))
   }, [alerts.queue])
 
   const currentAlert = useMemo(() => {
     if (!alerts.currentAlert) return null
+
     return {
       ...alerts.currentAlert,
       username: alerts.currentAlert.user_name,
       duration: DEFAULT_ALERT_DURATION,
-      soundFile: undefined,
+      soundFile: getAlertSound(alerts.currentAlert.type, alerts.currentAlert.amount, alerts.currentAlert.tier as Alert['tier']),
     } as Alert
   }, [alerts.currentAlert])
 
