@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     # Project Root
     "synthform",
     # Core Applications
+    "ads",
     "audio",
     "authentication",
     "campaigns",

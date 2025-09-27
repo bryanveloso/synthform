@@ -16,6 +16,14 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
+# Configure periodic tasks for ad scheduling
+app.conf.beat_schedule = {
+    "check-ad-schedule": {
+        "task": "ads.tasks.check_ad_schedule",
+        "schedule": 10.0,  # Every 10 seconds
+    },
+}
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
