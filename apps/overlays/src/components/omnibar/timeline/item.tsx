@@ -33,7 +33,7 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
               payload.sub_gift?.recipient?.name ||
               'Unknown'}
           </Username>
-          <Event>Recipient</Event>
+          <Event>Gift Recipient</Event>
         </>
       )
 
@@ -57,7 +57,7 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
               chatter_user_name}{' '}
             + {payload.raid?.viewer_count || '?'}
           </Username>
-          <div className="font-caps text-shark-680 text-base whitespace-nowrap">Raid</div>
+          <Event>Raid</Event>
         </>
       )
 
