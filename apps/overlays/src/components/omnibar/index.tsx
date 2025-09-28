@@ -16,8 +16,8 @@ export const Omnibar = () => {
       <Alert currentAlert={currentAlert} onComplete={onAlertComplete} soundEnabled={soundEnabled} />
 
       <div ref={containerRef} className="h-canvas grid grid-rows-[1fr_64px]">
-        <div className="relative flex items-center">
         <div className="h-full"></div>
+        <div className="relative flex items-center">
           {/* Base layer: Campaign */}
           <div className="relative z-10 flex items-center w-full">
             <Campaign />
