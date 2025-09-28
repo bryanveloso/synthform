@@ -16,8 +16,8 @@
       "name": "@synthform/overlays",
       "version": "0.0.0",
       "dependencies": {
-        "@fontsource-variable/alexandria": "^5.2.7",
         "@fontsource-variable/sora": "^5.2.8",
+        "@fontsource/fira-sans": "^5.2.7",
         "@gsap/react": "^2.1.2",
         "@nberlette/clsx": "^0.3.1",
         "@tailwindcss/vite": "^4.1.12",
@@ -184,9 +184,9 @@
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.3.5", "", { "dependencies": { "@eslint/core": "^0.15.2", "levn": "^0.4.1" } }, "sha512-Z5kJ+wU3oA7MMIqVR9tyZRtjYPr4OC004Q4Rw7pgOKUOKkJfZ3O24nz3WYfGRpMDNmcOi3TwQOmgm7B7Tpii0w=="],
 
-    "@fontsource-variable/alexandria": ["@fontsource-variable/alexandria@5.2.7", "", {}, "sha512-x09yf+vj3bIsrjEozUevlPxzov4bwzTmlov7JpGHUTDtbWQF9Y4YcdsKqvEZCf8P5Zg0LBDyIZ5O2MLBv6zuww=="],
-
     "@fontsource-variable/sora": ["@fontsource-variable/sora@5.2.8", "", {}, "sha512-sP+ILTfi5r3cqmMBntI4ooQNxFI+LyHyD5hcPbWwwL4uh4kKFAkOz0w2veCXjz18fKRdva6OG0dY+5yQ02f30w=="],
+
+    "@fontsource/fira-sans": ["@fontsource/fira-sans@5.2.7", "", {}, "sha512-5DE4AealD/VnbwdzMgnpWfCttMQBbteNiK9DCJE7cVwZEbDTPLUoFDMMvxNQ498nZc5in7Mta9c/s+3Ehh0BAg=="],
 
     "@gsap/react": ["@gsap/react@2.1.2", "", { "peerDependencies": { "gsap": "^3.12.5", "react": ">=17" } }, "sha512-JqliybO1837UcgH2hVOM4VO+38APk3ECNrsuSM4MuXp+rbf+/2IG2K1YJiqfTcXQHH7XlA0m3ykniFYstfq0Iw=="],
 

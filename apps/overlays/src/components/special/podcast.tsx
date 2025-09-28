@@ -1,8 +1,9 @@
 import { useRef } from 'react'
 
 import { Alert } from '@/components/shared/alert'
-import { Timeline } from '@/components/shared/timeline'
 import { Campaign } from '@/components/shared/campaign'
+import { Chat } from '@/components/shared/chat'
+import { Timeline } from '@/components/shared/timeline'
 import { Canvas } from '@/components/ui/canvas'
 import { useAlertQueue } from '@/hooks/use-alerts'
 
@@ -17,8 +18,8 @@ export const Podcast = () => {
 
       <div ref={containerRef} className="h-canvas grid grid-rows-[1fr_64px]">
         {/* Main content area - empty for podcast view */}
-        <div className="flex items-center justify-center">
-          {/* Could add visual elements here if needed */}
+        <div className="m-16 flex h-[890px] w-[528px] items-start place-self-end">
+          <Chat />
         </div>
 
         {/* Timeline row at bottom */}

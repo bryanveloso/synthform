@@ -203,6 +203,7 @@ class ServerConnection {
       'status:sync',
       'status:update',
       'chat:message',
+      'chat:sync',
       'audio:rme:status',
       'audio:rme:update',
       'ffbot:stats',

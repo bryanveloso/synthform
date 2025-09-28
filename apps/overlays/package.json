@@ -11,8 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fontsource-variable/alexandria": "^5.2.7",
     "@fontsource-variable/sora": "^5.2.8",
+    "@fontsource/fira-sans": "^5.2.7",
     "@gsap/react": "^2.1.2",
     "@nberlette/clsx": "^0.3.1",
     "@tailwindcss/vite": "^4.1.12",

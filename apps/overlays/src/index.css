@@ -1,6 +1,7 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/alexandria';
 @import '@fontsource-variable/sora';
+@import '@fontsource/fira-sans/400.css';
+@import '@fontsource/fira-sans/800.css';
 
 @font-face {
   font-family: 'Optiker K';
@@ -59,6 +60,7 @@
   /* Typography */
   --font-sans: 'Sora Variable', system-ui, Avenir, Helvetica, Arial, sans-serif;
   --font-caps: 'Optiker K', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-fira: 'Fira Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
 :root {
