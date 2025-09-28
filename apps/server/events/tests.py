@@ -1,4 +1,5 @@
 """Tests for Twitch event handling, especially community gift aggregation."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock
