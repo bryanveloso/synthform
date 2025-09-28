@@ -330,21 +330,6 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-
-        # Also publish to chat-specific channel for emote rain
-        try:
-            redis_message = {
-                "event_id": str(event.id),
-                "event_type": event_type,
-                "source": "twitch",
-                "timestamp": event.timestamp.isoformat(),
-                "data": payload_dict,
-            }
-            await self._redis_client.publish("events:chat", json.dumps(redis_message))
-            logger.debug("Published ChatMessage to events:chat for emote rain")
-        except Exception as e:
-            logger.error(f"Error publishing chat message to events:chat: {e}")
-
         logger.info(
             f"Processed ChatMessage: {payload.text[:50]}... from {payload.chatter.display_name}"
         )

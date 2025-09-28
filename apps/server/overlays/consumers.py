@@ -184,7 +184,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         await self.pubsub.subscribe("events:limitbreak")
         await self.pubsub.subscribe("events:music")
         await self.pubsub.subscribe("events:status")
-        await self.pubsub.subscribe("events:chat")
         await self.pubsub.subscribe("events:audio")
         await self.pubsub.subscribe("events:campaign")
         await self.pubsub.subscribe("events:games:ffbot")
@@ -192,7 +191,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # await self.pubsub.subscribe("events:games:ironmon")
         # await self.pubsub.subscribe("events:games:ff14")
         logger.info(
-            "Subscribed to Redis channels: events:twitch, events:obs, events:limitbreak, events:music, events:status, events:chat, events:audio, events:campaign, and events:games:ffbot"
+            "Subscribed to Redis channels: events:twitch, events:obs, events:limitbreak, events:music, events:status, events:audio, events:campaign, and events:games:ffbot"
         )
 
         # Start Redis message listener
@@ -293,11 +292,16 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         # Handle chat messages for emote rain
         if event_type == "channel.chat.message":
-            logger.debug("💬 WebSocket: Sending chat:message to overlay")
             chat_data = event_data.get("data", {})
+            logger.debug(
+                f"💬 WebSocket: Sending chat:message to overlay - user: {chat_data.get('user_name', 'NOT FOUND')}, text: {chat_data.get('text', 'NOT FOUND')}"
+            )
             # Format the message consistently with chat:sync
             formatted_message = {
-                "id": chat_data.get("message_id", str(event_data.get("id", ""))),
+                "id": chat_data.get(
+                    "message_id",
+                    str(event_data.get("id", f"msg-{datetime.now().timestamp()}")),
+                ),
                 "text": chat_data.get("text", ""),
                 "user_name": chat_data.get("user_name", "Unknown"),
                 "user_display_name": chat_data.get(
