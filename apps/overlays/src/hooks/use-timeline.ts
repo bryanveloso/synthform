@@ -8,6 +8,7 @@ import type { TimelineEvent } from '@/types/events'
  */
 export function useTimeline(maxEvents: number = 10) {
   const allEvents = useRealtimeStore((state) => state.timeline.events)
+  const lastPushTime = useRealtimeStore((state) => state.timeline.lastPushTime)
   const isConnected = useRealtimeStore((state) => state.isConnected)
   const clearTimeline = useRealtimeStore((state) => state.clearTimeline)
   const addTimelineEvent = useRealtimeStore((state) => state.addTimelineEvent)
@@ -33,6 +34,7 @@ export function useTimeline(maxEvents: number = 10) {
 
   return {
     events,
+    lastPushTime,
     isConnected,
     isStale,
     clearEvents: clearTimeline,

@@ -1,9 +1,9 @@
 import { useGSAP } from '@gsap/react'
 import { useRef } from 'react'
 
-import { Alert } from '@/components/coworking/alert'
+import { Alert } from '@/components/shared/alert'
 import { LimitBreak } from '@/components/coworking/limitbreak'
-import { Timeline } from '@/components/omnibar/timeline'
+import { Timeline } from '@/components/shared/timeline'
 import { Status } from '@/components/coworking/status'
 import { Campaign } from '@/components/shared/campaign'
 import { Canvas } from '@/components/ui/canvas'
@@ -13,7 +13,7 @@ import { useAlertQueue } from '@/hooks/use-alerts'
 
 export const Coworking = () => {
   const containerRef = useRef<HTMLDivElement>(null)
-  const { onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: true })
+  const { currentAlert, onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: true })
 
   // Animate entire overlay on mount
   useGSAP(() => {
@@ -25,7 +25,7 @@ export const Coworking = () => {
   return (
     <Canvas>
       {/* Invisible alert sound handler */}
-      <Alert onComplete={onAlertComplete} soundEnabled={soundEnabled} />
+      <Alert currentAlert={currentAlert} onComplete={onAlertComplete} soundEnabled={soundEnabled} />
 
       <div ref={containerRef} className="grid grid-rows-[auto_64px]">
         {/* Main Content */}
@@ -77,7 +77,9 @@ export const Coworking = () => {
           </div>
 
           {/* Timeline layer: Overlays on top (z-20) */}
-          <div className="absolute inset-0 z-20 flex items-center">{/* <Timeline /> */}</div>
+          <div className="absolute inset-0 z-20 flex items-center">
+            <Timeline />
+          </div>
 
           {/* Decorative borders */}
           <div className="absolute top-0 z-50 h-1 w-full bg-[#040506]"></div>

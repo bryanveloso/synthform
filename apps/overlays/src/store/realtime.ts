@@ -60,18 +60,18 @@ function transformTimelineEvent(rawEvent: RawEvent): TimelineEvent {
   // These come through with a notice_type that tells us the real event type
   if (eventType === 'channel.chat.notification' && rawEvent.payload?.notice_type) {
     const noticeTypeMap: Record<string, string> = {
-      'sub': 'channel.subscribe',
-      'resub': 'channel.subscription.message',
-      'sub_gift': 'channel.subscription.gift',
-      'community_sub_gift': 'channel.subscription.gift',
-      'gift_paid_upgrade': 'channel.subscription.gift',
-      'prime_paid_upgrade': 'channel.subscribe',
-      'raid': 'channel.raid',
-      'unraid': 'channel.raid',
-      'pay_it_forward': 'channel.subscription.gift',
-      'announcement': 'channel.announcement',
-      'bits_badge_tier': 'channel.cheer',
-      'charity_donation': 'channel.charity_donation',
+      sub: 'channel.subscribe',
+      resub: 'channel.subscription.message',
+      sub_gift: 'channel.subscription.gift',
+      community_sub_gift: 'channel.subscription.gift',
+      gift_paid_upgrade: 'channel.subscription.gift',
+      prime_paid_upgrade: 'channel.subscribe',
+      raid: 'channel.raid',
+      unraid: 'channel.raid',
+      pay_it_forward: 'channel.subscription.gift',
+      announcement: 'channel.announcement',
+      bits_badge_tier: 'channel.cheer',
+      charity_donation: 'channel.charity_donation',
     }
     eventType = noticeTypeMap[rawEvent.payload.notice_type] || eventType
   }
@@ -105,11 +105,14 @@ type FFBotMessage = FFBotStatsMessage | FFBotHireMessage | FFBotChangeMessage | 
 
 interface FFBotState {
   events: FFBotMessage[]
-  playerActivity: Map<string, Array<{
-    type: string
-    timestamp: string
-    data: any
-  }>>
+  playerActivity: Map<
+    string,
+    Array<{
+      type: string
+      timestamp: string
+      data: any
+    }>
+  >
   latestEvent: FFBotMessage | null
   maxEvents: number
 }
@@ -120,6 +123,7 @@ interface TimelineState {
   latestEvent: TimelineEvent | null
   maxEvents: number
   lastPushTime: number
+  pendingEvents: Map<string, TimelineEvent>
 }
 
 // Chat state
@@ -184,10 +188,7 @@ interface RealtimeStore {
   }
 
   // Actions
-  updateMessage: <T extends MessageType>(
-    messageType: T,
-    payload: PayloadType<T>
-  ) => void
+  updateMessage: <T extends MessageType>(messageType: T, payload: PayloadType<T>) => void
   setConnectionStatus: (connected: boolean, state: ConnectionState) => void
 
   // Alert queue actions (from use-alerts logic)
@@ -205,6 +206,9 @@ interface RealtimeStore {
   syncTimeline: (events: TimelineEvent[]) => void
   clearTimeline: () => void
   setTimelineMaxEvents: (max: number) => void
+  holdTimelineEvent: (event: TimelineEvent) => void
+  releaseTimelineEvent: (eventId: string) => void
+  hasAlertWithId: (eventId: string) => boolean
 
   // Chat actions
   addChatMessage: (message: ChatMessage) => void
@@ -240,6 +244,7 @@ export const useRealtimeStore = create<RealtimeStore>()(
       latestEvent: null,
       maxEvents: 20,
       lastPushTime: 0,
+      pendingEvents: new Map(),
     },
 
     // Chat initial state
@@ -289,13 +294,27 @@ export const useRealtimeStore = create<RealtimeStore>()(
         case 'ffbot:hire':
         case 'ffbot:change':
         case 'ffbot:save':
-          state.addFFBotEvent(payload as any)
+          state.addFFBotEvent(payload as FFBotMessage)
           break
 
         // Timeline messages
-        case 'timeline:push':
-          state.addTimelineEvent(payload as TimelineEvent)
+        case 'timeline:push': {
+          const timelineEvent = payload as TimelineEvent
+          // WARNING: This logic is timing-sensitive. It assumes that the 'alerts:push'
+          // message has been processed and the alert exists in the queue or as the
+          // current alert. A race condition can occur if messages arrive too quickly.
+          // Consider implementing a promise-based or transactional approach if this becomes an issue.
+
+          // Check if there's a matching alert with this ID
+          if (state.hasAlertWithId(timelineEvent.id)) {
+            // Hold the timeline event until alert completes
+            state.holdTimelineEvent(timelineEvent)
+          } else {
+            // No matching alert, add directly to timeline
+            state.addTimelineEvent(timelineEvent)
+          }
           break
+        }
         case 'timeline:sync':
           state.syncTimeline(payload as TimelineEvent[])
           break
@@ -315,17 +334,21 @@ export const useRealtimeStore = create<RealtimeStore>()(
           set((state) => ({
             campaignUpdate: update,
             // Merge the update into the campaign's metric
-            campaign: state.campaign ? {
-              ...state.campaign,
-              metric: {
-                ...state.campaign.metric,
-                total_subs: update.total_subs ?? state.campaign.metric.total_subs,
-                total_resubs: update.total_resubs ?? state.campaign.metric.total_resubs,
-                total_bits: update.total_bits ?? state.campaign.metric.total_bits,
-                timer_seconds_remaining: update.timer_seconds_remaining ?? state.campaign.metric.timer_seconds_remaining,
-                extra_data: update.extra_data ?? state.campaign.metric.extra_data,
-              }
-            } : null
+            campaign: state.campaign
+              ? {
+                  ...state.campaign,
+                  metric: {
+                    ...state.campaign.metric,
+                    total_subs: update.total_subs ?? state.campaign.metric.total_subs,
+                    total_resubs: update.total_resubs ?? state.campaign.metric.total_resubs,
+                    total_bits: update.total_bits ?? state.campaign.metric.total_bits,
+                    timer_seconds_remaining:
+                      update.timer_seconds_remaining ??
+                      state.campaign.metric.timer_seconds_remaining,
+                    extra_data: update.extra_data ?? state.campaign.metric.extra_data,
+                  },
+                }
+              : null,
           }))
           break
         }
@@ -335,14 +358,16 @@ export const useRealtimeStore = create<RealtimeStore>()(
           set((state) => ({
             milestoneUnlocked: milestone,
             // Update the milestone in the campaign's milestones array
-            campaign: state.campaign ? {
-              ...state.campaign,
-              milestones: state.campaign.milestones.map(m =>
-                m.id === milestone.id
-                  ? { ...m, is_unlocked: true, unlocked_at: new Date().toISOString() }
-                  : m
-              )
-            } : null
+            campaign: state.campaign
+              ? {
+                  ...state.campaign,
+                  milestones: state.campaign.milestones.map((m) =>
+                    m.id === milestone.id
+                      ? { ...m, is_unlocked: true, unlocked_at: new Date().toISOString() }
+                      : m,
+                  ),
+                }
+              : null,
           }))
           break
         }
@@ -354,16 +379,25 @@ export const useRealtimeStore = create<RealtimeStore>()(
           set((state) => ({
             timerUpdate: timerPayload,
             // Update timer fields in the campaign's metric
-            campaign: state.campaign ? {
-              ...state.campaign,
-              metric: {
-                ...state.campaign.metric,
-                timer_seconds_remaining: timerPayload.timer_seconds_remaining ?? state.campaign.metric.timer_seconds_remaining,
-                timer_started_at: timerPayload.timer_started ? new Date().toISOString() : state.campaign.metric.timer_started_at,
-                timer_paused_at: timerPayload.timer_paused ? new Date().toISOString() :
-                                 (timerPayload.timer_started === false ? null : state.campaign.metric.timer_paused_at),
-              }
-            } : null
+            campaign: state.campaign
+              ? {
+                  ...state.campaign,
+                  metric: {
+                    ...state.campaign.metric,
+                    timer_seconds_remaining:
+                      timerPayload.timer_seconds_remaining ??
+                      state.campaign.metric.timer_seconds_remaining,
+                    timer_started_at: timerPayload.timer_started
+                      ? new Date().toISOString()
+                      : state.campaign.metric.timer_started_at,
+                    timer_paused_at: timerPayload.timer_paused
+                      ? new Date().toISOString()
+                      : timerPayload.timer_started === false
+                        ? null
+                        : state.campaign.metric.timer_paused_at,
+                  },
+                }
+              : null,
           }))
           break
         }
@@ -397,12 +431,15 @@ export const useRealtimeStore = create<RealtimeStore>()(
 
         // OBS messages
         case 'obs:sync':
-          set({
-            obs: {
-              scene: (payload as any).scene || state.obs.scene,
-              stream: (payload as any).stream || state.obs.stream,
-            },
-          })
+          {
+            const obsPayload = payload as PayloadType<'obs:sync'>
+            set({
+              obs: {
+                scene: obsPayload.scene || state.obs.scene,
+                stream: obsPayload.stream || state.obs.stream,
+              },
+            })
+          }
           break
         case 'obs:update':
           set({
@@ -418,7 +455,6 @@ export const useRealtimeStore = create<RealtimeStore>()(
     setConnectionStatus: (connected, connectionState) => {
       set({ isConnected: connected, connectionState })
     },
-
 
     // Alert queue actions (copied from use-alerts)
     addAlert: (alert) => {
@@ -476,7 +512,8 @@ export const useRealtimeStore = create<RealtimeStore>()(
                   amount: totalGifts,
                   timestamp: completedBundle.gifterEvent?.timestamp || new Date().toISOString(),
                   community_gift_id: community_gift_id,
-                  tier: completedBundle.gifterEvent?.tier || completedBundle.individualGifts[0]?.tier,
+                  tier:
+                    completedBundle.gifterEvent?.tier || completedBundle.individualGifts[0]?.tier,
                 }
 
                 // Add to alert queue
@@ -505,7 +542,10 @@ export const useRealtimeStore = create<RealtimeStore>()(
                   pendingCommunityGifts: currentPendingGifts,
                   timeline: {
                     ...currentState.timeline,
-                    events: [timelineEvent, ...currentState.timeline.events].slice(0, currentState.timeline.maxEvents),
+                    events: [timelineEvent, ...currentState.timeline.events].slice(
+                      0,
+                      currentState.timeline.maxEvents,
+                    ),
                     latestEvent: timelineEvent,
                     lastPushTime: Date.now(),
                   },
@@ -520,7 +560,9 @@ export const useRealtimeStore = create<RealtimeStore>()(
             set((currentState) => {
               const currentPendingGifts = new Map(currentState.pendingCommunityGifts)
               if (currentPendingGifts.has(community_gift_id)) {
-                console.warn(`Garbage collecting incomplete community gift bundle: ${community_gift_id}`)
+                console.warn(
+                  `Garbage collecting incomplete community gift bundle: ${community_gift_id}`,
+                )
                 currentPendingGifts.delete(community_gift_id)
                 return { pendingCommunityGifts: currentPendingGifts }
               }
@@ -638,12 +680,12 @@ export const useRealtimeStore = create<RealtimeStore>()(
     addTimelineEvent: (event) => {
       set((state) => {
         // Transform the event if needed
-        const transformedEvent = transformTimelineEvent(event as any)
+        const transformedEvent = transformTimelineEvent(event as RawEvent | TimelineEvent)
 
         // Add to beginning and trim to max
         const events = [transformedEvent, ...state.timeline.events].slice(
           0,
-          state.timeline.maxEvents
+          state.timeline.maxEvents,
         )
 
         return {
@@ -662,7 +704,7 @@ export const useRealtimeStore = create<RealtimeStore>()(
         // Transform all events and slice to max
         const rawEvents = Array.isArray(events) ? events : [events]
         const transformedEvents = rawEvents
-          .map((e) => transformTimelineEvent(e as any))
+          .map((e) => transformTimelineEvent(e as RawEvent | TimelineEvent))
           .slice(0, state.timeline.maxEvents)
 
         return {
@@ -695,6 +737,57 @@ export const useRealtimeStore = create<RealtimeStore>()(
       }))
     },
 
+    holdTimelineEvent: (event) => {
+      set((state) => {
+        const pendingEvents = new Map(state.timeline.pendingEvents)
+        pendingEvents.set(event.id, event)
+        return {
+          timeline: {
+            ...state.timeline,
+            pendingEvents,
+            lastPushTime: Date.now(), // Update lastPushTime to trigger timeline visibility
+          },
+        }
+      })
+    },
+
+    releaseTimelineEvent: (eventId) => {
+      set((state) => {
+        const pendingEvents = new Map(state.timeline.pendingEvents)
+        const event = pendingEvents.get(eventId)
+
+        if (!event) return state
+
+        pendingEvents.delete(eventId)
+
+        // Add the released event to the timeline
+        const transformedEvent = transformTimelineEvent(event as RawEvent | TimelineEvent)
+        const events = [transformedEvent, ...state.timeline.events].slice(
+          0,
+          state.timeline.maxEvents,
+        )
+
+        return {
+          timeline: {
+            ...state.timeline,
+            events,
+            latestEvent: transformedEvent,
+            lastPushTime: Date.now(),
+            pendingEvents,
+          },
+        }
+      })
+    },
+
+    hasAlertWithId: (eventId) => {
+      const state = get()
+      // Check if alert with this ID is in queue or current
+      return (
+        state.alerts.currentAlert?.id === eventId ||
+        state.alerts.queue.some((alert) => alert.id === eventId)
+      )
+    },
+
     // Chat actions
     addChatMessage: (message) => {
       set((state) => {
@@ -713,7 +806,7 @@ export const useRealtimeStore = create<RealtimeStore>()(
         }
       })
     },
-  }))
+  })),
 )
 
 // Subscribe to all message types from ServerConnection
@@ -757,9 +850,7 @@ MESSAGE_TYPES.forEach((messageType) => {
 // Subscribe to connection state changes
 serverConnection.subscribe('__connection__' as MessageType, (payload) => {
   const connected = Boolean(payload)
-  useRealtimeStore
-    .getState()
-    .setConnectionStatus(connected, serverConnection.getConnectionState())
+  useRealtimeStore.getState().setConnectionStatus(connected, serverConnection.getConnectionState())
 })
 
 // Ensure connection is established

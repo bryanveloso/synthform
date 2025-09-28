@@ -83,10 +83,10 @@ export const LimitBreak = () => {
         <div className="font-sans font-bold text-[#0096ff]">{count}</div>
       </div>
       <audio ref={audioRef} preload="auto" className="hidden">
-        <source src="/sounds/limit-break.mp3" type="audio/mpeg" />
+        <source src="/sounds/limit-break.ogg" type="audio/ogg" />
       </audio>
       <audio ref={executionAudioRef} preload="auto" className="hidden">
-        <source src="/sounds/limit-break-executed.mp3" type="audio/mpeg" />
+        <source src="/sounds/limit-break-executed.ogg" type="audio/ogg" />
       </audio>
     </div>
   )

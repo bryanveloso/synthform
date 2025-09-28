@@ -16,14 +16,9 @@ interface UseAlertSoundReturn {
 
 export function useAlertSound(
   alert: Alert | null,
-  options: UseAlertSoundOptions = {}
+  options: UseAlertSoundOptions = {},
 ): UseAlertSoundReturn {
-  const {
-    enabled = true,
-    volume = 0.5,
-    onComplete,
-    fallbackDuration = 3000,
-  } = options
+  const { enabled = true, volume = 0.5, onComplete, fallbackDuration = 10000 } = options
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,44 +45,48 @@ export function useAlertSound(
     setIsPlaying(false)
     setError(null)
 
-    // Play sound for new alert
-    if (alert && enabled) {
-      const soundFile = getAlertSound(
-        alert.type,
-        alert.amount,
-        alert.tier
-      )
+    // Process alert (with or without sound)
+    if (alert) {
+      const soundFile = enabled ? getAlertSound(alert.type, alert.amount, alert.tier) : null
 
-      if (soundFile) {
+      if (soundFile && enabled) {
         audioRef.current = new Audio(soundFile)
         audioRef.current.volume = volume
 
         // Set up completion handlers
         audioRef.current.addEventListener('ended', () => {
+          // Clear the fallback timer since audio ended naturally
+          if (completionTimerRef.current) {
+            clearTimeout(completionTimerRef.current)
+            completionTimerRef.current = null
+          }
           setIsPlaying(false)
           onComplete?.()
         })
 
         // Play the audio and handle errors
-        audioRef.current.play().then(() => {
-          setIsPlaying(true)
+        audioRef.current
+          .play()
+          .then(() => {
+            setIsPlaying(true)
 
-          // Set fallback timer in case 'ended' doesn't fire
-          const duration = alert.duration || fallbackDuration
-          completionTimerRef.current = setTimeout(() => {
+            // Set fallback timer in case 'ended' doesn't fire
+            const duration = alert.duration || fallbackDuration
+            completionTimerRef.current = setTimeout(() => {
+              setIsPlaying(false)
+              onComplete?.()
+            }, duration)
+          })
+          .catch((err) => {
+            const errorMsg = `Failed to play alert sound for ${alert.type}: ${err.message}`
+            console.warn(errorMsg)
+            setError(errorMsg)
             setIsPlaying(false)
+            // Still call onComplete if audio fails
             onComplete?.()
-          }, duration)
-        }).catch(err => {
-          const errorMsg = `Failed to play alert sound for ${alert.type}: ${err.message}`
-          console.warn(errorMsg)
-          setError(errorMsg)
-          setIsPlaying(false)
-          // Still call onComplete if audio fails
-          onComplete?.()
-        })
+          })
       } else {
-        // No sound file, use minimum duration for visual alerts
+        // No sound file or sound disabled, use duration timer
         const duration = alert.duration || fallbackDuration
         completionTimerRef.current = setTimeout(() => {
           onComplete?.()

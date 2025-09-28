@@ -88,6 +88,16 @@ export const alertSoundConfig: Record<string, SoundConfig> = {
     },
   },
 
+  cheer: {
+    sounds: {
+      100: '/sounds/cheer-100.ogg', // 100+ bits
+      // 500: '/sounds/cheer-500.mp3', // 500+ bits
+      // 1000: '/sounds/cheer-1k.mp3', // 1,000+ bits
+      // 5000: '/sounds/cheer-5k.mp3', // 5,000+ bits
+      // 10000: '/sounds/cheer-10k.mp3', // 10,000+ bits
+    },
+  },
+
   // Non-chat.notification events
   follow: {
     sounds: {
@@ -97,7 +107,7 @@ export const alertSoundConfig: Record<string, SoundConfig> = {
 
   raid: {
     sounds: {
-      1: '/sounds/raid.mp3',
+      1: '/sounds/raid.ogg',
     },
   },
 
@@ -125,6 +135,23 @@ export const alertSoundConfig: Record<string, SoundConfig> = {
 }
 
 /**
+ * Find the sound for a given amount based on thresholds
+ */
+function findSoundByThreshold(sounds: Record<number, string>, amount: number): string | undefined {
+  const thresholds = Object.keys(sounds)
+    .map(Number)
+    .sort((a, b) => b - a)
+
+  for (const threshold of thresholds) {
+    if (amount >= threshold) {
+      return sounds[threshold]
+    }
+  }
+
+  return undefined
+}
+
+/**
  * Get sound file for an alert based on type and parameters
  */
 export function getAlertSound(
@@ -141,30 +168,10 @@ export function getAlertSound(
     return config.sounds[tierNum] || config.sounds[1]
   }
 
-  // For community gift bundles, use amount-based thresholds
-  if (type === 'community_gift_bundle' && amount && config.sounds) {
-    const thresholds = Object.keys(config.sounds)
-      .map(Number)
-      .sort((a, b) => b - a)
-
-    for (const threshold of thresholds) {
-      if (amount >= threshold) {
-        return config.sounds[threshold]
-      }
-    }
-  }
-
-  // For amount-based events
+  // For amount-based events (including community gift bundles)
   if (amount && config.sounds) {
-    const thresholds = Object.keys(config.sounds)
-      .map(Number)
-      .sort((a, b) => b - a)
-
-    for (const threshold of thresholds) {
-      if (amount >= threshold) {
-        return config.sounds[threshold]
-      }
-    }
+    const sound = findSoundByThreshold(config.sounds, amount)
+    if (sound) return sound
   }
 
   // Return base sound

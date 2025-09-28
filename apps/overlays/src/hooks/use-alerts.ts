@@ -33,9 +33,6 @@ export interface AlertQueueConfig {
   bypassMode?: boolean // DASHBOARD UI: Bypass toggle (emergency skip all)
 }
 
-// Default fallback duration for alerts when audio ends
-const DEFAULT_ALERT_DURATION = 3000 // 3 seconds
-
 // DASHBOARD UI NEEDED: History viewer with filters and clear button
 const MAX_HISTORY = 20 // Keep last 20 processed alerts
 
@@ -65,7 +62,6 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
     return alerts.queue.map(alert => ({
       ...alert,
       username: alert.user_name,
-      duration: DEFAULT_ALERT_DURATION,
       soundFile: getAlertSound(alert.type, alert.amount, alert.tier as Alert['tier']),
     } as Alert))
   }, [alerts.queue])
@@ -76,7 +72,6 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
     return {
       ...alerts.currentAlert,
       username: alerts.currentAlert.user_name,
-      duration: DEFAULT_ALERT_DURATION,
       soundFile: getAlertSound(alerts.currentAlert.type, alerts.currentAlert.amount, alerts.currentAlert.tier as Alert['tier']),
     } as Alert
   }, [alerts.currentAlert])
@@ -174,6 +169,11 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
     } as Alert
 
     setAlertHistory(prev => [historyAlert, ...prev].slice(0, MAX_HISTORY))
+
+    // Release any pending timeline event with the same ID
+    const releaseTimelineEvent = useRealtimeStore.getState().releaseTimelineEvent
+    releaseTimelineEvent(currentAlert.id)
+
     removeCurrentAlert()
     setAlertAnimating(false)
   }, [currentAlert, removeCurrentAlert, setAlertAnimating])

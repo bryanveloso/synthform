@@ -23,13 +23,16 @@ const MAX_RECONNECT_DELAY = 30000
 type DataAction<T extends readonly MessageType[]> =
   | { type: 'SET_INITIAL'; payload: Partial<ServerData<T>> }
   | { type: 'UPDATE_MESSAGE'; messageType: T[number]; payload: PayloadType<T[number]> }
-  | { type: 'BATCH_UPDATE'; updates: Array<{ messageType: T[number]; payload: PayloadType<T[number]> }> }
+  | {
+      type: 'BATCH_UPDATE'
+      updates: Array<{ messageType: T[number]; payload: PayloadType<T[number]> }>
+    }
   | { type: 'CLEAR' }
 
 // Reducer for managing message data
 function dataReducer<T extends readonly MessageType[]>(
   state: ServerData<T>,
-  action: DataAction<T>
+  action: DataAction<T>,
 ): ServerData<T> {
   switch (action.type) {
     case 'SET_INITIAL':
@@ -39,7 +42,7 @@ function dataReducer<T extends readonly MessageType[]>(
     case 'BATCH_UPDATE': {
       const updates = action.updates.reduce(
         (acc, { messageType, payload }) => ({ ...acc, [messageType]: payload }),
-        {}
+        {},
       )
       return { ...state, ...updates }
     }
@@ -50,9 +53,12 @@ function dataReducer<T extends readonly MessageType[]>(
   }
 }
 
+// Special key for connection state subscribers
+type SubscriberKey = MessageType | '__connection__'
+
 class ServerConnection {
   private ws: WebSocket | null = null
-  private subscribers = new Map<MessageType, Set<(data: unknown) => void>>()
+  private subscribers = new Map<SubscriberKey, Set<(data: unknown) => void>>()
   private cache = new Map<MessageType, CacheEntry>()
   private connectionState: ConnectionState = ConnectionState.Disconnected
   private reconnectAttempts = 0
@@ -291,7 +297,7 @@ class ServerConnection {
 
   private notifyConnectionChange(connected: boolean) {
     // Notify connection state subscribers using a special key
-    const connectionSubscribers = this.subscribers.get('__connection__' as any)
+    const connectionSubscribers = this.subscribers.get('__connection__')
     if (connectionSubscribers) {
       connectionSubscribers.forEach((callback) => {
         try {

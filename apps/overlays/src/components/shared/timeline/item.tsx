@@ -11,7 +11,7 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
       return (
         <>
           <Username>{chatter_display_name || chatter_user_name}</Username>
-          <div className="font-caps text-shark-680 text-base whitespace-nowrap">New Sub</div>
+          <Event>New Subscription</Event>
         </>
       )
 
@@ -65,9 +65,7 @@ export const ChatNotification = ({ event }: { event: ChatNotificationEvent }) =>
       return (
         <>
           <Username>{chatter_display_name || chatter_user_name}</Username>
-          <div className="font-caps text-shark-680 text-base whitespace-nowrap">
-            Bits Badge {payload.bits_badge_tier?.tier || ''}
-          </div>
+          <Event>Bits Badge {payload.bits_badge_tier?.tier || ''}</Event>
         </>
       )
 
