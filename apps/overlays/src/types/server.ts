@@ -198,6 +198,7 @@ export interface MessagePayloadMap {
   'status:sync': StreamStatus
   'status:update': StreamStatus
   'chat:message': ChatMessage
+  'chat:sync': ChatMessage[]
   'audio:rme:status': RMEMicStatus
   'audio:rme:update': RMEMicStatus
   // FFBot game events

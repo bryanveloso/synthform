@@ -323,6 +323,15 @@ export const useRealtimeStore = create<RealtimeStore>()(
         case 'chat:message':
           state.addChatMessage(payload as ChatMessage)
           break
+        case 'chat:sync':
+          // Replace all messages with synced history
+          set((state) => ({
+            chat: {
+              ...state.chat,
+              messages: payload as ChatMessage[]
+            }
+          }))
+          break
 
         // Campaign messages
         case 'campaign:sync':
@@ -821,6 +830,7 @@ const MESSAGE_TYPES: MessageType[] = [
   'timeline:push',
   'timeline:sync',
   'chat:message',
+  'chat:sync',
   'campaign:sync',
   'campaign:update',
   'campaign:milestone',

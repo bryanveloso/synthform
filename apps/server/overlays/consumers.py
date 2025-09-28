@@ -443,6 +443,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Alert layer - starts with empty queue
         await self._send_message("alerts", "sync", [])
 
+        # Chat layer - recent messages
+        recent_chat = await self._get_recent_chat_messages()
+        if recent_chat:
+            await self._send_message("chat", "sync", recent_chat)
+
         # Campaign layer - get active campaign
         campaign_state = await self._get_campaign_state()
         if campaign_state:
@@ -877,6 +882,41 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 "message": "",
                 "updated_at": None,
             }
+
+    async def _get_recent_chat_messages(self, limit: int = 15) -> list[dict]:
+        """Query database for recent chat messages."""
+        from events.models import Event
+
+        try:
+            messages = []
+            async for event in Event.objects.filter(
+                event_type="channel.chat.message"
+            ).order_by("-timestamp")[:limit]:
+                try:
+                    payload = event.payload
+                    if isinstance(payload, str):
+                        payload = json.loads(payload)
+
+                    messages.append(
+                        {
+                            "id": str(event.id),
+                            "text": payload.get("text", ""),
+                            "user_name": payload.get("user_name", "Unknown"),
+                            "user_display_name": payload.get(
+                                "user_display_name", payload.get("user_name", "Unknown")
+                            ),
+                            "fragments": payload.get("fragments", []),
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Error processing chat message {event.id}: {e}")
+                    continue
+
+            # Reverse to get chronological order (oldest first)
+            return list(reversed(messages))
+        except Exception as e:
+            logger.error(f"Error getting recent chat messages: {e}")
+            return []
 
     async def receive(self, text_data: str) -> None:
         """Handle messages from overlay clients (currently unused)."""
