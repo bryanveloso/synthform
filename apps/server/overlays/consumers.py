@@ -293,14 +293,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Handle chat messages for emote rain
         if event_type == "channel.chat.message":
             chat_data = event_data.get("data", {})
-            logger.debug(
-                f"💬 WebSocket: Sending chat:message to overlay - user: {chat_data.get('user_name', 'NOT FOUND')}, text: {chat_data.get('text', 'NOT FOUND')}"
-            )
             # Format the message consistently with chat:sync
             formatted_message = {
                 "id": chat_data.get(
-                    "message_id",
-                    str(event_data.get("id", f"msg-{datetime.now().timestamp()}")),
+                    "id",
+                    chat_data.get("message_id", f"msg-{datetime.now().timestamp()}"),
                 ),
                 "text": chat_data.get("text", ""),
                 "user_name": chat_data.get("user_name", "Unknown"),
@@ -311,7 +308,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 "badges": chat_data.get("badges", []),
             }
             await self._send_message("chat", "message", formatted_message)
-            # Don't return - let it continue to other handlers if needed
+            return
 
         # Handle game events from FFBot
         if source == "ffbot":
