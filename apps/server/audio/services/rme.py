@@ -62,34 +62,7 @@ class RMETotalMixService:
             settings.RME_MIC_CHANNEL if hasattr(settings, "RME_MIC_CHANNEL") else 0
         )
 
-        # Channels to monitor for multi-channel setup
-        self.monitored_channels = (
-            settings.RME_MONITORED_CHANNELS
-            if hasattr(settings, "RME_MONITORED_CHANNELS")
-            else [
-                0,
-                8,
-                9,
-                10,
-                11,
-                12,
-                13,
-                14,
-                15,
-            ]  # Default: Mic 1 + all ADAT for testing
-        )
-
-        # State tracking - now for multiple channels
-        self._channel_states = {
-            channel: {
-                "muted": False,
-                "level": 0.0,
-                "label": self._get_channel_label(channel),
-            }
-            for channel in self.monitored_channels
-        }
-
-        # Keep old single-channel state for backwards compatibility
+        # State tracking
         self._mic_muted = False
         self._mic_level = 0.0
         self._callbacks = []
@@ -97,16 +70,6 @@ class RMETotalMixService:
         logger.info(
             f"RME TotalMix service initialized for {self.totalmix_host}:{self.totalmix_send_port}"
         )
-        logger.info(f"Monitoring channels: {self.monitored_channels}")
-
-    def _get_channel_label(self, channel: int) -> str:
-        """Get a human-readable label for a channel."""
-        if channel < 8:
-            return f"Analog {channel + 1}"
-        elif channel < 16:
-            return f"ADAT {channel - 7}"
-        else:
-            return f"Input {channel + 1}"
 
     async def startup(self):
         """Start the RME TotalMix service."""
@@ -192,22 +155,6 @@ class RMETotalMixService:
             self._osc_client.send_message("/1/busInput", 1)  # Enable input bus
             logger.debug("Sent /1/busInput = 1")
 
-            # Try to enable playback bus monitoring
-            self._osc_client.send_message("/1/busPlayback", 1.0)  # Switch to playback bus
-            logger.debug("Sent /1/busPlayback = 1.0")
-
-            # Send a query to trigger playback channel responses
-            for i in range(16):  # Query first 16 playback channels
-                self._osc_client.send_message(f"/1/mute{i+1}", -1)
-                logger.debug(f"Querying playback channel {i+1}")
-
-            # Switch back to input bus
-            self._osc_client.send_message("/1/busInput", 1.0)
-            logger.debug("Sent /1/busInput = 1.0")
-
-            self._osc_client.send_message("/1/busOutput", 1)  # Enable output bus
-            logger.debug("Sent /1/busOutput = 1")
-
             # Request current mute state for mic channel
             # TotalMix doesn't have a direct query, but sending a value triggers a response
             channel_addr = f"/1/mute{self.mic_channel + 1}"
@@ -221,14 +168,12 @@ class RMETotalMixService:
 
     def _handle_any_osc(self, address: str, *args):
         """Catch-all handler to log ANY incoming OSC message."""
-        # Log EVERYTHING except heartbeats to see what we get from playback channels
+        # Only log non-heartbeat messages to reduce noise
         if address != "/":
-            # Always log to see ALL traffic when debugging
-            logger.info(f"🔵 OSC IN: address={address}, args={args}")
+            logger.debug(f"OSC message received: address={address}, args={args}")
 
-        # Handle mute messages from ANY page (1, 2, 3, etc.)
-        if "/mute" in address:
-            logger.info(f"🎯 MUTE MESSAGE: address={address}, args={args}")
+        # Since wildcards might not work, handle mute messages here
+        if address.startswith("/1/mute/"):
             self._handle_mute_update(address, *args)
         elif address.startswith("/1/solo/"):
             self._handle_solo_update(address, *args)
@@ -238,63 +183,34 @@ class RMETotalMixService:
             self._handle_pan_update(address, *args)
 
     def _handle_mute_update(self, address: str, *args):
-        """Handle mute state update from TotalMix.
-
-        Formats seen:
-        - /1/mute/<row>/<channel> - Page 1 format (row: 1=Input, 2=Playback, 3=Output)
-        - /2/mute/<channel> - Page 2 format (for direct channel access)
-        - /3/mute/<channel> - Page 3 format (for mute groups)
-        """
-        # Parse the address
+        """Handle mute state update from TotalMix with /1/mute/<bus>/<channel> format."""
+        # Parse the address to get bus and channel
         parts = address.split("/")
-
-        # Log the raw format to understand what we're getting
-        logger.info(f"📝 MUTE RAW: parts={parts}, args={args}")
-
-        if len(parts) >= 5 and parts[2] == "mute":  # Format: /page/mute/row/channel
+        if len(parts) >= 5:  # Need 5 parts: '', '1', 'mute', bus, channel
             try:
-                page = int(parts[1]) if parts[1].isdigit() else 1
-                row = int(parts[3])  # 1=Input, 2=Playback, 3=Output
+                bus = int(parts[3]) - 1  # Convert to 0-based
                 channel = int(parts[4]) - 1  # Convert to 0-based
 
-                # In TotalMix OSC: 0 = unmuted, 1 = muted
-                new_mute_state = bool(args[0]) if args else False
+                # Check if this is our mic channel (channel 0, bus 0)
+                if channel == self.mic_channel and bus == 0:
+                    # In TotalMix OSC: 0 = unmuted, 1 = muted
+                    new_mute_state = bool(args[0]) if args else False
 
-                # Log ALL activity from both input and playback rows
-                if row == 1:  # Hardware Input row
-                    channel_label = (
-                        self._get_channel_label(channel)
-                        if hasattr(self, "_get_channel_label")
-                        else f"Input {channel + 1}"
-                    )
-                    logger.info(
-                        f"🎚️ INPUT CHANNEL {channel} ({channel_label}) mute state: {'MUTED' if new_mute_state else 'UNMUTED'}"
-                    )
-                elif row == 2:  # Software Playback row
-                    # This is where Discord would show up!
-                    logger.info(
-                        f"🎧 PLAYBACK CHANNEL {channel} (Software {channel + 1}) mute state: {'MUTED' if new_mute_state else 'UNMUTED'}"
-                    )
+                    if new_mute_state != self._mic_muted:
+                        self._mic_muted = new_mute_state
+                        logger.info(
+                            f"Mic channel {channel} mute state: {'MUTED' if new_mute_state else 'UNMUTED'}"
+                        )
 
-                # Update state if monitored (only for hardware inputs for now)
-                if row == 1 and channel in self.monitored_channels:
-                    if new_mute_state != self._channel_states[channel]["muted"]:
-                        self._channel_states[channel]["muted"] = new_mute_state
+                        # Broadcast state change
+                        asyncio.create_task(self._broadcast_mic_state())
 
-                        # Update backwards-compatible mic state if this is the mic channel
-                        if channel == self.mic_channel:
-                            self._mic_muted = new_mute_state
-                            asyncio.create_task(self._broadcast_mic_state())
-                            # Call registered callbacks
-                            for callback in self._callbacks:
-                                try:
-                                    callback(self._mic_muted)
-                                except Exception as e:
-                                    logger.error(f"Error in mute callback: {e}")
-
-                        # Broadcast all channel states
-                        asyncio.create_task(self._broadcast_channel_states())
-
+                        # Call registered callbacks
+                        for callback in self._callbacks:
+                            try:
+                                callback(self._mic_muted)
+                            except Exception as e:
+                                logger.error(f"Error in mute callback: {e}")
             except (ValueError, IndexError) as e:
                 logger.debug(f"Failed to parse mute address {address}: {e}")
 
@@ -396,44 +312,6 @@ class RMETotalMixService:
         except Exception as e:
             logger.error(f"Error broadcasting mic level: {e}")
 
-    async def _broadcast_channel_states(self):
-        """Broadcast all channel states to Redis."""
-        try:
-            if not self._redis_client:
-                logger.warning(
-                    "Redis client not initialized, cannot broadcast channel states"
-                )
-                return
-
-            message = {
-                "event_type": "audio.channels.update",
-                "source": "rme_totalmix",
-                "timestamp": timezone.now().isoformat(),
-                "data": {
-                    "channels": [
-                        {
-                            "channel": ch,
-                            "label": state["label"],
-                            "muted": state["muted"],
-                            "level": state["level"],
-                        }
-                        for ch, state in self._channel_states.items()
-                    ]
-                },
-            }
-
-            # Publish to audio events channel
-            num_subscribers = await self._redis_client.publish(
-                "events:audio", json.dumps(message)
-            )
-
-            logger.debug(
-                f"Broadcasted {len(self._channel_states)} channel states to {num_subscribers} subscribers"
-            )
-
-        except Exception as e:
-            logger.error(f"Error broadcasting channel states: {e}")
-
     # Public API methods
 
     def is_mic_muted(self) -> bool:
@@ -483,21 +361,6 @@ class RMETotalMixService:
             "mic_level": self._mic_level,
             "mic_channel": self.mic_channel,
             "mic_channel_name": f"Input {self.mic_channel + 1}",
-        }
-
-    async def get_channel_states(self) -> dict:
-        """Get all monitored channel states."""
-        return {
-            "connected": self._running,
-            "channels": [
-                {
-                    "channel": ch,
-                    "label": state["label"],
-                    "muted": state["muted"],
-                    "level": state["level"],
-                }
-                for ch, state in self._channel_states.items()
-            ],
         }
 
 

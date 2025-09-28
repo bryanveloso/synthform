@@ -291,16 +291,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             await self._send_message("audio:rme", "update", event_data.get("data", {}))
             return
 
-        # Handle multi-channel audio updates
-        if event_type == "audio.channels.update":
-            logger.debug(
-                f"🎤 WebSocket: Sending audio:channels:update to overlay - {event_data.get('data', {})}"
-            )
-            await self._send_message(
-                "audio:channels", "update", event_data.get("data", {})
-            )
-            return
-
         # Handle chat messages for emote rain
         if event_type == "channel.chat.message":
             logger.debug("💬 WebSocket: Sending chat:message to overlay")
@@ -449,11 +439,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         rme_status = await self._get_rme_status()
         if rme_status:
             await self._send_message("audio:rme", "status", rme_status)
-
-        # Multi-channel audio status
-        channel_states = await self._get_channel_states()
-        if channel_states:
-            await self._send_message("audio:channels", "sync", channel_states)
 
         # Alert layer - starts with empty queue
         await self._send_message("alerts", "sync", [])
@@ -711,18 +696,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
         except Exception as e:
             logger.error(f"Error getting RME status: {e}")
-            return None
-
-    async def _get_channel_states(self) -> dict | None:
-        """Get multi-channel RME TotalMix status."""
-        try:
-            from audio.services.rme import rme_service
-
-            channel_states = await rme_service.get_channel_states()
-            return channel_states
-
-        except Exception as e:
-            logger.error(f"Error getting channel states: {e}")
             return None
 
     async def _get_limit_break_state(self) -> dict | None:
