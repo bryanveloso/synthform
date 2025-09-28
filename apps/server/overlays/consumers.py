@@ -290,14 +290,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             await self._send_message("audio:rme", "update", event_data.get("data", {}))
             return
 
-        # Handle chat messages for emote rain
         if event_type == "channel.chat.message":
-            chat_data = event_data.get("data", {})
-            # Format the message consistently with chat:sync
+            chat_data = event_data.get("payload", {})
             formatted_message = {
                 "id": chat_data.get(
                     "id",
-                    chat_data.get("message_id", f"msg-{datetime.now().timestamp()}"),
+                    str(
+                        event_data.get("event_id", f"msg-{datetime.now().timestamp()}")
+                    ),
                 ),
                 "text": chat_data.get("text", ""),
                 "user_name": chat_data.get("user_name", "Unknown"),
