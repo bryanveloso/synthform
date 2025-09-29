@@ -5,7 +5,12 @@
  * Use these for all testing to ensure consistency.
  */
 
-import type { TimelineEvent, ChatNotificationEvent, ChannelFollowEvent, CheerEvent } from '@/types/events'
+import type {
+  TimelineEvent,
+  ChatNotificationEvent,
+  ChannelFollowEvent,
+  CheerEvent,
+} from '@/types/events'
 import type { AlertData } from '@/types/server'
 
 interface TestEventPair {
@@ -39,7 +44,7 @@ export class TestEventFactory {
 
     const alert: AlertData = {
       id: eventId,
-      type: 'follow',
+      type: 'twitch.channel.follow',
       message: `${user} just followed!`,
       user_name: user,
       timestamp,
@@ -73,11 +78,17 @@ export class TestEventFactory {
 
     const alert: AlertData = {
       id: eventId,
-      type: 'sub',
+      type: 'twitch.channel.chat.notification',
       message: `${user} subscribed at ${tier}!`,
       user_name: user,
       timestamp,
       tier,
+      data: {
+        payload: {
+          notice_type: 'sub',
+          sub_tier: tier === 'Tier 3' ? '3000' : tier === 'Tier 2' ? '2000' : '1000',
+        },
+      },
     }
 
     const timeline: ChatNotificationEvent = {
@@ -114,19 +125,30 @@ export class TestEventFactory {
     return { alert, timeline }
   }
 
-  static resub(username?: string, months: number = 12, tier: 'Tier 1' | 'Tier 2' | 'Tier 3' = 'Tier 1'): TestEventPair {
+  static resub(
+    username?: string,
+    months: number = 12,
+    tier: 'Tier 1' | 'Tier 2' | 'Tier 3' = 'Tier 1',
+  ): TestEventPair {
     const eventId = this.generateId()
     const user = username || this.getRandomUsername()
     const timestamp = new Date().toISOString()
 
     const alert: AlertData = {
       id: eventId,
-      type: 'resub',
+      type: 'twitch.channel.chat.notification',
       message: `${user} resubscribed for ${months} months at ${tier}!`,
       user_name: user,
       timestamp,
       tier,
       months,
+      data: {
+        payload: {
+          notice_type: 'resub',
+          sub_tier: tier === 'Tier 3' ? '3000' : tier === 'Tier 2' ? '2000' : '1000',
+          cumulative_months: months,
+        },
+      },
     }
 
     const timeline: ChatNotificationEvent = {
@@ -148,10 +170,12 @@ export class TestEventFactory {
           message_id: `msg-${eventId}`,
           message: {
             text: `Thanks for ${months} months of support!`,
-            fragments: [{
-              type: 'text',
-              text: `Thanks for ${months} months of support!`,
-            }],
+            fragments: [
+              {
+                type: 'text',
+                text: `Thanks for ${months} months of support!`,
+              },
+            ],
           },
           notice_type: 'resub',
           resub: {
@@ -176,7 +200,7 @@ export class TestEventFactory {
 
     const alert: AlertData = {
       id: eventId,
-      type: 'cheer',
+      type: 'twitch.channel.cheer',
       message: `${user} cheered ${bits} bits!`,
       user_name: user,
       timestamp,
@@ -213,11 +237,17 @@ export class TestEventFactory {
 
     const alert: AlertData = {
       id: eventId,
-      type: 'raid',
+      type: 'twitch.channel.chat.notification',
       message: `${user} raided with ${viewers} viewers!`,
       user_name: user,
       timestamp,
       amount: viewers,
+      data: {
+        payload: {
+          notice_type: 'raid',
+          viewer_count: viewers,
+        },
+      },
     }
 
     const timeline: ChatNotificationEvent = {
@@ -261,19 +291,29 @@ export class TestEventFactory {
     return { alert, timeline }
   }
 
-  static subGift(username?: string, recipient: string = 'RecipientUser', tier: 'Tier 1' | 'Tier 2' | 'Tier 3' = 'Tier 1'): TestEventPair {
+  static subGift(
+    username?: string,
+    recipient: string = 'RecipientUser',
+    tier: 'Tier 1' | 'Tier 2' | 'Tier 3' = 'Tier 1',
+  ): TestEventPair {
     const eventId = this.generateId()
     const user = username || this.getRandomUsername()
     const timestamp = new Date().toISOString()
 
     const alert: AlertData = {
       id: eventId,
-      type: 'sub_gift',
+      type: 'twitch.channel.chat.notification',
       message: `${user} gifted a sub to ${recipient}!`,
       user_name: user,
       timestamp,
       amount: 1,
       tier,
+      data: {
+        payload: {
+          notice_type: 'sub_gift',
+          sub_tier: tier === 'Tier 3' ? '3000' : tier === 'Tier 2' ? '2000' : '1000',
+        },
+      },
     }
 
     const timeline: ChatNotificationEvent = {
@@ -317,19 +357,30 @@ export class TestEventFactory {
     return { alert, timeline }
   }
 
-  static communityGift(username?: string, count: number = 5, tier: 'Tier 1' | 'Tier 2' | 'Tier 3' = 'Tier 1'): TestEventPair {
+  static communityGift(
+    username?: string,
+    count: number = 5,
+    tier: 'Tier 1' | 'Tier 2' | 'Tier 3' = 'Tier 1',
+  ): TestEventPair {
     const eventId = this.generateId()
     const user = username || this.getRandomUsername()
     const timestamp = new Date().toISOString()
 
     const alert: AlertData = {
       id: eventId,
-      type: 'sub_gift',
+      type: 'twitch.channel.chat.notification',
       message: `${user} gifted ${count} subs to the community!`,
       user_name: user,
       timestamp,
       amount: count,
       tier,
+      data: {
+        payload: {
+          notice_type: 'community_sub_gift',
+          sub_tier: tier === 'Tier 3' ? '3000' : tier === 'Tier 2' ? '2000' : '1000',
+          total: count,
+        },
+      },
     }
 
     const timeline: ChatNotificationEvent = {

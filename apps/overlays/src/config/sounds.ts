@@ -16,7 +16,20 @@ export interface SoundConfig {
 }
 
 export const alertSoundConfig: Record<string, SoundConfig> = {
-  // Chat notification events
+  // Direct events from Twitch
+  'twitch.channel.follow': {
+    sounds: {
+      1: '/sounds/follow.ogg',
+    },
+  },
+
+  'twitch.channel.cheer': {
+    sounds: {
+      100: '/sounds/cheer-100.ogg', // 100+ bits
+    },
+  },
+
+  // Chat notification subtypes (for notice_type mapping)
   sub: {
     sounds: {
       1: '/sounds/subscription-1000.ogg', // Tier 1 sub
@@ -88,23 +101,6 @@ export const alertSoundConfig: Record<string, SoundConfig> = {
     },
   },
 
-  cheer: {
-    sounds: {
-      100: '/sounds/cheer-100.ogg', // 100+ bits
-      // 500: '/sounds/cheer-500.mp3', // 500+ bits
-      // 1000: '/sounds/cheer-1k.mp3', // 1,000+ bits
-      // 5000: '/sounds/cheer-5k.mp3', // 5,000+ bits
-      // 10000: '/sounds/cheer-10k.mp3', // 10,000+ bits
-    },
-  },
-
-  // Non-chat.notification events
-  follow: {
-    sounds: {
-      1: '/sounds/follow.ogg',
-    },
-  },
-
   raid: {
     sounds: {
       1: '/sounds/raid.ogg',
@@ -154,26 +150,51 @@ function findSoundByThreshold(sounds: Record<number, string>, amount: number): s
 /**
  * Get sound file for an alert based on type and parameters
  */
-export function getAlertSound(
-  type: string,
-  amount?: number,
-  tier?: 'Tier 1' | 'Tier 2' | 'Tier 3',
-): string | undefined {
-  const config = alertSoundConfig[type]
-  if (!config) return undefined
+export function getAlertSound(alert: {
+  type: string
+  amount?: number
+  tier?: string
+  data?: { payload?: { notice_type?: string } }
+}): string | undefined {
+  const { type, amount, tier, data } = alert
 
-  // For tier-based events (sub, resub, upgrades)
-  if (tier && (type === 'sub' || type === 'resub' || type.includes('upgrade'))) {
-    const tierNum = tier === 'Tier 3' ? 3 : tier === 'Tier 2' ? 2 : 1
-    return config.sounds[tierNum] || config.sounds[1]
+  // Handle direct event types
+  if (type === 'twitch.channel.follow' || type === 'twitch.channel.cheer') {
+    const config = alertSoundConfig[type]
+    if (!config) return undefined
+
+    // For cheer, use amount-based selection
+    if (type === 'twitch.channel.cheer' && amount) {
+      const sound = findSoundByThreshold(config.sounds, amount)
+      if (sound) return sound
+    }
+
+    return config.sounds[1]
   }
 
-  // For amount-based events (including community gift bundles)
-  if (amount && config.sounds) {
-    const sound = findSoundByThreshold(config.sounds, amount)
-    if (sound) return sound
+  // Handle chat.notification events - need to check notice_type
+  if (type === 'twitch.channel.chat.notification' && data?.payload?.notice_type) {
+    const noticeType = data.payload.notice_type
+    const config = alertSoundConfig[noticeType]
+    if (!config) return undefined
+
+    // For tier-based events (sub, resub, upgrades)
+    if (
+      tier &&
+      (noticeType === 'sub' || noticeType === 'resub' || noticeType.includes('upgrade'))
+    ) {
+      const tierNum = tier === 'Tier 3' ? 3 : tier === 'Tier 2' ? 2 : 1
+      return config.sounds[tierNum] || config.sounds[1]
+    }
+
+    // For amount-based events (raid, gifts)
+    if (amount && config.sounds) {
+      const sound = findSoundByThreshold(config.sounds, amount)
+      if (sound) return sound
+    }
+
+    return config.sounds[1]
   }
 
-  // Return base sound
-  return config.sounds[1]
+  return undefined
 }

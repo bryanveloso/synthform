@@ -47,7 +47,7 @@ export function useAlertSound(
 
     // Process alert (with or without sound)
     if (alert) {
-      const soundFile = enabled ? getAlertSound(alert.type, alert.amount, alert.tier) : null
+      const soundFile = enabled ? getAlertSound(alert) : null
 
       if (soundFile && enabled) {
         audioRef.current = new Audio(soundFile)
