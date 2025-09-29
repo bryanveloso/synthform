@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as MusicRouteImport } from './routes/music'
 import { Route as LimitbreakRouteImport } from './routes/limitbreak'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SpecialUmamusumeRouteImport } from './routes/special/umamusume'
 import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
 import { Route as DebugEventsRouteImport } from './routes/debug/events'
 import { Route as fullOmnibarRouteImport } from './routes/(full)/omnibar'
@@ -32,6 +33,11 @@ const LimitbreakRoute = LimitbreakRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpecialUmamusumeRoute = SpecialUmamusumeRouteImport.update({
+  id: '/special/umamusume',
+  path: '/special/umamusume',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SpecialPodcastRoute = SpecialPodcastRouteImport.update({
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
   '/special/podcast': typeof SpecialPodcastRoute
+  '/special/umamusume': typeof SpecialUmamusumeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
   '/special/podcast': typeof SpecialPodcastRoute
+  '/special/umamusume': typeof SpecialUmamusumeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/(full)/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
   '/special/podcast': typeof SpecialPodcastRoute
+  '/special/umamusume': typeof SpecialUmamusumeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/omnibar'
     | '/debug/events'
     | '/special/podcast'
+    | '/special/umamusume'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/omnibar'
     | '/debug/events'
     | '/special/podcast'
+    | '/special/umamusume'
   id:
     | '__root__'
     | '/'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/(full)/omnibar'
     | '/debug/events'
     | '/special/podcast'
+    | '/special/umamusume'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,6 +157,7 @@ export interface RootRouteChildren {
   fullOmnibarRoute: typeof fullOmnibarRoute
   DebugEventsRoute: typeof DebugEventsRoute
   SpecialPodcastRoute: typeof SpecialPodcastRoute
+  SpecialUmamusumeRoute: typeof SpecialUmamusumeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/special/umamusume': {
+      id: '/special/umamusume'
+      path: '/special/umamusume'
+      fullPath: '/special/umamusume'
+      preLoaderRoute: typeof SpecialUmamusumeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/special/podcast': {
@@ -225,6 +245,7 @@ const rootRouteChildren: RootRouteChildren = {
   fullOmnibarRoute: fullOmnibarRoute,
   DebugEventsRoute: DebugEventsRoute,
   SpecialPodcastRoute: SpecialPodcastRoute,
+  SpecialUmamusumeRoute: SpecialUmamusumeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
