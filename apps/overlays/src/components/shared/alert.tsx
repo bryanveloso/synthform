@@ -8,7 +8,12 @@ interface AlertProps {
   volume?: number
 }
 
-export const Alert = ({ currentAlert, onComplete, soundEnabled = true, volume = 0.3 }: AlertProps) => {
+export const Alert = ({
+  currentAlert,
+  onComplete,
+  soundEnabled = true,
+  volume = 0.2,
+}: AlertProps) => {
   useAlertSound(currentAlert, {
     enabled: soundEnabled,
     volume,

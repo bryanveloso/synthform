@@ -18,7 +18,7 @@ export function useAlertSound(
   alert: Alert | null,
   options: UseAlertSoundOptions = {},
 ): UseAlertSoundReturn {
-  const { enabled = true, volume = 0.5, onComplete, fallbackDuration = 10000 } = options
+  const { enabled = true, volume = 0.2, onComplete, fallbackDuration = 10000 } = options
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
