@@ -2,6 +2,7 @@
 Management command to list all channel emotes with their IDs.
 Useful for creating emote ID to name mappings for sprite sheets.
 """
+
 from __future__ import annotations
 
 import asyncio
