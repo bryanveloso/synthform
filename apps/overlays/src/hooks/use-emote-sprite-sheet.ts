@@ -11,12 +11,13 @@ interface SpriteFrame {
 }
 
 interface SpriteSheetData {
-  frames: Record<string, SpriteFrame>
-  meta: {
+  textures: Array<{
     image: string
+    format: string
     size: { w: number; h: number }
-    scale: string
-  }
+    scale: number
+    frames: SpriteFrame[]
+  }>
 }
 
 interface EmoteSpriteData {
@@ -30,6 +31,7 @@ export function useEmoteSpriteSheet() {
   const [spriteImage, setSpriteImage] = useState<HTMLImageElement | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const emoteDataCache = useRef<Map<string, EmoteSpriteData | null>>(new Map())
+  const frameMapRef = useRef<Map<string, SpriteFrame>>(new Map())
 
   useEffect(() => {
     let mounted = true
@@ -41,6 +43,14 @@ export function useEmoteSpriteSheet() {
         const data: SpriteSheetData = await response.json()
 
         if (!mounted) return
+
+        // Build frame map from array structure
+        frameMapRef.current.clear()
+        if (data.textures && data.textures[0] && data.textures[0].frames) {
+          data.textures[0].frames.forEach(frame => {
+            frameMapRef.current.set(frame.filename, frame)
+          })
+        }
 
         // Load sprite sheet image
         const img = new Image()
@@ -74,7 +84,7 @@ export function useEmoteSpriteSheet() {
       return emoteDataCache.current.get(emoteId)!
     }
 
-    if (!spriteSheet || !isLoaded) {
+    if (!spriteSheet || !isLoaded || frameMapRef.current.size === 0) {
       emoteDataCache.current.set(emoteId, null)
       return null
     }
@@ -88,16 +98,20 @@ export function useEmoteSpriteSheet() {
 
     // Look up frame by filename (emoteName + .png)
     const filename = `${emoteName}.png`
-    const frame = spriteSheet.frames[filename]
+    const frame = frameMapRef.current.get(filename)
 
     if (!frame) {
       emoteDataCache.current.set(emoteId, null)
       return null
     }
 
-    // Calculate scaled dimensions (sprite sheet is at 300x300, we render at 56x56)
+    // Calculate scaled dimensions based on source size
+    // Target display size is 56px for the larger dimension
+    const targetSize = 56
+    const sourceMax = Math.max(frame.sourceSize.w, frame.sourceSize.h)
+    const scale = targetSize / sourceMax
+
     // Use the trimmed size for accurate collision
-    const scale = 56 / 300
     const width = frame.spriteSourceSize.w * scale
     const height = frame.spriteSourceSize.h * scale
 
