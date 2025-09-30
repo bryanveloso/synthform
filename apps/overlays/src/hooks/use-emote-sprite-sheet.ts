@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { getEmoteName } from '@/config/emotes'
 
 interface SpriteFrame {
@@ -68,7 +68,7 @@ export function useEmoteSpriteSheet() {
   }, [])
 
   // Get sprite data for an emote ID
-  const getEmoteData = (emoteId: string): EmoteSpriteData | null => {
+  const getEmoteData = useCallback((emoteId: string): EmoteSpriteData | null => {
     // Check cache first
     if (emoteDataCache.current.has(emoteId)) {
       return emoteDataCache.current.get(emoteId)!
@@ -109,12 +109,12 @@ export function useEmoteSpriteSheet() {
 
     emoteDataCache.current.set(emoteId, data)
     return data
-  }
+  }, [spriteSheet, isLoaded])
 
   // Check if an emote is in the sprite sheet
-  const hasEmote = (emoteId: string): boolean => {
+  const hasEmote = useCallback((emoteId: string): boolean => {
     return getEmoteData(emoteId) !== null
-  }
+  }, [getEmoteData])
 
   return {
     spriteSheet,

@@ -258,15 +258,6 @@ export const EmoteRain = memo(function EmoteRain() {
     return existingImg
   }, [getEmoteData, spriteLoaded])
 
-  // Remove an emote
-  const removeEmote = useCallback((id: string) => {
-    const emoteBody = emoteBodiesRef.current.get(id)
-    if (!emoteBody || !engineRef.current) return
-
-    Matter.Composite.remove(engineRef.current.world, emoteBody.body)
-    emoteBodiesRef.current.delete(id)
-  }, [])
-
   // Spawn an emote
   const spawnEmote = useCallback((emoteId: string) => {
     if (!engineRef.current) return
