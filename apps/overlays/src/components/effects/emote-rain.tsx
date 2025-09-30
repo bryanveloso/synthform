@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, memo } from 'react'
 import Matter from 'matter-js'
 
 import { useChatMessages } from '@/hooks/use-chat-messages'
+import { useEmoteSpriteSheet } from '@/hooks/use-emote-sprite-sheet'
 
 import { emoteManager } from './emote-manager'
 
@@ -10,6 +11,9 @@ interface EmoteBody {
   emoteId: string
   body: Matter.Body
   imageLoaded: boolean
+  width: number
+  height: number
+  isFromSpriteSheet: boolean
 }
 
 export const EmoteRain = memo(function EmoteRain() {
@@ -20,6 +24,8 @@ export const EmoteRain = memo(function EmoteRain() {
   const timeoutIdsRef = useRef<Set<NodeJS.Timeout>>(new Set())
   const abortControllerRef = useRef<AbortController | null>(null)
   const [debugInfo, setDebugInfo] = useState({ emoteCount: 0 })
+
+  const { spriteImage, getEmoteData, isLoaded: spriteLoaded } = useEmoteSpriteSheet()
 
   // Initialize Matter.js
   useEffect(() => {
@@ -81,15 +87,32 @@ export const EmoteRain = memo(function EmoteRain() {
           return
         }
 
-        const img = emoteImagesRef.current.get(emoteBody.emoteId)
-        if (!img || !emoteBody.imageLoaded) return
-
         ctx.save()
         ctx.translate(position.x, position.y)
         ctx.rotate(angle)
 
-        // Draw at 56x56 (matching 2.0 emote size)
-        ctx.drawImage(img, -28, -28, 56, 56)
+        if (emoteBody.isFromSpriteSheet && spriteImage) {
+          // Draw from sprite sheet
+          const emoteData = getEmoteData(emoteBody.emoteId)
+          if (emoteData) {
+            const { frame } = emoteData
+            ctx.drawImage(
+              spriteImage,
+              frame.frame.x, frame.frame.y, frame.frame.w, frame.frame.h,
+              -emoteBody.width / 2, -emoteBody.height / 2,
+              emoteBody.width, emoteBody.height
+            )
+          }
+        } else {
+          // Draw from cached image (Twitch CDN)
+          const img = emoteImagesRef.current.get(emoteBody.emoteId)
+          if (!img || !emoteBody.imageLoaded) {
+            ctx.restore()
+            return
+          }
+          ctx.drawImage(img, -emoteBody.width / 2, -emoteBody.height / 2, emoteBody.width, emoteBody.height)
+        }
+
         ctx.restore()
       })
 
@@ -139,6 +162,19 @@ export const EmoteRain = memo(function EmoteRain() {
 
   // Preload emote image
   const preloadEmote = useCallback((emoteId: string, emoteBodyId?: string) => {
+    // Check if this emote is in the sprite sheet
+    const spriteData = getEmoteData(emoteId)
+    if (spriteData && spriteLoaded) {
+      // Emote is in sprite sheet, mark as loaded immediately
+      if (emoteBodyId) {
+        const emoteBody = emoteBodiesRef.current.get(emoteBodyId)
+        if (emoteBody) {
+          emoteBody.imageLoaded = true
+        }
+      }
+      return null
+    }
+
     // If image already cached and loaded, return it
     const existingImg = emoteImagesRef.current.get(emoteId)
     if (existingImg) {
@@ -179,13 +215,23 @@ export const EmoteRain = memo(function EmoteRain() {
       }
 
       // Try fallbacks if loading fails
+      let fallbackAttempted = false
       img.onerror = () => {
         // For template IDs (v2 emotes), there's no v1 fallback
         // For numeric IDs, try v1 API as fallback
-        if (!isTemplateId) {
+        if (!isTemplateId && !fallbackAttempted) {
+          fallbackAttempted = true
           img.src = `https://static-cdn.jtvnw.net/emoticons/v1/${emoteId}/2.0`
+        } else {
+          // Failed to load - clean up all bodies with this emote ID
+          emoteBodiesRef.current.forEach((body) => {
+            if (body.emoteId === emoteId && engineRef.current) {
+              Matter.Composite.remove(engineRef.current.world, body.body)
+              emoteBodiesRef.current.delete(body.id)
+            }
+          })
+          emoteImagesRef.current.delete(emoteId)
         }
-        // If it fails, emote doesn't exist
       }
 
       emoteImagesRef.current.set(emoteId, img)
@@ -210,7 +256,7 @@ export const EmoteRain = memo(function EmoteRain() {
     }
 
     return existingImg
-  }, [])
+  }, [getEmoteData, spriteLoaded])
 
   // Remove an emote
   const removeEmote = useCallback((id: string) => {
@@ -229,16 +275,41 @@ export const EmoteRain = memo(function EmoteRain() {
     const x = Math.random() * 1920
     const y = -50
 
-    // Create body with sleep settings to reduce jitter when settled
-    const body = Matter.Bodies.circle(x, y, 28, {
-      restitution: 0.6,
-      friction: 0.3,
-      density: 0.001,
-      sleepThreshold: 60, // Bodies sleep after 60 frames of low activity (stops jiggling)
-      render: {
-        visible: false
-      }
-    })
+    // Check if emote is in sprite sheet to get accurate dimensions
+    const spriteData = getEmoteData(emoteId)
+    let width = 56
+    let height = 56
+    let isFromSpriteSheet = false
+    let body: Matter.Body
+
+    if (spriteData && spriteLoaded) {
+      // Use actual emote dimensions from sprite sheet
+      width = spriteData.width
+      height = spriteData.height
+      isFromSpriteSheet = true
+
+      // Create rectangular body matching actual emote shape
+      body = Matter.Bodies.rectangle(x, y, width, height, {
+        restitution: 0.6,
+        friction: 0.3,
+        density: 0.001,
+        sleepThreshold: 60,
+        render: {
+          visible: false
+        }
+      })
+    } else {
+      // Fallback to circular body for non-sprite sheet emotes
+      body = Matter.Bodies.circle(x, y, 28, {
+        restitution: 0.6,
+        friction: 0.3,
+        density: 0.001,
+        sleepThreshold: 60,
+        render: {
+          visible: false
+        }
+      })
+    }
 
     // Apply random horizontal velocity
     Matter.Body.setVelocity(body, {
@@ -256,7 +327,10 @@ export const EmoteRain = memo(function EmoteRain() {
       id: `${emoteId}-${Date.now()}-${Math.random()}`,
       emoteId,
       body,
-      imageLoaded: false
+      imageLoaded: false,
+      width,
+      height,
+      isFromSpriteSheet
     }
 
     emoteBodiesRef.current.set(emoteBody.id, emoteBody)
@@ -311,7 +385,7 @@ export const EmoteRain = memo(function EmoteRain() {
       timeoutIdsRef.current.delete(timeoutId)
     }, 45000)
     timeoutIdsRef.current.add(timeoutId)
-  }, [preloadEmote, removeEmote])
+  }, [preloadEmote, getEmoteData, spriteLoaded])
 
   // Update debug info
   useEffect(() => {
