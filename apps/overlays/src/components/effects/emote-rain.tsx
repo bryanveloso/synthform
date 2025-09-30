@@ -26,6 +26,12 @@ export const EmoteRain = memo(function EmoteRain() {
   const [debugInfo, setDebugInfo] = useState({ emoteCount: 0 })
 
   const { spriteImage, getEmoteData, isLoaded: spriteLoaded } = useEmoteSpriteSheet()
+  const spriteImageRef = useRef<HTMLImageElement | null>(null)
+
+  // Update sprite image ref when it changes
+  useEffect(() => {
+    spriteImageRef.current = spriteImage
+  }, [spriteImage])
 
   // Initialize Matter.js
   useEffect(() => {
@@ -91,13 +97,13 @@ export const EmoteRain = memo(function EmoteRain() {
         ctx.translate(position.x, position.y)
         ctx.rotate(angle)
 
-        if (emoteBody.isFromSpriteSheet && spriteImage) {
+        if (emoteBody.isFromSpriteSheet && spriteImageRef.current && emoteBody.imageLoaded) {
           // Draw from sprite sheet
           const emoteData = getEmoteData(emoteBody.emoteId)
           if (emoteData) {
             const { frame } = emoteData
             ctx.drawImage(
-              spriteImage,
+              spriteImageRef.current,
               frame.frame.x, frame.frame.y, frame.frame.w, frame.frame.h,
               -emoteBody.width / 2, -emoteBody.height / 2,
               emoteBody.width, emoteBody.height
