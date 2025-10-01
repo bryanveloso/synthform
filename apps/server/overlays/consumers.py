@@ -99,21 +99,23 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         }
         return builders.get(event_type)
 
-    def _build_stats_payload(self, event_data: dict) -> dict:
+    def _build_stats_payload(self, event_data: dict, event_type: str) -> dict:
         """Build payload for stats event."""
         return {
+            "type": event_type,
             "player": event_data.get("player"),
             "member": event_data.get("member"),
             "data": event_data.get("payload", {}),
             "timestamp": event_data.get("timestamp"),
         }
 
-    def _build_hire_payload(self, event_data: dict) -> dict:
+    def _build_hire_payload(self, event_data: dict, event_type: str) -> dict:
         """Build payload for hire event."""
         game_payload = event_data.get("payload", {})
         # Debug log to see what we're getting
         logger.debug(f"🎮 Hire event payload: {game_payload}")
         payload = {
+            "type": event_type,
             "player": event_data.get("player"),
             "member": event_data.get("member"),
             "character": game_payload.get("character"),
@@ -124,10 +126,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         logger.debug(f"🎮 Hire event final payload: {payload}")
         return payload
 
-    def _build_change_payload(self, event_data: dict) -> dict:
+    def _build_change_payload(self, event_data: dict, event_type: str) -> dict:
         """Build payload for character change event."""
         game_payload = event_data.get("payload", {})
         return {
+            "type": event_type,
             "player": event_data.get("player"),
             "member": event_data.get("member"),
             "from": game_payload.get("from", ""),
@@ -136,19 +139,21 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             "timestamp": event_data.get("timestamp"),
         }
 
-    def _build_save_payload(self, event_data: dict) -> dict:
+    def _build_save_payload(self, event_data: dict, event_type: str) -> dict:
         """Build payload for save event."""
         game_payload = event_data.get("payload", {})
         return {
+            "type": event_type,
             "player_count": game_payload.get("player_count", 0),
             "metadata": game_payload.get("metadata"),
             "timestamp": event_data.get("timestamp"),
         }
 
-    def _build_passthrough_payload(self, event_data: dict) -> dict:
+    def _build_passthrough_payload(self, event_data: dict, event_type: str) -> dict:
         """Build payload for events that pass through all fields."""
         game_payload = event_data.get("payload", {})
         return {
+            "type": event_type,
             "player": event_data.get("player"),
             "member": event_data.get("member"),
             "data": game_payload.get(
@@ -322,7 +327,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 return
 
             # Build the payload
-            payload = payload_builder(event_data)
+            payload = payload_builder(event_data, game_event_type)
 
             # Send with specific message type
             logger.debug(f"🎮 WebSocket: Sending ffbot:{game_event_type} to overlay")

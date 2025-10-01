@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 
 # Setup Django for standalone execution
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "synthform.settings")
@@ -50,10 +51,18 @@ class TwitchService(twitchio.Client):
         self._event_handler = TwitchEventHandler()
         self._auth_service = AuthService("twitch")
         self._reconnect_attempts = 0
-        self._max_reconnect_attempts = 5
         self._reconnect_delay = 1  # Start with 1 second
-        self._max_reconnect_delay = 60  # Max 60 seconds
+        self._max_reconnect_delay = 300  # Max 5 minutes
         self._active_subscriptions = {}  # Track active subscriptions
+        self._last_event_time = None  # Track last event received for health monitoring
+        self._reconnecting = False  # Prevent concurrent reconnection attempts
+        self._broadcaster_user_id = None  # Store broadcaster ID for reconnections
+
+        # Redis client for health status tracking
+        import redis.asyncio as redis
+
+        self._redis = redis.Redis.from_url(settings.REDIS_URL or "redis://redis:6379/0")
+
         logger.info("TwitchIO adapter service initialized")
 
     async def event_ready(self):
@@ -69,6 +78,17 @@ class TwitchService(twitchio.Client):
         self._eventsub_connected = True
         self._reconnect_attempts = 0  # Reset on successful connection
         self._reconnect_delay = 1
+
+        # Verify Redis connection and update health status
+        try:
+            await self._redis.ping()
+            logger.info("Redis connection verified")
+            await self._redis.set("eventsub:connected", "1")
+            await self._redis.set("eventsub:reconnect_attempts", "0")
+        except Exception as e:
+            logger.error(f"Failed to update Redis health status on ready: {e}")
+            sentry_sdk.capture_exception(e)
+
         logger.info("EventSub connection established and subscriptions created")
 
     async def event_oauth_authorized(
@@ -219,6 +239,8 @@ class TwitchService(twitchio.Client):
     async def _subscribe_to_events_for_user(self, user_id: str):
         """Subscribe to Twitch EventSub events for a specific user ID using subscription payload objects."""
         try:
+            # Store broadcaster ID for reconnections
+            self._broadcaster_user_id = user_id
             # Clean up any existing subscriptions first to avoid hitting rate limits
             try:
                 logger.info(
@@ -395,14 +417,46 @@ class TwitchService(twitchio.Client):
     async def event_eventsub_notification_subscription_revoked(self, payload):
         """Handle EventSub subscription revocation."""
         logger.warning(f"EventSub subscription revoked: {payload}")
+
+        # Alert to Sentry
+        sentry_sdk.capture_message(
+            "EventSub subscription revoked",
+            level="warning",
+            extras={"payload": str(payload)},
+        )
+
         # Mark that we need to re-subscribe
         self._eventsub_connected = False
+
+        # Update health status in Redis
+        try:
+            await self._redis.set("eventsub:connected", "0")
+        except Exception as e:
+            logger.error(f"Failed to update Redis on subscription revoked: {e}")
+            sentry_sdk.capture_exception(e)
+
         asyncio.create_task(self._handle_reconnection())
 
     async def event_eventsub_notification_websocket_disconnect(self, payload):
         """Handle EventSub WebSocket disconnection."""
         logger.warning(f"EventSub WebSocket disconnected: {payload}")
+
+        # Alert to Sentry on disconnect
+        sentry_sdk.capture_message(
+            "EventSub WebSocket disconnected",
+            level="warning",
+            extras={"payload": str(payload)},
+        )
+
         self._eventsub_connected = False
+
+        # Update health status in Redis
+        try:
+            await self._redis.set("eventsub:connected", "0")
+        except Exception as e:
+            logger.error(f"Failed to update Redis on websocket disconnect: {e}")
+            sentry_sdk.capture_exception(e)
+
         asyncio.create_task(self._handle_reconnection())
 
     async def event_eventsub_error(self, error):
@@ -437,20 +491,40 @@ class TwitchService(twitchio.Client):
 
     async def _handle_reconnection(self):
         """Handle EventSub reconnection with exponential backoff."""
-        if self._reconnect_attempts >= self._max_reconnect_attempts:
-            logger.error(
-                f"Max reconnection attempts ({self._max_reconnect_attempts}) reached. "
-                "Manual intervention required."
-            )
+        # Prevent concurrent reconnection attempts
+        if self._reconnecting:
+            logger.debug("Reconnection already in progress, skipping")
             return
 
+        self._reconnecting = True
         self._reconnect_attempts += 1
         wait_time = min(self._reconnect_delay, self._max_reconnect_delay)
 
-        logger.info(
-            f"Attempting EventSub reconnection {self._reconnect_attempts}/{self._max_reconnect_attempts} "
+        # Update reconnect attempts in Redis
+        try:
+            await self._redis.set(
+                "eventsub:reconnect_attempts", str(self._reconnect_attempts)
+            )
+        except Exception as e:
+            logger.error(f"Failed to update Redis reconnect attempts: {e}")
+            sentry_sdk.capture_exception(e)
+
+        logger.warning(
+            f"EventSub disconnected. Attempting reconnection #{self._reconnect_attempts} "
             f"after {wait_time}s delay"
         )
+
+        # Alert to Sentry on attempt 3 and every 10 attempts after
+        if self._reconnect_attempts == 3 or self._reconnect_attempts % 10 == 0:
+            sentry_sdk.capture_message(
+                f"EventSub reconnection attempt #{self._reconnect_attempts}",
+                level="warning",
+                extras={
+                    "reconnect_attempts": self._reconnect_attempts,
+                    "wait_time": wait_time,
+                    "broadcaster_id": self._broadcaster_user_id,
+                },
+            )
 
         await asyncio.sleep(wait_time)
         self._reconnect_delay = min(
@@ -458,29 +532,90 @@ class TwitchService(twitchio.Client):
         )
 
         try:
-            # Re-subscribe to all previously active subscriptions
-            for sub_name, sub_info in self._active_subscriptions.items():
+            if not self._broadcaster_user_id:
+                logger.error("No broadcaster ID stored, cannot reconnect")
+                self._reconnecting = False
+                return
+
+            logger.info("Closing existing EventSub WebSocket connections...")
+
+            # Close existing EventSub websocket connections
+            # TwitchIO manages these internally, we need to trigger cleanup
+            if hasattr(self, "_eventsub") and self._eventsub:
                 try:
-                    await self.subscribe_websocket(
-                        sub_info["subscription"], token_for=sub_info["user_id"]
-                    )
-                    logger.info(f"Re-subscribed to {sub_name}")
+                    # Access TwitchIO's internal EventSub websocket manager
+                    if hasattr(self._eventsub, "_websockets"):
+                        for ws in list(self._eventsub._websockets.values()):
+                            try:
+                                await ws.close()
+                            except Exception:
+                                pass
                 except Exception as e:
-                    logger.error(f"Failed to re-subscribe to {sub_name}: {e}")
+                    logger.debug(f"Error closing websockets: {e}")
+
+            # Clear tracked subscriptions (will be recreated)
+            self._active_subscriptions.clear()
+
+            # Small delay to ensure cleanup completes
+            await asyncio.sleep(1)
+
+            logger.info("Re-subscribing to EventSub events...")
+            # Re-subscribe to events - this will create a new WebSocket connection
+            await self._subscribe_to_events_for_user(self._broadcaster_user_id)
 
             self._eventsub_connected = True
             self._reconnect_attempts = 0
             self._reconnect_delay = 1
-            logger.info("EventSub reconnection successful")
+            self._reconnecting = False
+
+            # Update health status in Redis
+            try:
+                await self._redis.set("eventsub:connected", "1")
+                await self._redis.set("eventsub:reconnect_attempts", "0")
+            except Exception as e:
+                logger.error(f"Failed to update Redis on reconnection success: {e}")
+                sentry_sdk.capture_exception(e)
+
+            logger.info("✅ EventSub reconnection successful")
+
+            # Alert Sentry on successful recovery
+            sentry_sdk.capture_message(
+                "EventSub reconnected successfully",
+                level="info",
+                extras={"broadcaster_id": self._broadcaster_user_id},
+            )
 
         except Exception as e:
             logger.error(f"EventSub reconnection failed: {e}")
+            self._reconnecting = False
+
+            # Alert Sentry on failure
+            sentry_sdk.capture_exception(
+                e,
+                extras={
+                    "reconnect_attempts": self._reconnect_attempts,
+                    "broadcaster_id": self._broadcaster_user_id,
+                },
+            )
+
             # Schedule another reconnection attempt
             asyncio.create_task(self._handle_reconnection())
 
     async def _safe_delegate(self, handler_method, payload, event_name: str):
         """Safely delegate events to handler with error handling."""
         try:
+            # Track that we received an event (for health monitoring)
+            self._last_event_time = time.time()
+
+            # Update last event time in Redis
+            try:
+                await self._redis.set(
+                    "eventsub:last_event_time", str(self._last_event_time)
+                )
+            except Exception as redis_err:
+                logger.error(f"Failed to update Redis last event time: {redis_err}")
+                # Don't capture to Sentry on every event - would be too noisy
+
             await handler_method(payload)
         except AttributeError as e:
             logger.error(f"Handler method not found for {event_name}: {e}")
