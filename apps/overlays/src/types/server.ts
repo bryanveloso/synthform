@@ -92,6 +92,7 @@ export interface FFBotStatsData {
 }
 
 export interface FFBotStatsMessage {
+  type: string
   player: string
   member?: FFBotMember
   data: FFBotStatsData
@@ -99,6 +100,7 @@ export interface FFBotStatsMessage {
 }
 
 export interface FFBotHireMessage {
+  type: string
   player: string
   member?: FFBotMember
   character: string
@@ -107,6 +109,7 @@ export interface FFBotHireMessage {
 }
 
 export interface FFBotChangeMessage {
+  type: string
   player: string
   member?: FFBotMember
   from: string
@@ -115,6 +118,7 @@ export interface FFBotChangeMessage {
 }
 
 export interface FFBotSaveMessage {
+  type: string
   player_count: number
   metadata?: Record<string, any>
   timestamp: string

@@ -1,13 +1,33 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import { useRealtimeStore } from '@/store/realtime'
 
 export interface FFBotEvent {
   id: string
   timestamp: string
-  type: 'stats' | 'hire' | 'change' | 'attack' | 'join' | 'preference' | 'ascension_preview' | 'ascension_confirm' | 'esper' | 'artifact' | 'job' | 'card' | 'mastery' | 'freehire' | 'missing' | 'party_wipe' | 'new_run' | 'battle_victory' | 'save'
+  type:
+    | 'stats'
+    | 'hire'
+    | 'change'
+    | 'attack'
+    | 'join'
+    | 'preference'
+    | 'ascension_preview'
+    | 'ascension_confirm'
+    | 'esper'
+    | 'artifact'
+    | 'job'
+    | 'card'
+    | 'mastery'
+    | 'freehire'
+    | 'missing'
+    | 'party_wipe'
+    | 'new_run'
+    | 'battle_victory'
+    | 'save'
   player: string
   displayName: string
   message: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: Record<string, any>
 }
 
@@ -19,37 +39,46 @@ interface UseFFBotOptions {
 export function useFFBot(options: UseFFBotOptions = {}) {
   const { maxEvents = 100, enableActivityTracking = true } = options
 
-  // Get FFBot events and connection state from the store
-  const events = useRealtimeStore((state) =>
-    state.ffbot.events.map(event => {
-      // Determine event type from message structure
-      let type: FFBotEvent['type'] = 'stats'
-      if ('character' in event && 'cost' in event) {
-        type = 'hire'
-      } else if ('from' in event && 'to' in event) {
-        type = 'change'
-      } else if ('player_count' in event) {
-        type = 'save'
-      } else if ('data' in event) {
-        type = 'stats'
-      }
-
-      const player = 'player' in event ? event.player : 'System'
-      const displayName = 'member' in event && event.member ? event.member.display_name : player
-
-      return {
-        id: `ffbot-${event.timestamp}`,
-        timestamp: event.timestamp,
-        type,
-        player: player.toLowerCase(),
-        displayName,
-        message: formatFFBotMessage(type, player, event),
-        metadata: event
-      }
-    }).slice(-maxEvents)
-  )
-
+  // Get raw FFBot events from the store
+  const rawEvents = useRealtimeStore((state) => state.ffbot.events)
   const isConnected = useRealtimeStore((state) => state.isConnected)
+
+  // Track when new events arrive
+  const prevEventCount = useRef(rawEvents.length)
+  const [hasJustReceivedEvent, setHasJustReceivedEvent] = useState(false)
+
+  useEffect(() => {
+    if (rawEvents.length > prevEventCount.current) {
+      setHasJustReceivedEvent(true)
+      const timeout = setTimeout(() => setHasJustReceivedEvent(false), 1000)
+      prevEventCount.current = rawEvents.length
+      return () => clearTimeout(timeout)
+    }
+    prevEventCount.current = rawEvents.length
+  }, [rawEvents.length])
+
+  // Transform and limit events with useMemo to avoid re-renders
+  const events = useMemo(() => {
+    return rawEvents
+      .map((event) => {
+        // FFBot events already include an explicit 'type' field - use it directly
+        const type = (event.type as FFBotEvent['type']) || 'stats'
+
+        const player = 'player' in event ? event.player : 'System'
+        const displayName = 'member' in event && event.member ? event.member.display_name : player
+
+        return {
+          id: `ffbot-${event.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
+          timestamp: event.timestamp,
+          type,
+          player: player.toLowerCase(),
+          displayName,
+          message: formatFFBotMessage(type, event),
+          metadata: event,
+        }
+      })
+      .slice(-maxEvents)
+  }, [rawEvents, maxEvents])
 
   // Computed values
   const latestEvent = useMemo(() => {
@@ -59,19 +88,25 @@ export function useFFBot(options: UseFFBotOptions = {}) {
   const playerActivity = useMemo(() => {
     if (!enableActivityTracking) return {}
 
-    return events.reduce((acc, event) => {
-      acc[event.player] = (acc[event.player] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+    return events.reduce(
+      (acc, event) => {
+        acc[event.player] = (acc[event.player] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
   }, [events, enableActivityTracking])
 
   const eventTypeCounts = useMemo(() => {
     if (!enableActivityTracking) return {}
 
-    return events.reduce((acc, event) => {
-      acc[event.type] = (acc[event.type] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+    return events.reduce(
+      (acc, event) => {
+        acc[event.type] = (acc[event.type] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
   }, [events, enableActivityTracking])
 
   const activePlayers = useMemo(() => {
@@ -82,23 +117,26 @@ export function useFFBot(options: UseFFBotOptions = {}) {
     const entries = Object.entries(playerActivity)
     if (entries.length === 0) return null
 
-    return entries.reduce((max, [player, count]) =>
-      count > (max?.count || 0) ? { player, count } : max,
-      null as { player: string; count: number } | null
+    return entries.reduce(
+      (max, [player, count]) => (count > (max?.count || 0) ? { player, count } : max),
+      null as { player: string; count: number } | null,
     )
   }, [playerActivity])
 
   const recentPlayers = useMemo(() => {
     const recent = events.slice(-10)
-    return [...new Set(recent.map(e => e.displayName))]
+    return [...new Set(recent.map((e) => e.displayName))]
   }, [events])
 
   const eventsByType = useMemo(() => {
-    return events.reduce((acc, event) => {
-      if (!acc[event.type]) acc[event.type] = []
-      acc[event.type].push(event)
-      return acc
-    }, {} as Record<FFBotEvent['type'], FFBotEvent[]>)
+    return events.reduce(
+      (acc, event) => {
+        if (!acc[event.type]) acc[event.type] = []
+        acc[event.type].push(event)
+        return acc
+      },
+      {} as Record<FFBotEvent['type'], FFBotEvent[]>,
+    )
   }, [events])
 
   // Return semantic API
@@ -119,7 +157,7 @@ export function useFFBot(options: UseFFBotOptions = {}) {
     // State flags
     isEmpty: events.length === 0,
     isFull: events.length >= maxEvents,
-    hasJustReceivedEvent: false, // This would need WebSocket event tracking
+    hasJustReceivedEvent,
     isConnected,
 
     // Metadata
@@ -128,19 +166,20 @@ export function useFFBot(options: UseFFBotOptions = {}) {
     lastEventTime: latestEvent?.timestamp || null,
 
     // Methods
+    // TODO: Implement these methods in useRealtimeStore
+    // These require adding corresponding actions to clear ffbot.events array
     clearEvents: () => {
-      // Would need to add this action to the store
       console.warn('clearEvents not implemented in store yet')
     },
     clearActivity: () => {
-      // Would need to add this action to the store
       console.warn('clearActivity not implemented in store yet')
     },
   }
 }
 
 // Helper function to format FFBot messages (extracted from original hook)
-function formatFFBotMessage(type: string, player: string, payload: Record<string, any>): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function formatFFBotMessage(type: string, payload: Record<string, any>): string {
   switch (type) {
     case 'stats': {
       const data = 'data' in payload ? payload.data : payload
@@ -233,8 +272,10 @@ function formatFFBotMessage(type: string, player: string, payload: Record<string
       return `✨ Victory at Stage ${payload?.stage || '?'}${bossStr}`
     }
 
+    case 'save':
+      return `💾 Game progress saved!`
+
     default:
       return type
   }
 }
-
