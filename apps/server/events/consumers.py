@@ -22,7 +22,7 @@ class EventConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         """Accept WebSocket connection and start Redis subscription."""
         await self.accept()
-        logger.info("Overlay client connected")
+        logger.info("[WebSocket] Overlay client connected.")
 
         # Connect to Redis
         from django.conf import settings
@@ -32,14 +32,14 @@ class EventConsumer(AsyncWebsocketConsumer):
 
         # Subscribe to all event channels
         await self.pubsub.subscribe("events:twitch")
-        logger.info("Subscribed to Redis events:twitch channel")
+        logger.info("[WebSocket] Subscribed to Redis channel. channel=events:twitch")
 
         # Start Redis message listener
         self.redis_task = asyncio.create_task(self._listen_to_redis())
 
     async def disconnect(self, close_code):
         """Clean up Redis connections when client disconnects."""
-        logger.info(f"Overlay client disconnected with code: {close_code}")
+        logger.info(f"[WebSocket] Overlay client disconnected. code={close_code}")
 
         # Cancel Redis listener task
         if self.redis_task:
@@ -55,13 +55,17 @@ class EventConsumer(AsyncWebsocketConsumer):
                 await self.pubsub.unsubscribe()
                 await self.pubsub.close()
         except Exception as e:
-            logger.warning(f"Error closing Redis pubsub: {e}")
+            logger.warning(
+                f'[WebSocket] 🟡 Error closing Redis pubsub. error="{str(e)}"'
+            )
 
         try:
             if self.redis:
                 await self.redis.close()
         except Exception as e:
-            logger.warning(f"Error closing Redis connection: {e}")
+            logger.warning(
+                f'[WebSocket] 🟡 Error closing Redis connection. error="{str(e)}"'
+            )
 
     async def _listen_to_redis(self):
         """Listen for Redis pub/sub messages and broadcast to WebSocket."""
@@ -80,31 +84,39 @@ class EventConsumer(AsyncWebsocketConsumer):
                         await self.send(text_data=json.dumps(event_data))
 
                         logger.debug(
-                            f"Broadcasted {event_data['event_type']} event to overlay client"
+                            f"[WebSocket] Broadcasted event to overlay client. event_type={event_data['event_type']}"
                         )
 
                     except (json.JSONDecodeError, KeyError) as e:
-                        logger.error(f"Error processing Redis message: {e}")
+                        logger.error(
+                            f'[WebSocket] ❌ Failed to process Redis message. error="{str(e)}"'
+                        )
                     except Exception as e:
-                        logger.error(f"Error broadcasting message to WebSocket: {e}")
+                        logger.error(
+                            f'[WebSocket] ❌ Failed to broadcast message. error="{str(e)}"'
+                        )
                         break
 
         except asyncio.CancelledError:
-            logger.info("Redis listener task cancelled")
+            logger.info("[WebSocket] Redis listener task cancelled.")
         except Exception as e:
-            logger.error(f"Error in Redis listener: {e}")
+            logger.error(f'[WebSocket] ❌ Error in Redis listener. error="{str(e)}"')
 
     async def receive(self, text_data):
         """Handle messages from WebSocket clients (if needed for control)."""
         try:
             data = json.loads(text_data)
-            logger.debug(f"Received message from overlay client: {data}")
+            logger.debug(
+                f"[WebSocket] Received message from overlay client. data={data}"
+            )
 
             # Handle client messages if needed (e.g., for overlay control)
             # For now, just log them
 
         except json.JSONDecodeError:
-            logger.warning(f"Received invalid JSON from overlay client: {text_data}")
+            logger.warning(
+                f'[WebSocket] 🟡 Received invalid JSON from overlay client. data="{text_data}"'
+            )
 
 
 class MusicAgentConsumer(AsyncWebsocketConsumer):
@@ -118,7 +130,7 @@ class MusicAgentConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         """Accept WebSocket connection from music agent."""
         await self.accept()
-        logger.info("Music agent connected")
+        logger.info("[WebSocket] Music agent connected.")
 
         # Connect to Redis for broadcasting
         from django.conf import settings
@@ -127,7 +139,7 @@ class MusicAgentConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Clean up when agent disconnects."""
-        logger.info(f"Music agent disconnected with code: {close_code}")
+        logger.info(f"[WebSocket] Music agent disconnected. code={close_code}")
 
         if self.redis:
             await self.redis.close()
@@ -140,7 +152,9 @@ class MusicAgentConsumer(AsyncWebsocketConsumer):
             # Identify agent type from first message or data
             if "agent_type" in data:
                 self.agent_type = data["agent_type"]
-                logger.info(f"Music agent identified as: {self.agent_type}")
+                logger.info(
+                    f"[WebSocket] Music agent identified. type={self.agent_type}"
+                )
                 return
 
             # Process music update
@@ -151,9 +165,15 @@ class MusicAgentConsumer(AsyncWebsocketConsumer):
             elif data.get("source") == "rainwave" or self.agent_type == "rainwave":
                 music_service.process_rainwave_update(data)
             else:
-                logger.warning(f"Unknown music source: {data.get('source')}")
+                logger.warning(
+                    f"[WebSocket] 🟡 Unknown music source. source={data.get('source')}"
+                )
 
         except json.JSONDecodeError:
-            logger.warning(f"Received invalid JSON from music agent: {text_data}")
+            logger.warning(
+                f'[WebSocket] 🟡 Received invalid JSON from music agent. data="{text_data}"'
+            )
         except Exception as e:
-            logger.error(f"Error processing music agent update: {e}")
+            logger.error(
+                f'[WebSocket] ❌ Failed to process music agent update. error="{str(e)}"'
+            )

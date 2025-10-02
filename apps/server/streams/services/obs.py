@@ -50,7 +50,7 @@ class OBSService:
     async def startup(self):
         """Start the OBS service when ASGI application is ready."""
         if not self._running:
-            logger.info("Starting OBS service...")
+            logger.info("[OBS] Service starting.")
             await self._ensure_running()
 
     async def _ensure_running(self):
@@ -66,13 +66,15 @@ class OBSService:
                 settings.REDIS_URL or "redis://redis:6379/0"
             )
 
-        logger.info("Auto-starting OBS service...")
+        logger.info("[OBS] Service auto-starting.")
         await self._connect()
 
     async def _connect(self):
         """Connect to OBS WebSocket."""
         try:
-            logger.info(f"Connecting to OBS at {settings.OBS_HOST}:{settings.OBS_PORT}")
+            logger.info(
+                f"[OBS] Connecting. host={settings.OBS_HOST} port={settings.OBS_PORT}"
+            )
 
             # Initialize request client
             self._client_req = obs.ReqClient(
@@ -94,7 +96,7 @@ class OBSService:
 
             # Test connection
             version = self._client_req.get_version()
-            logger.info(f"Connected to OBS Studio {version.obs_version}")
+            logger.info(f"[OBS] Connected to OBS Studio. version={version.obs_version}")
 
             # Reset reconnect delay on successful connection
             self._reconnect_delay = 1.0
@@ -104,20 +106,22 @@ class OBSService:
 
             # Auto-refresh browser sources on connection
             if settings.OBS_AUTO_REFRESH_BROWSER_SOURCES:
-                logger.info("Auto-refreshing browser sources on connection...")
+                logger.info("[OBS] Auto-refreshing browser sources on connection.")
                 try:
                     await self.refresh_all_browser_sources()
                 except Exception as e:
-                    logger.warning(f"Failed to auto-refresh browser sources: {e}")
+                    logger.warning(
+                        f'[OBS] Failed to auto-refresh browser sources. error="{str(e)}"'
+                    )
 
         except (TimeoutError, ConnectionRefusedError):
             # These are expected when OBS is not running - log at INFO level
             logger.info(
-                f"OBS not available at {settings.OBS_HOST}:{settings.OBS_PORT} - will retry"
+                f"[OBS] Not available, will retry. host={settings.OBS_HOST} port={settings.OBS_PORT}"
             )
             await self._schedule_reconnect()
         except Exception as e:
-            logger.error(f"Failed to connect to OBS: {e}")
+            logger.error(f'[OBS] ❌ Failed to connect. error="{str(e)}"')
             await self._schedule_reconnect()
 
     async def shutdown(self):
@@ -125,7 +129,7 @@ class OBSService:
         if not self._running:
             return
 
-        logger.info("Shutting down OBS service...")
+        logger.info("[OBS] Service shutting down.")
         self._running = False
 
         # Cancel reconnection task if it exists
@@ -152,16 +156,16 @@ class OBSService:
             self._client_req = None
             self._client_event = None
 
-            logger.info("Disconnected from OBS")
+            logger.info("[OBS] Disconnected.")
         except Exception as e:
-            logger.error(f"Error disconnecting from OBS: {e}")
+            logger.error(f'[OBS] ❌ Error disconnecting. error="{str(e)}"')
 
     async def _schedule_reconnect(self):
         """Schedule a reconnection attempt."""
         if not self._running:
             return
 
-        logger.info(f"Scheduling reconnect in {self._reconnect_delay:.1f} seconds")
+        logger.info(f"[OBS] Scheduling reconnect. delay={self._reconnect_delay:.1f}s")
         await asyncio.sleep(self._reconnect_delay)
 
         # Exponential backoff, max 30 seconds
@@ -180,7 +184,7 @@ class OBSService:
             self._client_req.get_version()
             return True
         except Exception as e:
-            logger.debug(f"OBS connection validation failed: {e}")
+            logger.debug(f'[OBS] Connection validation failed. error="{str(e)}"')
             self._client_req = None
             self._client_event = None
             await self._schedule_reconnect()
@@ -308,10 +312,14 @@ class OBSService:
             message_json = json.dumps(redis_message, default=str)
 
             await self._redis_client.publish(channel, message_json)
-            logger.debug(f"Broadcasted {event_type} event to Redis channel: {channel}")
+            logger.debug(
+                f"[OBS] Broadcasted event to Redis. event_type={event_type} channel={channel}"
+            )
 
         except Exception as e:
-            logger.error(f"Error broadcasting event to Redis: {e}")
+            logger.error(
+                f'[OBS] ❌ Failed to broadcast event to Redis. error="{str(e)}"'
+            )
 
     async def _broadcast_current_state(self):
         """Broadcast current OBS state on connection."""
@@ -338,12 +346,16 @@ class OBSService:
             )
 
         except (BrokenPipeError, ConnectionError, OSError) as e:
-            logger.warning(f"Lost connection to OBS during state broadcast: {e}")
+            logger.warning(
+                f'[OBS] 🟡 Lost connection during state broadcast. error="{str(e)}"'
+            )
             self._client_req = None
             self._client_event = None
             await self._schedule_reconnect()
         except Exception as e:
-            logger.error(f"Error broadcasting current state: {e}")
+            logger.error(
+                f'[OBS] ❌ Failed to broadcast current state. error="{str(e)}"'
+            )
 
     # Public access methods
     def is_connected(self) -> bool:
@@ -375,14 +387,14 @@ class OBSService:
             }
 
         except (BrokenPipeError, ConnectionError, OSError) as e:
-            logger.info(f"OBS disconnected: {e}. Will reconnect when available.")
+            logger.info(f'[OBS] Disconnected, will reconnect. error="{str(e)}"')
             self._client_req = None
             self._client_event = None
             await self._schedule_reconnect()
             return {"message": "OBS reconnecting", "connected": False}
         except json.JSONDecodeError as e:
             # This happens when OBS returns invalid/empty JSON
-            logger.debug(f"OBS returned invalid JSON: {e}")
+            logger.debug(f'[OBS] Returned invalid JSON. error="{str(e)}"')
             return {"message": "OBS not connected", "connected": False}
         except Exception as e:
             # Check if it's a connection-related error
@@ -392,13 +404,13 @@ class OBSService:
                 or "connection" in error_msg
                 or "errno 32" in error_msg
             ):
-                logger.info(f"OBS disconnected: {e}. Will reconnect when available.")
+                logger.info(f'[OBS] Disconnected, will reconnect. error="{str(e)}"')
                 self._client_req = None
                 self._client_event = None
                 await self._schedule_reconnect()
                 return {"message": "OBS reconnecting", "connected": False}
 
-            logger.error(f"Unexpected error getting OBS state: {e}")
+            logger.error(f'[OBS] ❌ Unexpected error getting state. error="{str(e)}"')
             return {"message": "OBS state unavailable", "connected": False}
 
     # Control methods
@@ -411,10 +423,12 @@ class OBSService:
                 raise ConnectionError("Not connected to OBS")
 
             self._client_req.set_current_program_scene(scene_name)
-            logger.info(f"Switched to scene: {scene_name}")
+            logger.info(f"[OBS] Switched scene. name={scene_name}")
 
         except Exception as e:
-            logger.error(f"Error switching to scene {scene_name}: {e}")
+            logger.error(
+                f'[OBS] ❌ Failed to switch scene. name={scene_name} error="{str(e)}"'
+            )
             raise
 
     async def start_recording(self):
@@ -426,10 +440,10 @@ class OBSService:
                 raise ConnectionError("Not connected to OBS")
 
             self._client_req.start_record()
-            logger.info("Started recording")
+            logger.info("[OBS] Recording started.")
 
         except Exception as e:
-            logger.error(f"Error starting recording: {e}")
+            logger.error(f'[OBS] ❌ Failed to start recording. error="{str(e)}"')
             raise
 
     async def stop_recording(self):
@@ -441,10 +455,10 @@ class OBSService:
                 raise ConnectionError("Not connected to OBS")
 
             self._client_req.stop_record()
-            logger.info("Stopped recording")
+            logger.info("[OBS] Recording stopped.")
 
         except Exception as e:
-            logger.error(f"Error stopping recording: {e}")
+            logger.error(f'[OBS] ❌ Failed to stop recording. error="{str(e)}"')
             raise
 
     async def start_streaming(self):
@@ -456,10 +470,10 @@ class OBSService:
                 raise ConnectionError("Not connected to OBS")
 
             self._client_req.start_stream()
-            logger.info("Started streaming")
+            logger.info("[OBS] Streaming started.")
 
         except Exception as e:
-            logger.error(f"Error starting streaming: {e}")
+            logger.error(f'[OBS] ❌ Failed to start streaming. error="{str(e)}"')
             raise
 
     async def stop_streaming(self):
@@ -471,10 +485,10 @@ class OBSService:
                 raise ConnectionError("Not connected to OBS")
 
             self._client_req.stop_stream()
-            logger.info("Stopped streaming")
+            logger.info("[OBS] Streaming stopped.")
 
         except Exception as e:
-            logger.error(f"Error stopping streaming: {e}")
+            logger.error(f'[OBS] ❌ Failed to stop streaming. error="{str(e)}"')
             raise
 
     async def toggle_source(self, scene_name: str, source_name: str):
@@ -495,11 +509,13 @@ class OBSService:
             self._client_req.set_scene_item_enabled(scene_name, source_name, new_state)
 
             logger.info(
-                f"Toggled source {source_name} in scene {scene_name}: {new_state}"
+                f"[OBS] Source toggled. source={source_name} scene={scene_name} state={new_state}"
             )
 
         except Exception as e:
-            logger.error(f"Error toggling source {source_name}: {e}")
+            logger.error(
+                f'[OBS] ❌ Failed to toggle source. source={source_name} error="{str(e)}"'
+            )
             raise
 
     async def get_scenes(self) -> list[str]:
@@ -514,7 +530,7 @@ class OBSService:
             return [scene["sceneName"] for scene in scenes.scenes]
 
         except Exception as e:
-            logger.error(f"Error getting scenes: {e}")
+            logger.error(f'[OBS] ❌ Failed to get scenes. error="{str(e)}"')
             raise
 
     async def get_sources(self, scene_name: str) -> list[dict]:
@@ -536,7 +552,9 @@ class OBSService:
             ]
 
         except Exception as e:
-            logger.error(f"Error getting sources for scene {scene_name}: {e}")
+            logger.error(
+                f'[OBS] ❌ Failed to get sources. scene={scene_name} error="{str(e)}"'
+            )
             raise
 
     async def get_browser_sources(self) -> list[dict]:
@@ -569,11 +587,11 @@ class OBSService:
                         }
                     )
 
-            logger.info(f"Found {len(browser_sources)} browser sources")
+            logger.info(f"[OBS] Found browser sources. count={len(browser_sources)}")
             return browser_sources
 
         except Exception as e:
-            logger.error(f"Error getting browser sources: {e}")
+            logger.error(f'[OBS] ❌ Failed to get browser sources. error="{str(e)}"')
             raise
 
     async def refresh_browser_source(self, source_name: str):
@@ -589,7 +607,7 @@ class OBSService:
                 self._client_req.press_input_properties_button(
                     source_name, "refreshnocache"
                 )
-                logger.info(f"Refreshed browser source: {source_name}")
+                logger.info(f"[OBS] Refreshed browser source. name={source_name}")
                 return
             except Exception:
                 # If button press doesn't work, try method 2
@@ -610,12 +628,16 @@ class OBSService:
                 self._client_req.set_input_settings(
                     source_name, {"url": current_url}, overlay=True
                 )
-                logger.info(f"Force-refreshed browser source: {source_name}")
+                logger.info(f"[OBS] Force-refreshed browser source. name={source_name}")
             else:
-                logger.warning(f"Browser source {source_name} has no URL configured")
+                logger.warning(
+                    f"[OBS] 🟡 Browser source has no URL configured. name={source_name}"
+                )
 
         except Exception as e:
-            logger.error(f"Error refreshing browser source {source_name}: {e}")
+            logger.error(
+                f'[OBS] ❌ Failed to refresh browser source. name={source_name} error="{str(e)}"'
+            )
             raise
 
     async def refresh_all_browser_sources(self):
@@ -629,10 +651,14 @@ class OBSService:
                     # Small delay between refreshes to avoid overload
                     await asyncio.sleep(0.2)
                 except Exception as e:
-                    logger.warning(f"Failed to refresh {source['name']}: {e}")
+                    logger.warning(
+                        f'[OBS] 🟡 Failed to refresh browser source. name={source["name"]} error="{str(e)}"'
+                    )
                     continue
 
-            logger.info(f"Refreshed {len(browser_sources)} browser sources")
+            logger.info(
+                f"[OBS] Refreshed browser sources. count={len(browser_sources)}"
+            )
 
             # Broadcast refresh event
             await self._broadcast_event(
@@ -641,7 +667,9 @@ class OBSService:
             )
 
         except Exception as e:
-            logger.error(f"Error refreshing all browser sources: {e}")
+            logger.error(
+                f'[OBS] ❌ Failed to refresh all browser sources. error="{str(e)}"'
+            )
             raise
 
 

@@ -38,7 +38,7 @@ class TwitchEventHandler:
         self.EVENT_HANDLERS = None
         self._setup_event_handlers()
 
-        logger.info("TwitchEventHandler initialized")
+        logger.info("[TwitchIO] TwitchEventHandler initialized.")
 
     def _setup_event_handlers(self):
         """Setup type-specific event handlers for different TwitchIO payload classes."""
@@ -600,7 +600,9 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(f"Processed ChannelFollow: {payload.user.display_name} followed")
+        logger.info(
+            f"[TwitchIO] Processed ChannelFollow. user={payload.user.display_name}"
+        )
 
     async def _handle_channel_update(self, event_type: str, payload):
         """Handle ChannelUpdate payload."""
@@ -617,7 +619,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelUpdate: {payload.broadcaster.name} updated channel to '{payload.title}' in {payload.category_name}"
+            f'[TwitchIO] Processed ChannelUpdate. broadcaster={payload.broadcaster.name} title="{payload.title}" category={payload.category_name}'
         )
 
     async def _handle_channel_cheer(self, event_type: str, payload):
@@ -647,7 +649,9 @@ class TwitchEventHandler:
 
         await self._publish_to_redis(event_type, event, member, payload_dict)
         user_name = "Anonymous" if payload.anonymous else payload.user.name
-        logger.info(f"Processed ChannelCheer: {payload.bits} bits from {user_name}")
+        logger.info(
+            f"[TwitchIO] Processed ChannelCheer. user={user_name} bits={payload.bits}"
+        )
 
     async def _handle_channel_raid(self, event_type: str, payload):
         """Handle ChannelRaid payload."""
@@ -664,7 +668,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelRaid: {payload.from_broadcaster.name} raided with {payload.viewer_count} viewers"
+            f"[TwitchIO] Processed ChannelRaid. from={payload.from_broadcaster.name} viewers={payload.viewer_count}"
         )
 
     async def _handle_channel_ban(self, event_type: str, payload):
@@ -686,7 +690,7 @@ class TwitchEventHandler:
         await self._publish_to_redis(event_type, event, member, payload_dict)
         ban_type = "permanently" if payload.permanent else f"until {payload.ends_at}"
         logger.info(
-            f"Processed ChannelBan: {payload.user.name} banned {ban_type} by {payload.moderator.name}"
+            f"[TwitchIO] Processed ChannelBan. user={payload.user.name} type={ban_type} moderator={payload.moderator.name}"
         )
 
     async def _handle_channel_unban(self, event_type: str, payload):
@@ -703,7 +707,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelUnban: {payload.user.name} unbanned by {payload.moderator.name}"
+            f"[TwitchIO] Processed ChannelUnban. user={payload.user.name} moderator={payload.moderator.name}"
         )
 
     async def _handle_channel_subscribe(self, event_type: str, payload):
@@ -742,10 +746,17 @@ class TwitchEventHandler:
                         campaign_result["milestone_unlocked"],
                     )
 
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChannelSubscribe: {payload.user.name} subscribed (tier {payload.tier})"
-        )
+        # Only publish to Redis if it's not a gift subscription
+        # Gift subscriptions are published via channel.subscription.gift event
+        if not payload.gift:
+            await self._publish_to_redis(event_type, event, member, payload_dict)
+            logger.info(
+                f"[TwitchIO] Processed ChannelSubscribe. user={payload.user.name} tier={payload.tier}"
+            )
+        else:
+            logger.info(
+                f"[TwitchIO] Processed ChannelSubscribe (gift recipient, skipped alert). user={payload.user.name}"
+            )
 
     async def _handle_channel_subscription_end(self, event_type: str, payload):
         """Handle ChannelSubscriptionEnd payload."""
@@ -761,7 +772,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelSubscriptionEnd: {payload.user.name}'s tier {payload.tier} subscription ended"
+            f"[TwitchIO] Processed ChannelSubscriptionEnd. user={payload.user.name} tier={payload.tier}"
         )
 
     async def _handle_channel_subscription_gift(self, event_type: str, payload):
@@ -810,7 +821,7 @@ class TwitchEventHandler:
         await self._publish_to_redis(event_type, event, member, payload_dict)
         user_name = "Anonymous" if payload.anonymous else payload.user.name
         logger.info(
-            f"Processed ChannelSubscriptionGift: {payload.total} subs from {user_name}"
+            f"[TwitchIO] Processed ChannelSubscriptionGift. user={user_name} count={payload.total}"
         )
 
     async def _handle_channel_subscription_message(self, event_type: str, payload):
@@ -850,7 +861,7 @@ class TwitchEventHandler:
 
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelSubscriptionMessage: {payload.user.name} resubscribed for {payload.cumulative_months} months"
+            f"[TwitchIO] Processed ChannelSubscriptionMessage. user={payload.user.name} months={payload.cumulative_months}"
         )
 
     async def _handle_stream_online(self, event_type: str, payload):
@@ -880,7 +891,9 @@ class TwitchEventHandler:
             await session.asave()
 
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(f"Processed StreamOnline: {payload.broadcaster.name} went live")
+        logger.info(
+            f"[TwitchIO] Processed StreamOnline. broadcaster={payload.broadcaster.name}"
+        )
 
         # Sync campaign state when stream starts
         from campaigns.services import campaign_service
@@ -888,7 +901,9 @@ class TwitchEventHandler:
         try:
             await campaign_service.sync_campaign_state()
         except Exception as e:
-            logger.error(f"Failed to sync campaign state on stream online: {e}")
+            logger.error(
+                f'[Campaign] ❌ Failed to sync campaign state on stream online. error="{str(e)}"'
+            )
 
     async def _handle_stream_offline(self, event_type: str, payload):
         """Handle StreamOffline payload."""
@@ -919,15 +934,21 @@ class TwitchEventHandler:
                 session.duration = session.calculate_duration()
                 await session.asave()
                 logger.info(
-                    f"Session {session.session_date} ended with duration: {session.duration} seconds"
+                    f"[Session] Session ended. date={session.session_date} duration={session.duration}s"
                 )
             else:
-                logger.warning("No open session found when stream went offline")
+                logger.warning(
+                    "[Session] 🟡 No open session found when stream went offline."
+                )
         except Exception as e:
-            logger.error(f"Error closing session on stream offline: {e}")
+            logger.error(
+                f'[Session] ❌ Failed to close session on stream offline. error="{str(e)}"'
+            )
 
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(f"Processed StreamOffline: {payload.broadcaster.name} went offline")
+        logger.info(
+            f"[TwitchIO] Processed StreamOffline. broadcaster={payload.broadcaster.name}"
+        )
 
         # Sync campaign state when stream ends
         from campaigns.services import campaign_service
@@ -935,7 +956,9 @@ class TwitchEventHandler:
         try:
             await campaign_service.sync_campaign_state()
         except Exception as e:
-            logger.error(f"Failed to sync campaign state on stream offline: {e}")
+            logger.error(
+                f'[Campaign] ❌ Failed to sync campaign state on stream offline. error="{str(e)}"'
+            )
 
     async def _handle_custom_reward_add(self, event_type: str, payload):
         """Handle ChannelPointsRewardAdd payload."""

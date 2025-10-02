@@ -20,8 +20,10 @@ class EventsConfig(AppConfig):
         import sys
 
         # Log what we're seeing
-        logger.info(f"EventsConfig.ready() called with argv: {sys.argv}")
-        logger.info(f"SERVER_SOFTWARE: {os.environ.get('SERVER_SOFTWARE', 'not set')}")
+        logger.info(f"[EventsConfig] ready() called. argv={sys.argv}")
+        logger.info(
+            f"[EventsConfig] Environment check. server_software={os.environ.get('SERVER_SOFTWARE', 'not set')}"
+        )
 
         # Check if we're running as a server (not migrations, shell, etc)
         # Look for common server patterns
@@ -32,16 +34,20 @@ class EventsConfig(AppConfig):
 
         # Don't start services during migrations or management commands
         if is_migrate or is_shell or is_makemigrations or is_collectstatic:
-            logger.info("⏭️ Skipping background services (management command detected)")
+            logger.info(
+                "[EventsConfig] ⏭️ Skipping background services (management command detected)."
+            )
             return
 
         # Don't start background services in the TwitchIO container
         if os.environ.get("DISABLE_BACKGROUND_SERVICES") == "true":
-            logger.info("⏭️ Background services disabled by environment variable")
+            logger.info(
+                "[EventsConfig] ⏭️ Background services disabled by environment variable."
+            )
             return
 
         # If we get here, we're likely running as a server
-        logger.info("🚀 Starting background services...")
+        logger.info("[EventsConfig] 🚀 Starting background services.")
         # Start background services in a separate thread to avoid blocking
         thread = threading.Thread(target=self._start_background_services)
         thread.daemon = True
@@ -50,7 +56,7 @@ class EventsConfig(AppConfig):
     def _handle_task_exception(self, loop, context):
         """Handle exceptions from asyncio tasks."""
         logger.error(
-            f"Background task exception: {context.get('exception', context['message'])}",
+            f'[EventsConfig] ❌ Background task exception. error="{context.get("exception", context["message"])}"',
             exc_info=context.get("exception"),
         )
 
@@ -64,14 +70,16 @@ class EventsConfig(AppConfig):
             # Set exception handler for the loop
             loop.set_exception_handler(self._handle_task_exception)
 
-            logger.info("🚀 Starting background services from AppConfig...")
+            logger.info(
+                "[EventsConfig] 🚀 Starting background services from AppConfig."
+            )
 
             # Import here to avoid circular imports
             from audio.services.rme import rme_service
             from events.services.rainwave import rainwave_service
             from streams.services.obs import obs_service
 
-            logger.info("📦 Services imported successfully")
+            logger.info("[EventsConfig] Services imported.")
 
             # Create and run tasks
             tasks = [
@@ -79,7 +87,9 @@ class EventsConfig(AppConfig):
                 loop.create_task(rainwave_service.start_monitoring()),
                 loop.create_task(rme_service.startup()),
             ]
-            logger.info("✓ OBS, Rainwave, and RME/OSC service tasks created")
+            logger.info(
+                '[EventsConfig] Service tasks created. services="OBS, Rainwave, RME/OSC"'
+            )
 
             # Wait for all startup tasks to complete
             results = loop.run_until_complete(
@@ -91,13 +101,16 @@ class EventsConfig(AppConfig):
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
                     logger.error(
-                        f"{service_names[i]} service failed to start: {result}"
+                        f'[EventsConfig] ❌ Service failed to start. service={service_names[i]} error="{str(result)}"'
                     )
 
-            logger.info("✅ Background services started")
+            logger.info("[EventsConfig] ✅ Background services started.")
 
             # Keep the loop running for background tasks
             loop.run_forever()
 
         except Exception as e:
-            logger.error(f"Error starting background services: {e}", exc_info=True)
+            logger.error(
+                f'[EventsConfig] ❌ Failed to start background services. error="{str(e)}"',
+                exc_info=True,
+            )

@@ -63,11 +63,11 @@ class TwitchService(twitchio.Client):
 
         self._redis = redis.Redis.from_url(settings.REDIS_URL or "redis://redis:6379/0")
 
-        logger.info("TwitchIO adapter service initialized")
+        logger.info("[TwitchIO] Service initialized.")
 
     async def event_ready(self):
         """Called when the client is ready."""
-        logger.info("TwitchIO client ready")
+        logger.info("[TwitchIO] Client ready.")
 
         # Load existing tokens from database
         await self._load_existing_tokens()
@@ -82,20 +82,20 @@ class TwitchService(twitchio.Client):
         # Verify Redis connection and update health status
         try:
             await self._redis.ping()
-            logger.info("Redis connection verified")
+            logger.info("[Redis] Connected to Redis.")
             await self._redis.set("eventsub:connected", "1")
             await self._redis.set("eventsub:reconnect_attempts", "0")
         except Exception as e:
-            logger.error(f"Failed to update Redis health status on ready: {e}")
+            logger.error(f'[Redis] Failed to update health status. error="{str(e)}"')
             sentry_sdk.capture_exception(e)
 
-        logger.info("EventSub connection established and subscriptions created")
+        logger.info("[TwitchIO] EventSub connected and subscribed.")
 
     async def event_oauth_authorized(
         self, payload: twitchio.OAuthAuthorizedPayload
     ) -> twitchio.ResponsePayload | None:
         """Handle OAuth authorization callbacks."""
-        logger.info(f"OAuth authorized for user: {payload.user_id}")
+        logger.info(f"[TwitchIO] OAuth authorized. user_id={payload.user_id}")
 
         try:
             # Save token to database through auth service
@@ -115,7 +115,7 @@ class TwitchService(twitchio.Client):
                 message="Your Twitch account has been connected successfully!",
             )
         except Exception as e:
-            logger.error(f"Error in OAuth authorization: {e}")
+            logger.error(f'[TwitchIO] OAuth authorization failed. error="{str(e)}"')
             return twitchio.ResponsePayload(
                 status=500,
                 title="Authorization Failed",
@@ -124,7 +124,7 @@ class TwitchService(twitchio.Client):
 
     async def event_token_refreshed(self, payload: twitchio.TokenRefreshedPayload):
         """Handle token refresh events."""
-        logger.info(f"Token refreshed for user: {payload.user_id}")
+        logger.info(f"[TwitchIO] Token refreshed. user_id={payload.user_id}")
 
         try:
             # Update token in database through auth service
@@ -135,7 +135,9 @@ class TwitchService(twitchio.Client):
                 expires_in=payload.expires_in,
             )
         except Exception as e:
-            logger.error(f"Error updating refreshed token: {e}")
+            logger.error(
+                f'[TwitchIO] Failed to update refreshed token. user_id={payload.user_id} error="{str(e)}"'
+            )
 
     async def add_token(
         self,
@@ -160,14 +162,16 @@ class TwitchService(twitchio.Client):
                     # so we'll rely on defaults for now
             except InvalidTokenException as token_error:
                 logger.error(
-                    f"Invalid token when fetching user for add_token: {token_error}"
+                    f'[TwitchIO] Invalid token when fetching user. error="{str(token_error)}"'
                 )
                 return result
             except HTTPException as http_error:
-                logger.error(f"HTTP error fetching user for add_token: {http_error}")
+                logger.error(
+                    f'[TwitchIO] HTTP error fetching user. error="{str(http_error)}"'
+                )
                 return result
             except Exception as e:
-                logger.error(f"Unexpected error fetching user info using TwitchIO: {e}")
+                logger.error(f'[TwitchIO] Failed to fetch user info. error="{str(e)}"')
                 return result
 
         # Save to database
@@ -189,7 +193,9 @@ class TwitchService(twitchio.Client):
 
             valid_tokens = []
             for token_data in tokens:
-                logger.info(f"Loading token for user: {token_data['user_id']}")
+                logger.info(
+                    f"[TwitchIO] Loading token. user_id={token_data['user_id']}"
+                )
                 try:
                     # Call parent's add_token method directly - only takes access and refresh
                     await super().add_token(
@@ -197,28 +203,30 @@ class TwitchService(twitchio.Client):
                     )
                     valid_tokens.append(token_data)
                     logger.info(
-                        f"Loaded token for user {token_data['user_id']} from database"
+                        f"[TwitchIO] Loaded token from database. user_id={token_data['user_id']}"
                     )
                 except Exception as e:
                     logger.error(
-                        f"Error loading token for user {token_data['user_id']}: {e}"
+                        f'[TwitchIO] Failed to load token. user_id={token_data["user_id"]} error="{str(e)}"'
                     )
 
             # If we have valid tokens, automatically subscribe to events
             if valid_tokens:
                 primary_token = valid_tokens[0]  # Use first valid token
                 logger.info(
-                    f"Subscribing to EventSub events for user {primary_token['user_id']}"
+                    f"[TwitchIO] Subscribing to EventSub. user_id={primary_token['user_id']}"
                 )
                 await self._subscribe_to_events_for_user(str(primary_token["user_id"]))
 
             if tokens:
-                logger.info(f"Loaded {len(valid_tokens)} valid tokens from database")
+                logger.info(
+                    f"[TwitchIO] Loaded valid tokens from database. count={len(valid_tokens)}"
+                )
             else:
-                logger.info("No existing tokens found")
+                logger.info("[TwitchIO] No existing tokens found.")
 
         except Exception as e:
-            logger.error(f"Error loading existing tokens: {e}")
+            logger.error(f'[TwitchIO] Failed to load existing tokens. error="{str(e)}"')
 
     async def _subscribe_to_events(self):
         """Subscribe to EventSub events for authenticated users."""
@@ -226,7 +234,7 @@ class TwitchService(twitchio.Client):
             # This method is called after event_ready, check if we have a user
             if not self.user:
                 logger.debug(
-                    "No user context in client - subscriptions handled via loaded tokens"
+                    "[TwitchIO] No user context in client - subscriptions handled via loaded tokens."
                 )
                 return
 
@@ -234,7 +242,7 @@ class TwitchService(twitchio.Client):
             await self._subscribe_to_events_for_user(user_id)
 
         except Exception as e:
-            logger.error(f"Error subscribing to events: {e}")
+            logger.error(f'[TwitchIO] Failed to subscribe to events. error="{str(e)}"')
 
     async def _subscribe_to_events_for_user(self, user_id: str):
         """Subscribe to Twitch EventSub events for a specific user ID using subscription payload objects."""
@@ -243,9 +251,7 @@ class TwitchService(twitchio.Client):
             self._broadcaster_user_id = user_id
             # Clean up any existing subscriptions first to avoid hitting rate limits
             try:
-                logger.info(
-                    "Cleaning up existing EventSub subscriptions to prevent duplicates..."
-                )
+                logger.info("[TwitchIO] Cleaning up existing EventSub subscriptions.")
 
                 # Fetch existing subscriptions for this broadcaster
                 existing_subs = await self.fetch_eventsub_subscriptions(user_id=user_id)
@@ -266,27 +272,41 @@ class TwitchService(twitchio.Client):
                                 )
                                 if sub_id:
                                     await self.delete_eventsub_subscription(sub_id)
-                                    logger.debug(f"Deleted subscription {sub_id}")
+                                    logger.debug(
+                                        f"[TwitchIO] Deleted subscription. id={sub_id}"
+                                    )
                             except Exception as e:
-                                logger.warning(f"Could not delete subscription: {e}")
+                                logger.warning(
+                                    f'[TwitchIO] Failed to delete subscription. error="{str(e)}"'
+                                )
 
                         if count > 0:
-                            logger.info(f"Cleaned up {count} existing subscriptions")
+                            logger.info(
+                                f"[TwitchIO] Cleaned up existing subscriptions. count={count}"
+                            )
                     except Exception as e:
-                        logger.debug(f"Could not iterate subscriptions directly: {e}")
+                        logger.debug(
+                            f'[TwitchIO] Could not iterate subscriptions directly. error="{str(e)}"'
+                        )
                         # Try alternative method - delete all at once
                         try:
                             await self.delete_all_eventsub_subscriptions()
-                            logger.info("Deleted all existing EventSub subscriptions")
+                            logger.info(
+                                "[TwitchIO] Deleted all existing EventSub subscriptions."
+                            )
                         except Exception as e2:
-                            logger.warning(f"Could not delete all subscriptions: {e2}")
+                            logger.warning(
+                                f'[TwitchIO] Failed to delete all subscriptions. error="{str(e2)}"'
+                            )
 
                     # Small delay to ensure cleanup is processed
                     await asyncio.sleep(0.5)
 
-                logger.info("EventSub subscription cleanup complete")
+                logger.info("[TwitchIO] EventSub subscription cleanup complete.")
             except Exception as e:
-                logger.warning(f"Could not clean up existing subscriptions: {e}")
+                logger.warning(
+                    f'[TwitchIO] Failed to clean up existing subscriptions. error="{str(e)}"'
+                )
 
             # Create subscription payload objects with the correct conditions
             subscriptions = [
@@ -390,33 +410,37 @@ class TwitchService(twitchio.Client):
                         "id": sub_id,
                     }
                     logger.info(
-                        f"Successfully subscribed to {subscription.__class__.__name__}"
+                        f"[TwitchIO] Subscribed to event. type={subscription.__class__.__name__}"
                     )
                 except InvalidTokenException as token_error:
                     logger.error(
-                        f"Invalid token when subscribing to {subscription.__class__.__name__}: {token_error}"
+                        f'[TwitchIO] Invalid token when subscribing. type={subscription.__class__.__name__} error="{str(token_error)}"'
                     )
                 except HTTPException as http_error:
                     logger.error(
-                        f"HTTP error subscribing to {subscription.__class__.__name__}: {http_error}"
+                        f'[TwitchIO] HTTP error when subscribing. type={subscription.__class__.__name__} error="{str(http_error)}"'
                     )
                     # Check for specific HTTP errors that might indicate rate limiting
                     if hasattr(http_error, "status") and http_error.status == 429:
-                        logger.warning("Rate limited, waiting before next subscription")
+                        logger.warning(
+                            "[TwitchIO] 🟡 Rate limited, waiting before next subscription."
+                        )
                         await asyncio.sleep(2)  # Wait 2 seconds before next attempt
                 except Exception as e:
                     logger.error(
-                        f"Unexpected error subscribing to {subscription.__class__.__name__}: {e}"
+                        f'[TwitchIO] Failed to subscribe to event. type={subscription.__class__.__name__} error="{str(e)}"'
                     )
 
             self._eventsub_connected = True
 
         except Exception as e:
-            logger.error(f"Error subscribing to events for user {user_id}: {e}")
+            logger.error(
+                f'[TwitchIO] Failed to subscribe to events. user_id={user_id} error="{str(e)}"'
+            )
 
     async def event_eventsub_notification_subscription_revoked(self, payload):
         """Handle EventSub subscription revocation."""
-        logger.warning(f"EventSub subscription revoked: {payload}")
+        logger.warning(f"[TwitchIO] EventSub subscription revoked. payload={payload}")
 
         # Alert to Sentry
         sentry_sdk.capture_message(
@@ -432,14 +456,16 @@ class TwitchService(twitchio.Client):
         try:
             await self._redis.set("eventsub:connected", "0")
         except Exception as e:
-            logger.error(f"Failed to update Redis on subscription revoked: {e}")
+            logger.error(
+                f'[Redis] Failed to update health status. context=subscription_revoked error="{str(e)}"'
+            )
             sentry_sdk.capture_exception(e)
 
         asyncio.create_task(self._handle_reconnection())
 
     async def event_eventsub_notification_websocket_disconnect(self, payload):
         """Handle EventSub WebSocket disconnection."""
-        logger.warning(f"EventSub WebSocket disconnected: {payload}")
+        logger.warning(f"[TwitchIO] EventSub WebSocket disconnected. payload={payload}")
 
         # Alert to Sentry on disconnect
         sentry_sdk.capture_message(
@@ -454,14 +480,16 @@ class TwitchService(twitchio.Client):
         try:
             await self._redis.set("eventsub:connected", "0")
         except Exception as e:
-            logger.error(f"Failed to update Redis on websocket disconnect: {e}")
+            logger.error(
+                f'[Redis] Failed to update health status. context=websocket_disconnect error="{str(e)}"'
+            )
             sentry_sdk.capture_exception(e)
 
         asyncio.create_task(self._handle_reconnection())
 
     async def event_eventsub_error(self, error):
         """Handle EventSub errors including 429 rate limit."""
-        logger.error(f"EventSub error received: {error}")
+        logger.error(f'[TwitchIO] ❌ EventSub error received. error="{str(error)}"')
 
         # Report to Sentry
         sentry_sdk.capture_message(
@@ -473,27 +501,29 @@ class TwitchService(twitchio.Client):
         # Check for rate limit or bad request errors
         if "429" in str(error) or "400" in str(error):
             logger.warning(
-                "EventSub connection issue detected, triggering reconnection"
+                "[TwitchIO] 🟡 EventSub connection issue detected, triggering reconnection."
             )
             self._eventsub_connected = False
             asyncio.create_task(self._handle_reconnection())
 
     async def cleanup_subscriptions(self):
         """Clean up EventSub subscriptions on shutdown."""
-        logger.info("Cleaning up EventSub subscriptions")
+        logger.info("[TwitchIO] Cleaning up EventSub subscriptions.")
         try:
             # Clear tracked subscriptions
             self._active_subscriptions.clear()
             self._eventsub_connected = False
-            logger.info("EventSub subscriptions cleaned up")
+            logger.info("[TwitchIO] EventSub subscriptions cleaned up.")
         except Exception as e:
-            logger.error(f"Error cleaning up subscriptions: {e}")
+            logger.error(
+                f'[TwitchIO] Failed to clean up subscriptions. error="{str(e)}"'
+            )
 
     async def _handle_reconnection(self):
         """Handle EventSub reconnection with exponential backoff."""
         # Prevent concurrent reconnection attempts
         if self._reconnecting:
-            logger.debug("Reconnection already in progress, skipping")
+            logger.debug("[TwitchIO] Reconnection already in progress, skipping.")
             return
 
         self._reconnecting = True
@@ -506,12 +536,13 @@ class TwitchService(twitchio.Client):
                 "eventsub:reconnect_attempts", str(self._reconnect_attempts)
             )
         except Exception as e:
-            logger.error(f"Failed to update Redis reconnect attempts: {e}")
+            logger.error(
+                f'[Redis] Failed to update reconnect attempts. error="{str(e)}"'
+            )
             sentry_sdk.capture_exception(e)
 
         logger.warning(
-            f"EventSub disconnected. Attempting reconnection #{self._reconnect_attempts} "
-            f"after {wait_time}s delay"
+            f"[TwitchIO] 🟡 EventSub disconnected, attempting reconnection. attempt={self._reconnect_attempts} delay={wait_time}s"
         )
 
         # Alert to Sentry on attempt 3 and every 10 attempts after
@@ -533,11 +564,13 @@ class TwitchService(twitchio.Client):
 
         try:
             if not self._broadcaster_user_id:
-                logger.error("No broadcaster ID stored, cannot reconnect")
+                logger.error(
+                    "[TwitchIO] ❌ No broadcaster ID stored, cannot reconnect."
+                )
                 self._reconnecting = False
                 return
 
-            logger.info("Closing existing EventSub WebSocket connections...")
+            logger.info("[TwitchIO] Closing existing EventSub WebSocket connections.")
 
             # Close existing EventSub websocket connections
             # TwitchIO manages these internally, we need to trigger cleanup
@@ -551,7 +584,9 @@ class TwitchService(twitchio.Client):
                             except Exception:
                                 pass
                 except Exception as e:
-                    logger.debug(f"Error closing websockets: {e}")
+                    logger.debug(
+                        f'[TwitchIO] Error closing websockets. error="{str(e)}"'
+                    )
 
             # Clear tracked subscriptions (will be recreated)
             self._active_subscriptions.clear()
@@ -559,7 +594,7 @@ class TwitchService(twitchio.Client):
             # Small delay to ensure cleanup completes
             await asyncio.sleep(1)
 
-            logger.info("Re-subscribing to EventSub events...")
+            logger.info("[TwitchIO] Re-subscribing to EventSub events.")
             # Re-subscribe to events - this will create a new WebSocket connection
             await self._subscribe_to_events_for_user(self._broadcaster_user_id)
 
@@ -573,10 +608,12 @@ class TwitchService(twitchio.Client):
                 await self._redis.set("eventsub:connected", "1")
                 await self._redis.set("eventsub:reconnect_attempts", "0")
             except Exception as e:
-                logger.error(f"Failed to update Redis on reconnection success: {e}")
+                logger.error(
+                    f'[Redis] Failed to update health status. context=reconnection_success error="{str(e)}"'
+                )
                 sentry_sdk.capture_exception(e)
 
-            logger.info("✅ EventSub reconnection successful")
+            logger.info("[TwitchIO] ✅ EventSub reconnected.")
 
             # Alert Sentry on successful recovery
             sentry_sdk.capture_message(
@@ -586,7 +623,9 @@ class TwitchService(twitchio.Client):
             )
 
         except Exception as e:
-            logger.error(f"EventSub reconnection failed: {e}")
+            logger.error(
+                f'[TwitchIO] ❌ EventSub reconnection failed. error="{str(e)}"'
+            )
             self._reconnecting = False
 
             # Alert Sentry on failure
@@ -613,14 +652,21 @@ class TwitchService(twitchio.Client):
                     "eventsub:last_event_time", str(self._last_event_time)
                 )
             except Exception as redis_err:
-                logger.error(f"Failed to update Redis last event time: {redis_err}")
+                logger.error(
+                    f'[Redis] Failed to update last event time. error="{str(redis_err)}"'
+                )
                 # Don't capture to Sentry on every event - would be too noisy
 
             await handler_method(payload)
         except AttributeError as e:
-            logger.error(f"Handler method not found for {event_name}: {e}")
+            logger.error(
+                f'[TwitchIO] Handler method not found. event={event_name} error="{str(e)}"'
+            )
         except Exception as e:
-            logger.error(f"Error handling {event_name} event: {e}", exc_info=True)
+            logger.error(
+                f'[TwitchIO] Failed to handle event. event={event_name} error="{str(e)}"',
+                exc_info=True,
+            )
             # Don't re-raise to prevent breaking the event loop
 
     # EventSub event delegation methods with error handling
@@ -890,17 +936,17 @@ async def main():
     service = TwitchService()
 
     try:
-        logger.info("Starting TwitchIO adapter service on port 4343")
+        logger.info("[TwitchIO] Service starting. port=4343")
         await service.start()
     except KeyboardInterrupt:
-        logger.info("Received interrupt signal, shutting down...")
+        logger.info("[TwitchIO] Received interrupt signal, shutting down.")
         await service.cleanup_subscriptions()
     except Exception as e:
-        logger.error(f"Service error: {e}")
+        logger.error(f'[TwitchIO] ❌ Service error. error="{str(e)}"')
         await service.cleanup_subscriptions()
     finally:
         await service.close()
-        logger.info("TwitchIO adapter service stopped")
+        logger.info("[TwitchIO] Service stopped.")
 
 
 if __name__ == "__main__":
