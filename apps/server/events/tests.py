@@ -87,14 +87,106 @@ class TestCommunityGiftAggregation(TestCase):
     )
     @patch("events.services.twitch.TwitchEventHandler._create_event")
     @patch("events.services.twitch.TwitchEventHandler._publish_to_redis")
-    def test_sub_gift_preserves_community_id(
+    def test_sub_gift_deduplicated_after_community_gift(
         self, mock_publish, mock_create_event, mock_get_member
     ):
-        """Test that individual sub_gift events preserve the community_gift_id if present."""
+        """Test that individual sub_gift events are deduplicated after community_sub_gift."""
         mock_get_member.return_value = self.member_mock
         mock_create_event.return_value = self.event_mock
 
-        # Create mock payload for individual sub_gift
+        # First, process the community gift to set up tracking
+        community_payload = MagicMock()
+        community_payload.broadcaster.id = "123"
+        community_payload.broadcaster.name = "test_broadcaster"
+        community_payload.chatter.id = "456"
+        community_payload.chatter.name = "generous_gifter"
+        community_payload.chatter.display_name = "GenerousGifter"
+        community_payload.anonymous = False
+        community_payload.colour = "#FF0000"
+        community_payload.badges = []
+        community_payload.system_message = "GenerousGifter gifted 5 subs!"
+        community_payload.id = "msg_123"
+        community_payload.text = ""
+        community_payload.fragments = []
+        community_payload.notice_type = "community_sub_gift"
+
+        mock_community_gift = MagicMock()
+        mock_community_gift.id = "community_gift_abc123"
+        mock_community_gift.total = 5
+        mock_community_gift.tier = "1000"
+        mock_community_gift.cumulative_total = 50
+        mock_community_gift.__slots__ = ["id", "total", "tier", "cumulative_total"]
+
+        community_payload.community_sub_gift = mock_community_gift
+        community_payload.sub = None
+        community_payload.resub = None
+        community_payload.sub_gift = None
+
+        # Process community gift
+        async_to_sync(self.handler._handle_chat_notification)(
+            "channel.chat.notification", community_payload
+        )
+
+        # Verify community gift published
+        assert mock_publish.call_count == 1
+        mock_publish.reset_mock()
+
+        # Now process an individual sub_gift with matching community_gift_id
+        individual_payload = MagicMock()
+        individual_payload.broadcaster.id = "123"
+        individual_payload.broadcaster.name = "test_broadcaster"
+        individual_payload.chatter.id = "456"
+        individual_payload.chatter.name = "generous_gifter"
+        individual_payload.chatter.display_name = "GenerousGifter"
+        individual_payload.anonymous = False
+        individual_payload.colour = "#FF0000"
+        individual_payload.badges = []
+        individual_payload.system_message = (
+            "GenerousGifter gifted a sub to lucky_viewer!"
+        )
+        individual_payload.id = "msg_124"
+        individual_payload.text = ""
+        individual_payload.fragments = []
+        individual_payload.notice_type = "sub_gift"
+
+        mock_sub_gift = MagicMock()
+        mock_sub_gift.community_gift_id = "community_gift_abc123"
+        mock_sub_gift.tier = "1000"
+        mock_sub_gift.recipient_user_name = "lucky_viewer"
+        mock_sub_gift.cumulative_total = 1
+        mock_sub_gift.__slots__ = [
+            "community_gift_id",
+            "tier",
+            "recipient_user_name",
+            "cumulative_total",
+        ]
+
+        individual_payload.sub_gift = mock_sub_gift
+        individual_payload.sub = None
+        individual_payload.resub = None
+        individual_payload.community_sub_gift = None
+
+        # Process individual gift
+        async_to_sync(self.handler._handle_chat_notification)(
+            "channel.chat.notification", individual_payload
+        )
+
+        # Verify individual gift was NOT published (deduplicated)
+        mock_publish.assert_not_called()
+
+    @patch(
+        "events.services.twitch.TwitchEventHandler._get_or_create_member_from_payload"
+    )
+    @patch("events.services.twitch.TwitchEventHandler._create_event")
+    @patch("events.services.twitch.TwitchEventHandler._publish_to_redis")
+    def test_single_targeted_gift_publishes(
+        self, mock_publish, mock_create_event, mock_get_member
+    ):
+        """Test that single targeted gifts (sub_gift without community_gift_id) publish normally."""
+        mock_get_member.return_value = self.member_mock
+        mock_create_event.return_value = self.event_mock
+
+        # Create mock payload for single targeted gift (no community_gift_id)
         mock_payload = MagicMock()
         mock_payload.broadcaster.id = "123"
         mock_payload.broadcaster.name = "test_broadcaster"
@@ -110,22 +202,19 @@ class TestCommunityGiftAggregation(TestCase):
         mock_payload.fragments = []
         mock_payload.notice_type = "sub_gift"
 
-        # Mock sub_gift data with community_gift_id
+        # Mock sub_gift data WITHOUT community_gift_id (single targeted gift)
         mock_sub_gift = MagicMock()
-        mock_sub_gift.community_gift_id = "community_gift_abc123"
         mock_sub_gift.tier = "1000"
         mock_sub_gift.recipient_user_name = "lucky_viewer"
         mock_sub_gift.cumulative_total = 1
-        # Ensure __slots__ returns expected attributes
+        # No community_gift_id attribute
         mock_sub_gift.__slots__ = [
-            "community_gift_id",
             "tier",
             "recipient_user_name",
             "cumulative_total",
         ]
 
         mock_payload.sub_gift = mock_sub_gift
-        # Set other notice fields to None
         mock_payload.sub = None
         mock_payload.resub = None
         mock_payload.community_sub_gift = None
@@ -135,13 +224,12 @@ class TestCommunityGiftAggregation(TestCase):
             "channel.chat.notification", mock_payload
         )
 
-        # Verify the published data includes community_gift_id
+        # Verify the gift was published (not deduplicated)
         mock_publish.assert_called_once()
-        published_data = mock_publish.call_args[0][3]  # Fourth argument is payload_dict
+        published_data = mock_publish.call_args[0][3]
 
-        # Check that community_gift_id was preserved
-        assert "community_gift_id" in published_data
-        assert published_data["community_gift_id"] == "community_gift_abc123"
+        # Check that it was treated as a normal gift
+        assert "community_gift_id" not in published_data
         assert published_data["tier"] == "1000"
 
     @patch(

@@ -277,20 +277,22 @@ class TwitchEventHandler:
         """Dispatcher - route to type-specific handler based on payload class."""
         payload_class = type(payload)
         logger.info(
-            f"Processing {event_type} with payload class: {payload_class.__name__}"
+            f"[TwitchIO] Processing event. type={event_type} payload_class={payload_class.__name__}"
         )
 
         # Find the appropriate handler for this payload type
         handler = self.EVENT_HANDLERS.get(payload_class)
         if handler:
             logger.info(
-                f"Found handler for {payload_class.__name__}: {handler.__name__}"
+                f"[TwitchIO] Handler found. payload_class={payload_class.__name__} handler={handler.__name__}"
             )
             return await handler(event_type, payload)
         else:
-            logger.error(f"No handler found for payload type: {payload_class.__name__}")
             logger.error(
-                f"Available handlers: {[cls.__name__ for cls in self.EVENT_HANDLERS.keys()]}"
+                f"[TwitchIO] ❌ No handler found for payload type. payload_class={payload_class.__name__}"
+            )
+            logger.error(
+                f"[TwitchIO] Available handlers: {[cls.__name__ for cls in self.EVENT_HANDLERS.keys()]}"
             )
 
     # Type-specific payload handlers - trust TwitchIO's structure
@@ -331,7 +333,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChatMessage: {payload.text[:50]}... from {payload.chatter.display_name}"
+            f'[TwitchIO] Processed ChatMessage. user={payload.chatter.display_name} text="{payload.text[:50]}..."'
         )
 
     async def _handle_chat_notification(self, event_type: str, payload):
@@ -537,10 +539,36 @@ class TwitchEventHandler:
             payload_dict["tier"] = tier
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
-        await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChatNotification: {payload.notice_type} from {payload.chatter.display_name}"
-        )
+
+        # Handle gift subscription deduplication
+        should_publish = True
+
+        if payload.notice_type == "community_sub_gift" and community_gift_id:
+            # This is a community gift bomb - track it and publish
+            redis_key = f"gift:community:{community_gift_id}"
+            await self._redis_client.set(redis_key, "1", ex=300)  # 5 min TTL
+            logger.debug(f"[TwitchIO] Tracked community gift. id={community_gift_id}")
+        elif payload.notice_type == "sub_gift" and community_gift_id:
+            # This is an individual recipient of a gift bomb - check if we've seen the community gift
+            redis_key = f"gift:community:{community_gift_id}"
+            community_gift_seen = await self._redis_client.get(redis_key)
+            if community_gift_seen:
+                # Skip - we already alerted on the community gift
+                should_publish = False
+                logger.info(
+                    f"[TwitchIO] Processed ChatNotification (gift recipient, skipped alert). user={payload.chatter.display_name} community_gift_id={community_gift_id}"
+                )
+            else:
+                # Community gift hasn't arrived yet or this is a targeted single gift - publish it
+                logger.debug(
+                    f"[TwitchIO] Publishing sub_gift (no matching community gift). community_gift_id={community_gift_id}"
+                )
+
+        if should_publish:
+            await self._publish_to_redis(event_type, event, member, payload_dict)
+            logger.info(
+                f"[TwitchIO] Processed ChatNotification. user={payload.chatter.display_name} type={payload.notice_type}"
+            )
 
     async def _handle_chat_message_delete(self, event_type: str, payload):
         """Handle ChatMessageDelete payload."""
@@ -554,9 +582,7 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(
-            f"Processed ChatMessageDelete: Message from {payload.user.name} deleted"
-        )
+        logger.info(f"[TwitchIO] Processed ChatMessageDelete. user={payload.user.name}")
 
     async def _handle_chat_clear(self, event_type: str, payload):
         """Handle ChannelChatClear payload."""
@@ -568,7 +594,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelChatClear: Chat cleared in {payload.broadcaster.name}'s channel"
+            f"[TwitchIO] Processed ChannelChatClear. broadcaster={payload.broadcaster.name}"
         )
 
     async def _handle_chat_clear_user(self, event_type: str, payload):
@@ -583,7 +609,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelChatClearUserMessages: Messages from {payload.user.name} cleared"
+            f"[TwitchIO] Processed ChannelChatClearUserMessages. user={payload.user.name}"
         )
 
     async def _handle_channel_follow(self, event_type: str, payload):
@@ -974,7 +1000,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPointsRewardAdd: '{payload.reward.title}' reward created for {payload.reward.cost} points"
+            f'[TwitchIO] Processed ChannelPointsRewardAdd. reward="{payload.reward.title}" cost={payload.reward.cost}'
         )
 
     async def _handle_custom_reward_update(self, event_type: str, payload):
@@ -991,7 +1017,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPointsRewardUpdate: '{payload.reward.title}' reward updated"
+            f'[TwitchIO] Processed ChannelPointsRewardUpdate. reward="{payload.reward.title}"'
         )
 
     async def _handle_custom_reward_remove(self, event_type: str, payload):
@@ -1008,7 +1034,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPointsRewardRemove: '{payload.reward.title}' reward removed"
+            f'[TwitchIO] Processed ChannelPointsRewardRemove. reward="{payload.reward.title}"'
         )
 
     async def _handle_custom_redemption_add(self, event_type: str, payload):
@@ -1035,7 +1061,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPointsRedemptionAdd: {payload.user.name} redeemed '{payload.reward.title}' for {payload.reward.cost} points"
+            f'[TwitchIO] Processed ChannelPointsRedemptionAdd. user={payload.user.name} reward="{payload.reward.title}" cost={payload.reward.cost}'
         )
 
     async def _handle_custom_redemption_update(self, event_type: str, payload):
@@ -1062,7 +1088,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPointsRedemptionUpdate: {payload.user.name}'s redemption of '{payload.reward.title}' updated to {payload.status}"
+            f'[TwitchIO] Processed ChannelPointsRedemptionUpdate. user={payload.user.name} reward="{payload.reward.title}" status={payload.status}'
         )
 
     async def _handle_poll_begin(self, event_type: str, payload):
@@ -1088,7 +1114,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPollBegin: '{payload.title}' poll started with {len(payload.choices)} choices"
+            f'[TwitchIO] Processed ChannelPollBegin. title="{payload.title}" choices={len(payload.choices)}'
         )
 
     async def _handle_poll_progress(self, event_type: str, payload):
@@ -1115,7 +1141,7 @@ class TwitchEventHandler:
         await self._publish_to_redis(event_type, event, member, payload_dict)
         total_votes = sum(choice.votes for choice in payload.choices)
         logger.info(
-            f"Processed ChannelPollProgress: '{payload.title}' poll progress with {total_votes} total votes"
+            f'[TwitchIO] Processed ChannelPollProgress. title="{payload.title}" votes={total_votes}'
         )
 
     async def _handle_poll_end(self, event_type: str, payload):
@@ -1143,7 +1169,7 @@ class TwitchEventHandler:
         await self._publish_to_redis(event_type, event, member, payload_dict)
         winning_choice = max(payload.choices, key=lambda c: c.votes)
         logger.info(
-            f"Processed ChannelPollEnd: '{payload.title}' poll ended - Winner: '{winning_choice.title}' with {winning_choice.votes} votes"
+            f'[TwitchIO] Processed ChannelPollEnd. title="{payload.title}" winner="{winning_choice.title}" votes={winning_choice.votes}'
         )
 
     async def _handle_prediction_begin(self, event_type: str, payload):
@@ -1170,7 +1196,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPredictionBegin: '{payload.title}' prediction started with {len(payload.outcomes)} outcomes"
+            f'[TwitchIO] Processed ChannelPredictionBegin. title="{payload.title}" outcomes={len(payload.outcomes)}'
         )
 
     async def _handle_prediction_progress(self, event_type: str, payload):
@@ -1199,7 +1225,7 @@ class TwitchEventHandler:
         total_users = sum(outcome.users for outcome in payload.outcomes)
         total_points = sum(outcome.channel_points for outcome in payload.outcomes)
         logger.info(
-            f"Processed ChannelPredictionProgress: '{payload.title}' has {total_users} users and {total_points} points"
+            f'[TwitchIO] Processed ChannelPredictionProgress. title="{payload.title}" users={total_users} points={total_points}'
         )
 
     async def _handle_prediction_lock(self, event_type: str, payload):
@@ -1226,7 +1252,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ChannelPredictionLock: '{payload.title}' prediction locked"
+            f'[TwitchIO] Processed ChannelPredictionLock. title="{payload.title}"'
         )
 
     async def _handle_prediction_end(self, event_type: str, payload):
@@ -1257,10 +1283,14 @@ class TwitchEventHandler:
         winning_outcome = next(
             (o for o in payload.outcomes if o.id == payload.winning_outcome_id), None
         )
-        winner_info = f" - Winner: '{winning_outcome.title}'" if winning_outcome else ""
-        logger.info(
-            f"Processed ChannelPredictionEnd: '{payload.title}' prediction ended with status {payload.status}{winner_info}"
-        )
+        if winning_outcome:
+            logger.info(
+                f'[TwitchIO] Processed ChannelPredictionEnd. title="{payload.title}" status={payload.status} winner="{winning_outcome.title}"'
+            )
+        else:
+            logger.info(
+                f'[TwitchIO] Processed ChannelPredictionEnd. title="{payload.title}" status={payload.status}'
+            )
 
     async def _handle_hype_train_begin(self, event_type: str, payload):
         """Handle HypeTrainBegin payload."""
@@ -1279,7 +1309,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed HypeTrainBegin: Level {payload.level} hype train started - {payload.progress}/{payload.goal}"
+            f"[TwitchIO] Processed HypeTrainBegin. level={payload.level} progress={payload.progress} goal={payload.goal}"
         )
 
     async def _handle_hype_train_progress(self, event_type: str, payload):
@@ -1299,7 +1329,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed HypeTrainProgress: Level {payload.level} - {payload.progress}/{payload.goal}"
+            f"[TwitchIO] Processed HypeTrainProgress. level={payload.level} progress={payload.progress} goal={payload.goal}"
         )
 
     async def _handle_hype_train_end(self, event_type: str, payload):
@@ -1318,7 +1348,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed HypeTrainEnd: Level {payload.level} hype train ended with {payload.total} total"
+            f"[TwitchIO] Processed HypeTrainEnd. level={payload.level} total={payload.total}"
         )
 
     async def _handle_goal_begin(self, event_type: str, payload):
@@ -1337,7 +1367,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed GoalBegin: {payload.type} goal '{payload.description}' started - {payload.current_amount}/{payload.target_amount}"
+            f'[TwitchIO] Processed GoalBegin. type={payload.type} description="{payload.description}" progress={payload.current_amount}/{payload.target_amount}'
         )
 
     async def _handle_goal_progress(self, event_type: str, payload):
@@ -1356,7 +1386,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed GoalProgress: {payload.type} goal '{payload.description}' - {payload.current_amount}/{payload.target_amount}"
+            f'[TwitchIO] Processed GoalProgress. type={payload.type} description="{payload.description}" progress={payload.current_amount}/{payload.target_amount}'
         )
 
     async def _handle_goal_end(self, event_type: str, payload):
@@ -1378,7 +1408,7 @@ class TwitchEventHandler:
         await self._publish_to_redis(event_type, event, member, payload_dict)
         status = "achieved" if payload.is_achieved else "ended"
         logger.info(
-            f"Processed GoalEnd: {payload.type} goal '{payload.description}' {status} - {payload.current_amount}/{payload.target_amount}"
+            f'[TwitchIO] Processed GoalEnd. type={payload.type} description="{payload.description}" status={status} progress={payload.current_amount}/{payload.target_amount}'
         )
 
     async def _handle_ad_break_begin(self, event_type: str, payload):
@@ -1399,7 +1429,7 @@ class TwitchEventHandler:
             "automatic" if payload.automatic else f"manual by {payload.requester.name}"
         )
         logger.info(
-            f"Processed ChannelAdBreakBegin: {payload.duration}s {ad_type} ad break started"
+            f"[TwitchIO] Processed ChannelAdBreakBegin. duration={payload.duration}s type={ad_type}"
         )
 
     async def _handle_vip_add(self, event_type: str, payload):
@@ -1413,7 +1443,7 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(f"Processed ChannelVIPAdd: {payload.user.name} added as VIP")
+        logger.info(f"[TwitchIO] Processed ChannelVIPAdd. user={payload.user.name}")
 
     async def _handle_vip_remove(self, event_type: str, payload):
         """Handle ChannelVIPRemove payload."""
@@ -1426,7 +1456,7 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
-        logger.info(f"Processed ChannelVIPRemove: {payload.user.name} removed as VIP")
+        logger.info(f"[TwitchIO] Processed ChannelVIPRemove. user={payload.user.name}")
 
     async def _handle_shoutout_create(self, event_type: str, payload):
         """Handle ShoutoutCreate payload."""
@@ -1446,7 +1476,7 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
-            f"Processed ShoutoutCreate: {payload.broadcaster.name} shouted out {payload.to_broadcaster.name} to {payload.viewer_count} viewers"
+            f"[TwitchIO] Processed ShoutoutCreate. from={payload.broadcaster.name} to={payload.to_broadcaster.name} viewers={payload.viewer_count}"
         )
 
     async def _handle_limit_break_update(self, payload):
@@ -1459,7 +1489,7 @@ class TwitchEventHandler:
             return  # Not the reward we care about
 
         logger.info(
-            f"🎯 Limit Break: Processing {payload.status} redemption by {payload.user.name}"
+            f"[FFBot] 🎮 Limit Break: Processing redemption. user={payload.user.name} status={payload.status}"
         )
 
         try:
@@ -1480,7 +1510,9 @@ class TwitchEventHandler:
                     await self._redis_client.set(
                         "limitbreak:local_count", str(count), ex=300
                     )
-                    logger.info(f"🎯 Limit Break: Incremented local count to {count}")
+                    logger.info(
+                        f"[FFBot] 🎮 Limit Break: Incremented local count. count={count}"
+                    )
 
                     # Periodic sync to ensure accuracy
                     if should_sync:
@@ -1491,7 +1523,7 @@ class TwitchEventHandler:
                         )
                         if abs(api_count - count) > 2:  # If drift is significant
                             logger.warning(
-                                f"🎯 Limit Break: Count drift detected! Local: {count}, API: {api_count}. Using API value."
+                                f"[FFBot] 🟡 Limit Break: Count drift detected. local={count} api={api_count}"
                             )
                             count = api_count
                             await self._redis_client.set(
@@ -1501,7 +1533,7 @@ class TwitchEventHandler:
                             "limitbreak:last_api_sync", str(current_time), ex=60
                         )
                         logger.info(
-                            f"🎯 Limit Break: Periodic sync complete, count = {count}"
+                            f"[FFBot] 🎮 Limit Break: Periodic sync complete. count={count}"
                         )
                 else:
                     # No cached count, need initial sync with API
@@ -1517,7 +1549,7 @@ class TwitchEventHandler:
                         "limitbreak:last_api_sync", str(current_time), ex=60
                     )
                     logger.info(
-                        f"🎯 Limit Break: Initial sync with API, count = {count}"
+                        f"[FFBot] 🎮 Limit Break: Initial sync with API. count={count}"
                     )
 
             # For fulfilled redemptions, check if we need to sync or handle execution
@@ -1531,7 +1563,7 @@ class TwitchEventHandler:
                         "limitbreak:local_count", str(count), ex=300
                     )
                     logger.info(
-                        f"🎯 Limit Break: Decremented count from {previous_cached} to {count}"
+                        f"[FFBot] 🎮 Limit Break: Decremented count. previous={previous_cached} current={count}"
                     )
 
                     # Periodic sync to ensure accuracy (same 45 second interval)
@@ -1543,7 +1575,7 @@ class TwitchEventHandler:
                         )
                         if abs(api_count - count) > 2:  # If drift is significant
                             logger.warning(
-                                f"🎯 Limit Break: Count drift detected! Local: {count}, API: {api_count}. Using API value."
+                                f"[FFBot] 🟡 Limit Break: Count drift detected (fulfilled). local={count} api={api_count}"
                             )
                             count = api_count
                             await self._redis_client.set(
@@ -1553,7 +1585,7 @@ class TwitchEventHandler:
                             "limitbreak:last_api_sync", str(current_time), ex=60
                         )
                         logger.info(
-                            f"🎯 Limit Break: Periodic sync complete, count = {count}"
+                            f"[FFBot] 🎮 Limit Break: Periodic sync complete (fulfilled). count={count}"
                         )
                 else:
                     # Need initial sync with API
@@ -1569,10 +1601,10 @@ class TwitchEventHandler:
                         "limitbreak:last_api_sync", str(current_time), ex=60
                     )
                     logger.info(
-                        f"🎯 Limit Break: Initial sync with API, count = {count}"
+                        f"[FFBot] 🎮 Limit Break: Initial sync with API (fulfilled). count={count}"
                     )
 
-            logger.info(f"🎯 Limit Break: Current queue count = {count}")
+            logger.info(f"[FFBot] 🎮 Limit Break: Current queue count. count={count}")
 
             # Check for limit break execution (bulk fulfillment)
             # Detect the FIRST fulfillment when queue was at 100 (maxed)
@@ -1584,7 +1616,7 @@ class TwitchEventHandler:
                 previous_count = int(previous_count_str) if previous_count_str else 0
 
                 logger.info(
-                    f"🎯 Limit Break: Previous count = {previous_count}, Current count = {count}"
+                    f"[FFBot] 🎮 Limit Break: Count comparison. previous={previous_count} current={count}"
                 )
 
                 # If previous count was maxed (100+) and we're getting fulfillments,
@@ -1632,7 +1664,7 @@ class TwitchEventHandler:
                         )
 
                         logger.info(
-                            f"Limit break EXECUTED! Detected bulk fulfillment starting from {previous_count} redemptions"
+                            f"[FFBot] 🎮 Limit Break: EXECUTED! Detected bulk fulfillment. previous={previous_count}"
                         )
 
                         # Immediately send a sync event with count=0 to update the overlay
@@ -1653,7 +1685,7 @@ class TwitchEventHandler:
                                 }
                             ),
                         )
-                        logger.info("Sent limit break reset sync with count=0")
+                        logger.info("[FFBot] 🎮 Limit Break: Sent reset sync. count=0")
 
             # Store current count for next comparison (with 5 minute TTL)
             await self._redis_client.set(
@@ -1674,7 +1706,7 @@ class TwitchEventHandler:
                 "isMaxed": is_maxed,
             }
 
-            logger.info(f"🎯 Limit Break: Publishing update with count={count}")
+            logger.info(f"[FFBot] 🎮 Limit Break: Publishing update. count={count}")
 
             # Publish to Redis for overlay consumers
             await self._redis_client.publish(
@@ -1689,11 +1721,13 @@ class TwitchEventHandler:
             )
 
             logger.info(
-                f"Limit break update: {count} redemptions, bars: {bar1_fill:.2f}/{bar2_fill:.2f}/{bar3_fill:.2f}, maxed: {is_maxed}"
+                f"[FFBot] 🎮 Limit Break: Update published. count={count} bars={bar1_fill:.2f}/{bar2_fill:.2f}/{bar3_fill:.2f} maxed={is_maxed}"
             )
 
         except Exception as e:
-            logger.error(f"Error handling limit break update: {e}")
+            logger.error(
+                f'[FFBot] ❌ Failed to handle limit break update. error="{str(e)}"'
+            )
 
     async def _publish_to_redis(
         self,
@@ -1727,10 +1761,12 @@ class TwitchEventHandler:
             # Publish directly with async Redis client
             await self._redis_client.publish(channel, message_json)
 
-            logger.debug(f"Published {event_type} event to Redis channel: {channel}")
+            logger.debug(
+                f"[TwitchIO] Published event to Redis. event_type={event_type} channel={channel}"
+            )
 
         except Exception as e:
-            logger.error(f"Error publishing to Redis: {e}")
+            logger.error(f'[TwitchIO] ❌ Failed to publish to Redis. error="{str(e)}"')
 
     async def _get_or_create_member_from_payload(self, payload) -> Member | None:
         """Extract Member information from EventSub payload using TwitchIO object-based access."""
@@ -1787,24 +1823,24 @@ class TwitchEventHandler:
                 session, created = await sync_to_async(Session.objects.get_or_create)(
                     session_date=stream_date
                 )
-                logger.info(
-                    f"Session for {stream_date}: {'created' if created else 'found existing'}"
-                )
+                if created:
+                    logger.info(f"[Session] Session created. date={stream_date}")
+                else:
+                    logger.debug(f"[Session] Session found. date={stream_date}")
 
                 # Store session ID in Redis with 12-hour TTL
                 redis_key = "twitch:active_session"
                 ttl_seconds = 12 * 60 * 60  # 12 hours
                 await self._redis_client.set(redis_key, str(session.id), ex=ttl_seconds)
-                logger.info(
-                    f"Stored active session {session.id} in Redis with {ttl_seconds}s TTL"
+                logger.debug(
+                    f"[Session] Stored session in Redis. id={session.id} ttl={ttl_seconds}s"
                 )
 
             except Exception as e:
-                logger.error(f"Failed to get_or_create session for {stream_date}: {e}")
-                logger.error(f"Exception type: {type(e)}")
-                import traceback
-
-                logger.error(f"Traceback: {traceback.format_exc()}")
+                logger.error(
+                    f'[Session] ❌ Failed to create session. date={stream_date} error="{str(e)}"',
+                    exc_info=True,
+                )
                 session = None
         elif event_type == "stream.offline":
             # Keep the session active for 30 minutes after stream.offline
@@ -1827,19 +1863,21 @@ class TwitchEventHandler:
                         # Set expiry to 30 minutes from now
                         ttl_seconds = 30 * 60  # 30 minutes
                         await self._redis_client.expire(redis_key, ttl_seconds)
-                        logger.info(
-                            f"Stream offline but keeping session {session.id} active for {ttl_seconds / 60:.0f} more minutes for post-stream events"
+                        logger.debug(
+                            f"[Session] Extended session expiry for post-stream events. id={session.id} ttl={ttl_seconds // 60}min"
                         )
                     else:
                         logger.warning(
-                            f"Session {session_id_str} from Redis not found in database"
+                            f"[Session] 🟡 Session from Redis not found in database. id={session_id_str}"
                         )
                         session = None
                 else:
-                    logger.info("No active session in Redis during stream.offline")
+                    logger.debug("[Session] No active session during stream.offline.")
                     session = None
             except Exception as e:
-                logger.error(f"Error handling session during stream.offline: {e}")
+                logger.error(
+                    f'[Session] ❌ Failed to handle session during stream.offline. error="{str(e)}"'
+                )
                 session = None
         else:
             # For all other events, check Redis first for active session
@@ -1857,12 +1895,12 @@ class TwitchEventHandler:
                     session = await sync_to_async(Session.objects.get)(
                         id=session_id_str
                     )
-                    logger.debug(f"Using active session {session_id_str} from Redis")
+                    logger.debug(
+                        f"[Session] Using active session from Redis. id={session_id_str}"
+                    )
                 else:
                     # Redis miss - check database for recent active session
-                    logger.debug(
-                        "No session in Redis, checking database for recent session"
-                    )
+                    logger.debug("[Session] No session in Redis, checking database.")
 
                     # Look for a session created today or yesterday (to handle UTC boundary)
                     from datetime import timedelta
@@ -1885,15 +1923,17 @@ class TwitchEventHandler:
                         await self._redis_client.set(
                             redis_key, str(session.id), ex=ttl_seconds
                         )
-                        logger.info(
-                            f"Populated Redis with recent session {session.id} from database"
+                        logger.debug(
+                            f"[Session] Populated Redis with recent session. id={session.id}"
                         )
                     else:
-                        logger.debug("No recent session found in database")
+                        logger.debug("[Session] No recent session found in database.")
                         session = None
 
             except Exception as e:
-                logger.error(f"Error finding active session: {e}")
+                logger.error(
+                    f'[Session] ❌ Failed to find active session. error="{str(e)}"'
+                )
                 session = None
 
         # Fallback: If no session found and not offline event, create one for current date
@@ -1906,11 +1946,11 @@ class TwitchEventHandler:
                 )
                 if created:
                     logger.warning(
-                        f"Created fallback session for {current_date} due to missing active session"
+                        f"[Session] 🟡 Created fallback session. date={current_date}"
                     )
                 else:
-                    logger.info(
-                        f"Using existing session for {current_date} as fallback"
+                    logger.debug(
+                        f"[Session] Using existing session as fallback. date={current_date}"
                     )
 
                 # Store in Redis for future events
@@ -1920,10 +1960,14 @@ class TwitchEventHandler:
                     await self._redis_client.set(
                         redis_key, str(session.id), ex=ttl_seconds
                     )
-                    logger.info(f"Stored fallback session {session.id} in Redis")
+                    logger.debug(
+                        f"[Session] Stored fallback session in Redis. id={session.id}"
+                    )
 
             except Exception as e:
-                logger.error(f"Failed to create fallback session: {e}")
+                logger.error(
+                    f'[Session] ❌ Failed to create fallback session. error="{str(e)}"'
+                )
                 session = None
 
         return await sync_to_async(Event.objects.create)(
