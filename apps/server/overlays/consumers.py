@@ -429,7 +429,10 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                     },
                 }
                 await self._send_message("base", "update", formatted_event)
-                await self._send_message("alerts", "push", formatted_event)
+
+                # Check suppress_alert flag - server marks individual gift recipients to prevent alert spam
+                if not event_data.get("payload", {}).get("suppress_alert"):
+                    await self._send_message("alerts", "push", formatted_event)
 
     async def _send_initial_state(self) -> None:
         """Send sync messages for all layers on connection."""

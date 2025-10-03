@@ -537,35 +537,22 @@ class TwitchEventHandler:
 
         if tier:
             payload_dict["tier"] = tier
+
+        # Mark individual gift recipients to suppress alerts (but keep in timeline)
+        # community_sub_gift has the total count, individual sub_gifts are just for timeline
+        if payload.notice_type == "sub_gift" and community_gift_id is not None:
+            payload_dict["suppress_alert"] = True
+
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
 
-        # Handle gift subscription deduplication
-        should_publish = True
+        await self._publish_to_redis(event_type, event, member, payload_dict)
 
-        if payload.notice_type == "community_sub_gift" and community_gift_id:
-            # This is a community gift bomb - track it and publish
-            redis_key = f"gift:community:{community_gift_id}"
-            await self._redis_client.set(redis_key, "1", ex=300)  # 5 min TTL
-            logger.debug(f"[TwitchIO] Tracked community gift. id={community_gift_id}")
-        elif payload.notice_type == "sub_gift" and community_gift_id:
-            # This is an individual recipient of a gift bomb - check if we've seen the community gift
-            redis_key = f"gift:community:{community_gift_id}"
-            community_gift_seen = await self._redis_client.get(redis_key)
-            if community_gift_seen:
-                # Skip - we already alerted on the community gift
-                should_publish = False
-                logger.info(
-                    f"[TwitchIO] Processed ChatNotification (gift recipient, skipped alert). user={payload.chatter.display_name} community_gift_id={community_gift_id}"
-                )
-            else:
-                # Community gift hasn't arrived yet or this is a targeted single gift - publish it
-                logger.debug(
-                    f"[TwitchIO] Publishing sub_gift (no matching community gift). community_gift_id={community_gift_id}"
-                )
-
-        if should_publish:
-            await self._publish_to_redis(event_type, event, member, payload_dict)
+        if payload_dict.get("suppress_alert"):
+            logger.info(
+                f"[TwitchIO] Processed ChatNotification (suppressed alert). user={payload.chatter.display_name} type={payload.notice_type}"
+            )
+        else:
             logger.info(
                 f"[TwitchIO] Processed ChatNotification. user={payload.chatter.display_name} type={payload.notice_type}"
             )
