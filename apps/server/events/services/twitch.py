@@ -538,8 +538,7 @@ class TwitchEventHandler:
         if tier:
             payload_dict["tier"] = tier
 
-        # Mark individual gift recipients to suppress alerts (but keep in timeline)
-        # community_sub_gift has the total count, individual sub_gifts are just for timeline
+        # Suppress alerts for gift recipients (community_sub_gift has the total)
         if payload.notice_type == "sub_gift" and community_gift_id is not None:
             payload_dict["suppress_alert"] = True
 

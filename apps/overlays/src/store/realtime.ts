@@ -469,11 +469,22 @@ export const useRealtimeStore = create<RealtimeStore>()(
     addAlert: (alert) => {
       const { community_gift_id, type } = alert
 
-      // Handle community gift aggregation
+      // Skip bundling for community_sub_gift - total already included, recipients suppressed
+      if (type === 'community_sub_gift') {
+        set((state) => ({
+          alerts: {
+            ...state.alerts,
+            queue: [...state.alerts.queue, alert],
+          },
+        }))
+        return
+      }
+
+      // Legacy bundling for individual gifts with community_gift_id
       if (community_gift_id) {
         set((state) => {
           const pendingGifts = new Map(state.pendingCommunityGifts)
-          let bundle = pendingGifts.get(community_gift_id) || {
+          const bundle = pendingGifts.get(community_gift_id) || {
             gifterEvent: null,
             individualGifts: [],
             count: 0,

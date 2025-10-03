@@ -430,7 +430,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 }
                 await self._send_message("base", "update", formatted_event)
 
-                # Check suppress_alert flag - server marks individual gift recipients to prevent alert spam
+                # Skip alerts for events marked suppress_alert (gift recipients)
                 if not event_data.get("payload", {}).get("suppress_alert"):
                     await self._send_message("alerts", "push", formatted_event)
 
