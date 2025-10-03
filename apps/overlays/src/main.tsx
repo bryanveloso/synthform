@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
+import { preloadSounds } from './lib/audio-preloader'
 
 import './index.css'
 
@@ -21,6 +22,8 @@ const queryClient = new QueryClient()
 
 gsap.registerPlugin(Flip)
 gsap.registerPlugin(useGSAP)
+
+preloadSounds()
 
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {

@@ -360,7 +360,30 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             if event_type == "obs.scene.changed":
                 await self._send_message("base", "obs_scene_changed", event_data)
         else:
-            # Send timeline-worthy events to timeline
+            # Send alerts BEFORE timeline to avoid race condition
+            # Client needs alert in queue before timeline event arrives
+            if event_type in self.VIEWER_INTERACTIONS:
+                # Format event for base and alerts with proper structure
+                formatted_event = {
+                    "id": event_data.get("event_id"),
+                    "type": f"{event_data.get('source', 'twitch')}.{event_type}",
+                    "data": {
+                        "timestamp": event_data.get("timestamp"),
+                        "payload": event_data.get("payload", {}),
+                        "user_name": event_data.get("member", {}).get("display_name")
+                        or event_data.get("member", {}).get("username")
+                        or event_data.get("payload", {}).get("user_name")
+                        or event_data.get("payload", {}).get("chatter_user_name")
+                        or "Unknown",
+                    },
+                }
+                await self._send_message("base", "update", formatted_event)
+
+                # Skip alerts for events marked suppress_alert (gift recipients)
+                if not event_data.get("payload", {}).get("suppress_alert"):
+                    await self._send_message("alerts", "push", formatted_event)
+
+            # Send timeline-worthy events to timeline AFTER alerts
             if event_type in [
                 "channel.chat.notification",
                 "channel.follow",
@@ -411,28 +434,6 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                         },
                     }
                     await self._send_message("timeline", "push", timeline_event)
-
-            # All viewer interactions still go to base and alerts for other uses
-            if event_type in self.VIEWER_INTERACTIONS:
-                # Format event for base and alerts with proper structure
-                formatted_event = {
-                    "id": event_data.get("event_id"),
-                    "type": f"{event_data.get('source', 'twitch')}.{event_type}",
-                    "data": {
-                        "timestamp": event_data.get("timestamp"),
-                        "payload": event_data.get("payload", {}),
-                        "user_name": event_data.get("member", {}).get("display_name")
-                        or event_data.get("member", {}).get("username")
-                        or event_data.get("payload", {}).get("user_name")
-                        or event_data.get("payload", {}).get("chatter_user_name")
-                        or "Unknown",
-                    },
-                }
-                await self._send_message("base", "update", formatted_event)
-
-                # Skip alerts for events marked suppress_alert (gift recipients)
-                if not event_data.get("payload", {}).get("suppress_alert"):
-                    await self._send_message("alerts", "push", formatted_event)
 
     async def _send_initial_state(self) -> None:
         """Send sync messages for all layers on connection."""

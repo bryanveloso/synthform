@@ -300,12 +300,8 @@ export const useRealtimeStore = create<RealtimeStore>()(
         // Timeline messages
         case 'timeline:push': {
           const timelineEvent = payload as TimelineEvent
-          // WARNING: This logic is timing-sensitive. It assumes that the 'alerts:push'
-          // message has been processed and the alert exists in the queue or as the
-          // current alert. A race condition can occur if messages arrive too quickly.
-          // Consider implementing a promise-based or transactional approach if this becomes an issue.
-
-          // Check if there's a matching alert with this ID
+          // Server sends alerts:push before timeline:push to ensure alert is in queue
+          // If matching alert exists, hold timeline event until alert completes
           if (state.hasAlertWithId(timelineEvent.id)) {
             // Hold the timeline event until alert completes
             state.holdTimelineEvent(timelineEvent)

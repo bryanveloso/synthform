@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getAlertSound } from '@/config/sounds'
+import { getPreloadedAudio } from '@/lib/audio-preloader'
 import type { Alert } from './use-alerts'
 
 interface UseAlertSoundOptions {
@@ -50,8 +51,19 @@ export function useAlertSound(
       const soundFile = enabled ? getAlertSound(alert) : null
 
       if (soundFile && enabled) {
-        audioRef.current = new Audio(soundFile)
-        audioRef.current.volume = volume
+        // Use preloaded audio for instant playback
+        const preloadedAudio = getPreloadedAudio(soundFile)
+
+        if (preloadedAudio) {
+          audioRef.current = preloadedAudio
+          audioRef.current.volume = volume
+          // Reset playback position for cached audio
+          audioRef.current.currentTime = 0
+        } else {
+          // Fallback to on-demand loading if not preloaded
+          audioRef.current = new Audio(soundFile)
+          audioRef.current.volume = volume
+        }
 
         // Set up completion handlers
         audioRef.current.addEventListener('ended', () => {
