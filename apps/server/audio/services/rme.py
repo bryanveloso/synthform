@@ -94,6 +94,9 @@ class RMETotalMixService:
         # Setup OSC server for receiving updates
         await self._setup_osc_server()
 
+        # Restore persisted state
+        await self._restore_persisted_state()
+
         # Request initial state
         await self._request_initial_state()
 
@@ -143,6 +146,42 @@ class RMETotalMixService:
         except Exception as e:
             logger.error(f"Failed to setup OSC server: {e}")
             raise
+
+    async def _restore_persisted_state(self):
+        """Restore mic mute state from Redis."""
+        try:
+            if not self._redis_client:
+                return
+
+            # Get persisted mute state
+            state_key = f"rme:mic:{self.mic_channel}:muted"
+            saved_state = await self._redis_client.get(state_key)
+
+            if saved_state is not None:
+                self._mic_muted = saved_state == b"1" or saved_state == "1"
+                logger.info(
+                    f"Restored mic mute state: {'MUTED' if self._mic_muted else 'UNMUTED'}"
+                )
+            else:
+                logger.debug("No persisted mic mute state found")
+
+        except Exception as e:
+            logger.error(f"Failed to restore persisted state: {e}")
+
+    async def _persist_mute_state(self):
+        """Save mic mute state to Redis for persistence across restarts."""
+        try:
+            if not self._redis_client:
+                return
+
+            state_key = f"rme:mic:{self.mic_channel}:muted"
+            await self._redis_client.set(state_key, "1" if self._mic_muted else "0")
+            logger.debug(
+                f"Persisted mic mute state: {'MUTED' if self._mic_muted else 'UNMUTED'}"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to persist mute state: {e}")
 
     async def _request_initial_state(self):
         """Request initial state from TotalMix."""
@@ -201,6 +240,9 @@ class RMETotalMixService:
                         logger.info(
                             f"Mic channel {channel} mute state: {'MUTED' if new_mute_state else 'UNMUTED'}"
                         )
+
+                        # Persist state for restoration on restart
+                        asyncio.create_task(self._persist_mute_state())
 
                         # Broadcast state change
                         asyncio.create_task(self._broadcast_mic_state())
@@ -331,6 +373,10 @@ class RMETotalMixService:
             channel_addr = f"/1/mute{self.mic_channel + 1}"
             value = 1 if muted else 0
             self._osc_client.send_message(channel_addr, value)
+
+            # Update local state and persist
+            self._mic_muted = muted
+            await self._persist_mute_state()
 
             logger.info(
                 f"Set mic channel {self.mic_channel} to {'MUTED' if muted else 'UNMUTED'}"
