@@ -25,7 +25,7 @@ export const Campaign: FC = () => {
     useCampaign()
 
   return (
-    <Frame className="w-full">
+    <Frame className="grow">
       <div className="flex items-center gap-3 pl-6 text-white">
         {/* Campaign */}
         <div className="inset-ring-shark-800 flex items-center rounded-sm bg-black inset-ring-1">
