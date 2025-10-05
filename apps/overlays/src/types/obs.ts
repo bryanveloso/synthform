@@ -70,3 +70,11 @@ export interface RefreshBrowserSourceCommand {
 export interface SetSceneCommand {
   sceneName: string
 }
+
+export interface PerformanceWarning {
+  isWarning: boolean
+  dropRate: number
+  skippedFrames: number
+  totalFrames: number
+  timestamp?: string
+}

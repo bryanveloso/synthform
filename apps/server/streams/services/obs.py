@@ -672,6 +672,162 @@ class OBSService:
             )
             raise
 
+    async def get_stream_performance(self) -> dict | None:
+        """Get current streaming performance stats from OBS."""
+        await self._ensure_running()
+
+        try:
+            if not self._client_req:
+                return None
+
+            # Get stream status which includes frame drop stats
+            stream_status = self._client_req.get_stream_status()
+
+            return {
+                "output_active": stream_status.output_active,
+                "output_skipped_frames": stream_status.output_skipped_frames,
+                "output_total_frames": stream_status.output_total_frames,
+            }
+
+        except Exception as e:
+            logger.debug(
+                f'[Streams] OBS not available for performance check. error="{str(e)}"'
+            )
+            return None
+
+    async def reset_performance_metrics(self) -> None:
+        """Reset OBS performance monitoring state in Redis."""
+        await self._ensure_running()
+
+        if not self._redis_client:
+            return
+
+        try:
+            # Clear all performance-related Redis keys
+            await self._redis_client.delete("obs:performance:prev_skipped")
+            await self._redis_client.delete("obs:performance:prev_total")
+            await self._redis_client.delete("obs:performance:warning_active")
+
+            logger.info("[Streams] Performance metrics reset.")
+
+        except Exception as e:
+            logger.error(
+                f'[Streams] ❌ Error resetting performance metrics. error="{str(e)}"'
+            )
+
+    async def check_performance_and_alert(self) -> bool:
+        """
+        Check OBS encoder performance and alert if frame drops exceed threshold.
+        Uses hysteresis to prevent alert flickering.
+        """
+        try:
+            # Check if monitoring is enabled
+            if not settings.OBS_PERFORMANCE_MONITOR_ENABLED:
+                return False
+
+            # Get current performance stats
+            stats = await self.get_stream_performance()
+            if not stats or not stats["output_active"]:
+                return False
+
+            current_skipped = stats["output_skipped_frames"]
+            current_total = stats["output_total_frames"]
+
+            # Get previous values from Redis
+            if not self._redis_client:
+                return False
+
+            prev_skipped = await self._redis_client.get("obs:performance:prev_skipped")
+            prev_total = await self._redis_client.get("obs:performance:prev_total")
+
+            # Calculate delta over this interval
+            skipped_delta = current_skipped - int(
+                (prev_skipped or b"0").decode("utf-8")
+            )
+            total_delta = current_total - int((prev_total or b"0").decode("utf-8"))
+
+            # Calculate drop rate for this interval
+            drop_rate = (skipped_delta / total_delta * 100) if total_delta > 0 else 0.0
+
+            # Store current values for next check (expire after 1 hour)
+            await self._redis_client.set(
+                "obs:performance:prev_skipped", current_skipped, ex=3600
+            )
+            await self._redis_client.set(
+                "obs:performance:prev_total", current_total, ex=3600
+            )
+
+            # Check if warning is currently active
+            warning_active = await self._redis_client.get(
+                "obs:performance:warning_active"
+            )
+
+            # Hysteresis logic
+            trigger_threshold = settings.OBS_FRAME_DROP_THRESHOLD_TRIGGER
+            clear_threshold = settings.OBS_FRAME_DROP_THRESHOLD_CLEAR
+
+            logger.debug(
+                f"[Streams] Performance check. drop_rate={drop_rate:.2f}% skipped_delta={skipped_delta} total_delta={total_delta}"
+            )
+
+            if drop_rate >= trigger_threshold and not warning_active:
+                # Trigger warning
+                logger.info(
+                    f"[Streams] ⚠️ Frame drop warning triggered. drop_rate={drop_rate:.2f}%"
+                )
+
+                await self._redis_client.set("obs:performance:warning_active", "1")
+
+                # Broadcast warning event
+                message = {
+                    "event_type": "obs.performance.warning",
+                    "source": "obs",
+                    "timestamp": timezone.now().isoformat(),
+                    "data": {
+                        "isWarning": True,
+                        "dropRate": round(drop_rate, 2),
+                        "skippedFrames": skipped_delta,
+                        "totalFrames": total_delta,
+                    },
+                }
+                await self._redis_client.publish(
+                    "events:obs", json.dumps(message, default=str)
+                )
+                return True
+
+            elif drop_rate < clear_threshold and warning_active:
+                # Clear warning
+                logger.info(
+                    f"[Streams] Frame drops recovered. drop_rate={drop_rate:.2f}%"
+                )
+
+                await self._redis_client.delete("obs:performance:warning_active")
+
+                # Broadcast recovery event
+                message = {
+                    "event_type": "obs.performance.ok",
+                    "source": "obs",
+                    "timestamp": timezone.now().isoformat(),
+                    "data": {
+                        "isWarning": False,
+                        "dropRate": round(drop_rate, 2),
+                        "skippedFrames": skipped_delta,
+                        "totalFrames": total_delta,
+                    },
+                }
+                await self._redis_client.publish(
+                    "events:obs", json.dumps(message, default=str)
+                )
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(
+                f'[Streams] ❌ Error checking OBS performance. error="{str(e)}"'
+            )
+            return False
+
 
 # Service instance - automatically starts when imported
 obs_service = OBSService()

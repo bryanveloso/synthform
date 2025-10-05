@@ -17,6 +17,9 @@ export function useOBS() {
     streamStatus: null,
   })
 
+  const [isDropping, setIsDropping] = useState(false)
+  const [dropRate, setDropRate] = useState(0)
+
   const { data, isConnected, send } = useServer([
     'obs:status',
     'obs:scene:changed',
@@ -29,6 +32,7 @@ export function useOBS() {
     'obs:scenes:list',
     'obs:scene:items',
     'obs:stream:status',
+    'obs:performance',
   ] as const)
 
   const statusData = data['obs:status']
@@ -36,6 +40,7 @@ export function useOBS() {
   const scenesListData = data['obs:scenes:list']
   const sceneItemsData = data['obs:scene:items']
   const streamStatusData = data['obs:stream:status']
+  const performanceData = data['obs:performance']
 
   useEffect(() => {
     if (statusData) {
@@ -132,6 +137,20 @@ export function useOBS() {
     }
   }, [virtualCamStopped])
 
+  useEffect(() => {
+    if (performanceData) {
+      setIsDropping(performanceData.isWarning ?? false)
+      setDropRate(performanceData.dropRate ?? 0)
+    }
+  }, [performanceData])
+
+  useEffect(() => {
+    if (!isConnected) {
+      setIsDropping(false)
+      setDropRate(0)
+    }
+  }, [isConnected])
+
   const refreshBrowserSource = useCallback((sourceName: string) => {
     send('obs:browser:refresh', { sourceName })
   }, [send])
@@ -159,6 +178,8 @@ export function useOBS() {
   return {
     ...state,
     isConnected,
+    isDropping,
+    dropRate,
     refreshBrowserSource,
     setScene,
     startStreaming,

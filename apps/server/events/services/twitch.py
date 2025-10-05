@@ -21,6 +21,7 @@ from django.utils import timezone  # noqa: E402
 from campaigns.services import campaign_service  # noqa: E402
 from events.models import Event  # noqa: E402
 from events.models import Member  # noqa: E402
+from streams.services.obs import obs_service  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -917,6 +918,14 @@ class TwitchEventHandler:
                 f'[Campaign] ❌ Failed to sync campaign state on stream online. error="{str(e)}"'
             )
 
+        # Reset OBS performance metrics
+        try:
+            await obs_service.reset_performance_metrics()
+        except Exception as e:
+            logger.error(
+                f'[Streams] ❌ Failed to reset OBS performance metrics on stream online. error="{str(e)}"'
+            )
+
     async def _handle_stream_offline(self, event_type: str, payload):
         """Handle StreamOffline payload."""
         payload_dict = {
@@ -970,6 +979,14 @@ class TwitchEventHandler:
         except Exception as e:
             logger.error(
                 f'[Campaign] ❌ Failed to sync campaign state on stream offline. error="{str(e)}"'
+            )
+
+        # Reset OBS performance metrics
+        try:
+            await obs_service.reset_performance_metrics()
+        except Exception as e:
+            logger.error(
+                f'[Streams] ❌ Failed to reset OBS performance metrics on stream offline. error="{str(e)}"'
             )
 
     async def _handle_custom_reward_add(self, event_type: str, payload):

@@ -16,11 +16,15 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
-# Configure periodic tasks for ad scheduling
+# Configure periodic tasks for ad scheduling and OBS monitoring
 app.conf.beat_schedule = {
     "check-ad-schedule": {
         "task": "ads.tasks.check_ad_schedule",
         "schedule": 10.0,  # Every 10 seconds
+    },
+    "monitor-obs-performance": {
+        "task": "streams.tasks.monitor_obs_performance",
+        "schedule": 5.0,  # Every 5 seconds
     },
 }
 

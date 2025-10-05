@@ -356,6 +356,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # OBS events go to OBS state layer for real-time state updates
             await self._send_message("obs", "update", event_data)
 
+            # Send performance events to dedicated channel
+            if event_type in ("obs.performance.warning", "obs.performance.ok"):
+                await self._send_message(
+                    "obs", "performance", event_data.get("data", {})
+                )
+
             # Also broadcast scene changes to overlays that might need to adapt
             if event_type == "obs.scene.changed":
                 await self._send_message("base", "obs_scene_changed", event_data)

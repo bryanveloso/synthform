@@ -7,9 +7,6 @@ from django.db import connection
 from django.http import HttpRequest
 from django.http import JsonResponse
 
-# EventSub staleness threshold (15 minutes in seconds)
-EVENTSUB_STALENESS_THRESHOLD_SECONDS = 900
-
 
 def health_check(request: HttpRequest) -> JsonResponse:
     """Basic health check endpoint for monitoring."""
@@ -61,7 +58,7 @@ def health_check(request: HttpRequest) -> JsonResponse:
                     http_status = 503
                     return JsonResponse(status, status=http_status)
 
-                if time_since_event < EVENTSUB_STALENESS_THRESHOLD_SECONDS:
+                if time_since_event < settings.EVENTSUB_STALENESS_THRESHOLD_SECONDS:
                     status["services"]["eventsub"] = (
                         f"ok (last event {minutes_since}m ago)"
                     )
