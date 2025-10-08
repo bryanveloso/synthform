@@ -29,7 +29,9 @@ class HelixService:
                 self._redis = redis.from_url(settings.REDIS_URL)
                 await self._redis.ping()
             except Exception as e:
-                logger.warning(f"Could not connect to Redis for caching: {e}")
+                logger.warning(
+                    f'[Helix] Could not connect to Redis for caching. error="{str(e)}"'
+                )
                 self._redis = None
         return self._redis
 
@@ -44,7 +46,7 @@ class HelixService:
             # Get the broadcaster's token
             tokens = await auth_service.get_all_tokens()
             if not tokens:
-                logger.error("No tokens available for Helix API")
+                logger.error("[Helix] No tokens available for Helix API.")
                 return None
 
             # Create a new client
@@ -71,7 +73,9 @@ class HelixService:
             return client
 
         except Exception as e:
-            logger.error(f"Error creating Helix client: {e}", exc_info=True)
+            logger.error(
+                f'[Helix] Error creating Helix client. error="{str(e)}"', exc_info=True
+            )
             return None
 
     async def get_reward_redemption_count(self, reward_id: str) -> int:
@@ -91,10 +95,12 @@ class HelixService:
             try:
                 cached_value = await redis_conn.get(cache_key)
                 if cached_value is not None:
-                    logger.debug(f"Using cached redemption count: {cached_value}")
+                    logger.debug(
+                        f"[Helix] Using cached redemption count. value={cached_value}"
+                    )
                     return int(cached_value)
             except Exception as e:
-                logger.warning(f"Error reading from cache: {e}")
+                logger.warning(f'[Helix] Error reading from cache. error="{str(e)}"')
 
         # Create a fresh client for this request
         client = await self._create_client()
@@ -104,7 +110,9 @@ class HelixService:
                 try:
                     cached_value = await redis_conn.get(f"{cache_key}:fallback")
                     if cached_value is not None:
-                        logger.warning(f"Using fallback cached count: {cached_value}")
+                        logger.warning(
+                            f"[Helix] Using fallback cached count. value={cached_value}"
+                        )
                         return int(cached_value)
                 except Exception:
                     pass
@@ -124,7 +132,9 @@ class HelixService:
             # Fetch the broadcaster user
             users = await client.fetch_users(ids=[int(broadcaster_id)])
             if not users:
-                logger.warning(f"Could not fetch broadcaster user {broadcaster_id}")
+                logger.warning(
+                    f"[Helix] Could not fetch broadcaster user. broadcaster_id={broadcaster_id}"
+                )
                 return 0
 
             broadcaster = users[0]
@@ -132,7 +142,7 @@ class HelixService:
             # Fetch the custom reward
             rewards = await broadcaster.fetch_custom_rewards(ids=[reward_id])
             if not rewards:
-                logger.warning(f"Reward {reward_id} not found")
+                logger.warning(f"[Helix] Reward not found. reward_id={reward_id}")
                 return 0
 
             reward = rewards[0]
@@ -142,7 +152,9 @@ class HelixService:
             async for _redemption in reward.fetch_redemptions(status="UNFULFILLED"):
                 count += 1
 
-            logger.debug(f"Reward {reward_id} has {count} pending redemptions")
+            logger.debug(
+                f"[Helix] Reward redemption count. reward_id={reward_id} count={count}"
+            )
 
             # Cache the result
             if redis_conn:
@@ -154,13 +166,15 @@ class HelixService:
                         f"{cache_key}:fallback", str(count), ex=fallback_ttl
                     )
                 except Exception as e:
-                    logger.warning(f"Error caching redemption count: {e}")
+                    logger.warning(
+                        f'[Helix] Error caching redemption count. error="{str(e)}"'
+                    )
 
             return count
 
         except Exception as e:
             logger.error(
-                f"Error fetching reward redemption count for {reward_id}: {e}",
+                f'[Helix] Error fetching reward redemption count. reward_id={reward_id} error="{str(e)}"',
                 exc_info=True,
             )
 
@@ -170,7 +184,7 @@ class HelixService:
                     cached_value = await redis_conn.get(f"{cache_key}:fallback")
                     if cached_value is not None:
                         logger.warning(
-                            f"API error, using fallback cached count: {cached_value}"
+                            f"[Helix] API error, using fallback cached count. value={cached_value}"
                         )
                         return int(cached_value)
                 except Exception:
@@ -183,7 +197,9 @@ class HelixService:
             try:
                 await client.close()
             except Exception as e:
-                logger.warning(f"Error closing TwitchIO client: {e}")
+                logger.warning(
+                    f'[Helix] Error closing TwitchIO client. error="{str(e)}"'
+                )
 
     async def fulfill_redemptions(
         self, reward_id: str, count: Optional[int] = None
@@ -196,7 +212,7 @@ class HelixService:
         """
         client = await self._create_client()
         if not client:
-            logger.error("Could not create Helix client")
+            logger.error("[Helix] Could not create Helix client.")
             return
 
         try:
@@ -213,7 +229,9 @@ class HelixService:
             # Fetch the broadcaster user
             users = await client.fetch_users(ids=[int(broadcaster_id)])
             if not users:
-                logger.warning(f"Could not fetch broadcaster user {broadcaster_id}")
+                logger.warning(
+                    f"[Helix] Could not fetch broadcaster user. broadcaster_id={broadcaster_id}"
+                )
                 return
 
             broadcaster = users[0]
@@ -221,7 +239,7 @@ class HelixService:
             # Fetch the custom reward
             rewards = await broadcaster.fetch_custom_rewards(ids=[reward_id])
             if not rewards:
-                logger.warning(f"Reward {reward_id} not found")
+                logger.warning(f"[Helix] Reward not found. reward_id={reward_id}")
                 return
 
             reward = rewards[0]
@@ -233,23 +251,33 @@ class HelixService:
                     break
 
                 await redemption.fulfill()
-                logger.debug(f"Fulfilled redemption {redemption.id}")
+                logger.debug(
+                    f"[Helix] Redemption fulfilled. redemption_id={redemption.id}"
+                )
                 processed += 1
 
             if processed > 0:
-                logger.info(f"Fulfilled {processed} redemptions for reward {reward_id}")
+                logger.info(
+                    f"[Helix] Redemptions fulfilled. reward_id={reward_id} count={processed}"
+                )
             else:
-                logger.info(f"No unfulfilled redemptions for reward {reward_id}")
+                logger.info(
+                    f"[Helix] No unfulfilled redemptions. reward_id={reward_id}"
+                )
 
         except Exception as e:
-            logger.error(f"Error fulfilling redemptions: {e}", exc_info=True)
+            logger.error(
+                f'[Helix] Error fulfilling redemptions. error="{str(e)}"', exc_info=True
+            )
 
         finally:
             # Always close the client
             try:
                 await client.close()
             except Exception as e:
-                logger.warning(f"Error closing TwitchIO client: {e}")
+                logger.warning(
+                    f'[Helix] Error closing TwitchIO client. error="{str(e)}"'
+                )
 
 
 # Global instance

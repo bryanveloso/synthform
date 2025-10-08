@@ -133,7 +133,7 @@ class CampaignService:
                 "description": unlocked_milestone.description,
             }
             logger.info(
-                f"🎉 Milestone unlocked! {unlocked_milestone.threshold}: {unlocked_milestone.title}"
+                f'[Campaign] 🎉 Milestone unlocked. threshold={unlocked_milestone.threshold} title="{unlocked_milestone.title}"'
             )
             # Publish milestone unlock to Redis
             await CampaignService._publish_to_redis(
@@ -198,7 +198,7 @@ class CampaignService:
                 "description": unlocked_milestone.description,
             }
             logger.info(
-                f"🎉 Milestone unlocked! {unlocked_milestone.threshold}: {unlocked_milestone.title}"
+                f'[Campaign] 🎉 Milestone unlocked. threshold={unlocked_milestone.threshold} title="{unlocked_milestone.title}"'
             )
             # Publish milestone unlock to Redis
             await CampaignService._publish_to_redis(
@@ -474,7 +474,7 @@ class CampaignService:
         """Trigger a full campaign state sync to all connected clients."""
         campaign = await CampaignService.get_active_campaign()
         if not campaign:
-            logger.debug("No active campaign to sync")
+            logger.debug("[Campaign] No active campaign to sync.")
             return
 
         try:
@@ -511,11 +511,11 @@ class CampaignService:
             # Publish sync event
             await CampaignService._publish_to_redis("campaign:sync", sync_data)
             logger.info(
-                f"Published campaign sync for {campaign.name}, stream_started_at: {current_session_start}"
+                f'[Campaign] Campaign sync published. name="{campaign.name}" stream_started_at={current_session_start}'
             )
 
         except Exception as e:
-            logger.error(f"Failed to sync campaign state: {e}")
+            logger.error(f'[Campaign] Failed to sync campaign state. error="{str(e)}"')
 
     @staticmethod
     async def _publish_to_redis(event_type: str, data: dict) -> None:
@@ -530,9 +530,9 @@ class CampaignService:
                 "payload": data,
             }
             await redis_client.publish("events:campaign", json.dumps(redis_message))
-            logger.debug(f"Published {event_type} to Redis")
+            logger.debug(f"[Campaign] Published to Redis. event_type={event_type}")
         except Exception as e:
-            logger.error(f"Failed to publish to Redis: {e}")
+            logger.error(f'[Campaign] Failed to publish to Redis. error="{str(e)}"')
         finally:
             if redis_client:
                 await redis_client.close()

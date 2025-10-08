@@ -25,14 +25,14 @@ class FFBotConsumer(AsyncWebsocketConsumer):
     async def connect(self) -> None:
         """Accept WebSocket connection from FFBot."""
         await self.accept()
-        logger.info(f"FFBot connected from {self.scope['client']}")
+        logger.info(f"[FFBot] Connected. client={self.scope['client']}")
 
         # Connect to Redis for publishing events
         self.redis = redis.from_url(settings.REDIS_URL)
 
     async def disconnect(self, close_code: int) -> None:
         """Clean up when FFBot disconnects."""
-        logger.info(f"FFBot disconnected with code: {close_code}")
+        logger.info(f"[FFBot] Disconnected. close_code={close_code}")
 
         if self.redis:
             await self.redis.close()
@@ -46,7 +46,7 @@ class FFBotConsumer(AsyncWebsocketConsumer):
             timestamp = data.get("timestamp", datetime.now(timezone.utc).timestamp())
 
             if not event_type or not player_username:
-                logger.warning("Invalid FFBot event: missing type or player")
+                logger.warning("[FFBot] Invalid event. reason=missing_type_or_player")
                 return
 
             # Get or create Member
@@ -63,12 +63,16 @@ class FFBotConsumer(AsyncWebsocketConsumer):
             # Always forward to Redis for real-time overlay
             await self._publish_to_redis(event_type, member, data, timestamp)
 
-            logger.debug(f"Processed FFBot {event_type} event from {player_username}")
+            logger.debug(
+                f"[FFBot] Event processed. event_type={event_type} player={player_username}"
+            )
 
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON from FFBot: {e}")
+            logger.error(f'[FFBot] Invalid JSON. error="{str(e)}"')
         except Exception as e:
-            logger.error(f"Error processing FFBot event: {e}", exc_info=True)
+            logger.error(
+                f'[FFBot] Error processing event. error="{str(e)}"', exc_info=True
+            )
 
     async def _get_or_create_member(self, username: str):
         """Get or create Member by username."""
@@ -82,7 +86,7 @@ class FFBotConsumer(AsyncWebsocketConsumer):
         )
 
         if created:
-            logger.info(f"Created new Member for FFBot player: {username}")
+            logger.info(f"[FFBot] Created new Member. username={username}")
 
         return member
 
@@ -145,7 +149,7 @@ class FFBotConsumer(AsyncWebsocketConsumer):
         if fields_to_update:
             fields_to_update.append("updated_at")
             await stats.asave(update_fields=fields_to_update)
-            logger.debug(f"Updated Player for {member.display_name}")
+            logger.debug(f"[FFBot] Updated Player. player={member.display_name}")
 
     async def _update_after_hire(self, member, hire_data: dict) -> None:
         """Update PlayerStats after a hire event."""
@@ -195,8 +199,6 @@ class FFBotConsumer(AsyncWebsocketConsumer):
 
         try:
             await self.redis.publish("events:games:ffbot", json.dumps(redis_message))
-            logger.debug(
-                f"Published FFBot {event_type} to Redis channel events:games:ffbot"
-            )
+            logger.debug(f"[FFBot] Published to Redis. event_type={event_type}")
         except Exception as e:
-            logger.error(f"Error publishing to Redis: {e}")
+            logger.error(f'[FFBot] Error publishing to Redis. error="{str(e)}"')

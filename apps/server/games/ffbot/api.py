@@ -159,7 +159,10 @@ async def get_player_stats(request, username: str):
 
         return response
     except Exception as e:
-        logger.error(f"Error fetching player stats for {username}: {e}", exc_info=True)
+        logger.error(
+            f'[FFBot] Error fetching player stats. username={username} error="{str(e)}"',
+            exc_info=True,
+        )
         return 500, {"error": "Internal server error"}
 
 
@@ -170,25 +173,31 @@ async def process_ffbot_event(data: dict) -> None:
         player_username = data.get("player")
         timestamp = data.get("timestamp", datetime.now(UTC).timestamp())
 
-        logger.info(f"🎮 Processing FFBot {event_type} event from {player_username}")
+        logger.info(
+            f"[FFBot] 🎮 Processing event. event_type={event_type} player={player_username}"
+        )
 
         # Skip processing if missing required fields
         if not event_type:
-            logger.warning("Invalid FFBot event: missing type")
+            logger.warning("[FFBot] Invalid event. reason=missing_type")
             return
 
         # Handle events that don't require a player
         if event_type in NO_PLAYER_EVENTS:
             await publish_to_redis(event_type, None, data, timestamp)
             if event_type == "save":
-                logger.info(f"FFBot auto-save: {data.get('player_count', 0)} players")
+                logger.info(
+                    f"[FFBot] Auto-save event. player_count={data.get('player_count', 0)}"
+                )
             else:
-                logger.info(f"FFBot battle event: {event_type}")
+                logger.info(f"[FFBot] Battle event. event_type={event_type}")
             return
 
         # All other events require a player
         if not player_username:
-            logger.warning(f"Invalid FFBot event: missing player for {event_type}")
+            logger.warning(
+                f"[FFBot] Invalid event. reason=missing_player event_type={event_type}"
+            )
             return
 
         # Get or create Member
@@ -203,7 +212,10 @@ async def process_ffbot_event(data: dict) -> None:
             try:
                 player_stats = await handler(member, data)
             except Exception as e:
-                logger.error(f"Error in {event_type} handler: {e}", exc_info=True)
+                logger.error(
+                    f'[FFBot] Error in event handler. event_type={event_type} error="{str(e)}"',
+                    exc_info=True,
+                )
                 # Try to get current stats as fallback
                 try:
                     player_stats, _ = await Player.objects.aget_or_create(member=member)
@@ -213,7 +225,7 @@ async def process_ffbot_event(data: dict) -> None:
             # Get current stats without updating
             player_stats, _ = await Player.objects.aget_or_create(member=member)
         else:
-            logger.warning(f"Unknown FFBot event type: {event_type}")
+            logger.warning(f"[FFBot] Unknown event type. event_type={event_type}")
             return
 
         # If we have player stats, enrich the payload with full data from database
@@ -271,10 +283,12 @@ async def process_ffbot_event(data: dict) -> None:
         # Always forward to Redis for real-time overlay
         await publish_to_redis(event_type, member, data, timestamp)
 
-        logger.debug(f"✅ Processed FFBot {event_type} event from {player_username}")
+        logger.debug(
+            f"[FFBot] ✅ Event processed. event_type={event_type} player={player_username}"
+        )
 
     except Exception as e:
-        logger.error(f"Error processing FFBot event: {e}", exc_info=True)
+        logger.error(f'[FFBot] Error processing event. error="{str(e)}"', exc_info=True)
 
 
 async def get_or_create_member(username: str):
@@ -286,7 +300,7 @@ async def get_or_create_member(username: str):
     )
 
     if created:
-        logger.info(f"Created new Member for FFBot player: {username}")
+        logger.info(f"[FFBot] Created new Member. username={username}")
 
     return member
 
@@ -374,7 +388,7 @@ async def update_player_stats(member, stats_data: dict):
     if fields_to_update:
         fields_to_update.append("updated_at")
         await stats.asave(update_fields=fields_to_update)
-        logger.debug(f"Updated Player stats for {member.display_name}")
+        logger.debug(f"[FFBot] Updated Player stats. player={member.display_name}")
 
     return stats
 
@@ -457,12 +471,10 @@ async def publish_to_redis(
             }
 
         await redis_client.publish("events:games:ffbot", json.dumps(redis_message))
-        logger.debug(
-            f"Published FFBot {event_type} to Redis channel events:games:ffbot"
-        )
+        logger.debug(f"[FFBot] Published to Redis. event_type={event_type}")
 
     except Exception as e:
-        logger.error(f"Error publishing to Redis: {e}")
+        logger.error(f'[FFBot] Error publishing to Redis. error="{str(e)}"')
     finally:
         if redis_client:
             await redis_client.close()

@@ -56,11 +56,15 @@ class AuthService:
             )
 
             action = "created" if created else "updated"
-            logger.info(f"Token {action} for {self.service_name}:{user_id}")
+            logger.info(
+                f"[Auth] Token {action}. service={self.service_name} user_id={user_id}"
+            )
             return token
 
         except Exception as e:
-            logger.error(f"Error saving token for {self.service_name}:{user_id}: {e}")
+            logger.error(
+                f'[Auth] Error saving token. service={self.service_name} user_id={user_id} error="{str(e)}"'
+            )
             raise
 
     async def get_token(self, user_id: str) -> Token | None:
@@ -77,10 +81,14 @@ class AuthService:
                 service=self.service_name, user_id=user_id
             )
         except Token.DoesNotExist:
-            logger.debug(f"No token found for {self.service_name}:{user_id}")
+            logger.debug(
+                f"[Auth] No token found. service={self.service_name} user_id={user_id}"
+            )
             return None
         except Exception as e:
-            logger.error(f"Error getting token for {self.service_name}:{user_id}: {e}")
+            logger.error(
+                f'[Auth] Error getting token. service={self.service_name} user_id={user_id} error="{str(e)}"'
+            )
             return None
 
     async def get_all_tokens(self) -> list[dict[str, Any]]:
@@ -99,10 +107,14 @@ class AuthService:
                     "last_refreshed",
                 )
             )
-            logger.info(f"Retrieved {len(tokens)} tokens for {self.service_name}")
+            logger.info(
+                f"[Auth] Retrieved tokens. service={self.service_name} count={len(tokens)}"
+            )
             return tokens
         except Exception as e:
-            logger.error(f"Error getting all tokens for {self.service_name}: {e}")
+            logger.error(
+                f'[Auth] Error getting all tokens. service={self.service_name} error="{str(e)}"'
+            )
             return []
 
     async def update_token(
@@ -139,16 +151,20 @@ class AuthService:
             )(**update_data)
 
             if updated_count > 0:
-                logger.info(f"Token updated for {self.service_name}:{user_id}")
+                logger.info(
+                    f"[Auth] Token updated. service={self.service_name} user_id={user_id}"
+                )
                 return True
             else:
                 logger.warning(
-                    f"No token found to update for {self.service_name}:{user_id}"
+                    f"[Auth] No token found to update. service={self.service_name} user_id={user_id}"
                 )
                 return False
 
         except Exception as e:
-            logger.error(f"Error updating token for {self.service_name}:{user_id}: {e}")
+            logger.error(
+                f'[Auth] Error updating token. service={self.service_name} user_id={user_id} error="{str(e)}"'
+            )
             return False
 
     async def delete_token(self, user_id: str) -> bool:
@@ -166,16 +182,20 @@ class AuthService:
             )()
 
             if deleted_count > 0:
-                logger.info(f"Token deleted for {self.service_name}:{user_id}")
+                logger.info(
+                    f"[Auth] Token deleted. service={self.service_name} user_id={user_id}"
+                )
                 return True
             else:
                 logger.warning(
-                    f"No token found to delete for {self.service_name}:{user_id}"
+                    f"[Auth] No token found to delete. service={self.service_name} user_id={user_id}"
                 )
                 return False
 
         except Exception as e:
-            logger.error(f"Error deleting token for {self.service_name}:{user_id}: {e}")
+            logger.error(
+                f'[Auth] Error deleting token. service={self.service_name} user_id={user_id} error="{str(e)}"'
+            )
             return False
 
     async def get_active_tokens(self) -> list[dict[str, Any]]:
@@ -199,10 +219,12 @@ class AuthService:
                         active_tokens.append(token_data)
 
             logger.info(
-                f"Found {len(active_tokens)} active tokens for {self.service_name}"
+                f"[Auth] Found active tokens. service={self.service_name} count={len(active_tokens)}"
             )
             return active_tokens
 
         except Exception as e:
-            logger.error(f"Error getting active tokens for {self.service_name}: {e}")
+            logger.error(
+                f'[Auth] Error getting active tokens. service={self.service_name} error="{str(e)}"'
+            )
             return []

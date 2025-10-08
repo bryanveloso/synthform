@@ -134,7 +134,7 @@ async def start_timer(request) -> dict[str, Any]:
         }
         await redis_client.publish("events:campaign", json.dumps(redis_message))
     except Exception as e:
-        logger.error(f"Failed to publish timer start: {e}")
+        logger.error(f'[Campaign] Failed to publish timer start. error="{str(e)}"')
     finally:
         if redis_client:
             await redis_client.close()
@@ -163,7 +163,7 @@ async def pause_timer(request) -> dict[str, Any]:
         }
         await redis_client.publish("events:campaign", json.dumps(redis_message))
     except Exception as e:
-        logger.error(f"Failed to publish timer pause: {e}")
+        logger.error(f'[Campaign] Failed to publish timer pause. error="{str(e)}"')
     finally:
         if redis_client:
             await redis_client.close()
