@@ -68,7 +68,7 @@ class RMETotalMixService:
         self._callbacks = []
 
         logger.info(
-            f"RME TotalMix service initialized for {self.totalmix_host}:{self.totalmix_send_port}"
+            f"[RME] Service initialized. host={self.totalmix_host} port={self.totalmix_send_port}"
         )
 
     async def startup(self):
@@ -77,7 +77,7 @@ class RMETotalMixService:
             return
 
         self._running = True
-        logger.info("Starting RME TotalMix service...")
+        logger.info("[RME] Starting service...")
 
         # Initialize Redis client
         if not self._redis_client:
@@ -100,14 +100,14 @@ class RMETotalMixService:
         # Request initial state
         await self._request_initial_state()
 
-        logger.info("RME TotalMix service started")
+        logger.info("[RME] Service started.")
 
     async def shutdown(self):
         """Shutdown the RME TotalMix service."""
         if not self._running:
             return
 
-        logger.info("Shutting down RME TotalMix service...")
+        logger.info("[RME] Shutting down service...")
         self._running = False
 
         # Close OSC server
@@ -120,7 +120,7 @@ class RMETotalMixService:
         if self._redis_client:
             await self._redis_client.close()
 
-        logger.info("RME TotalMix service shut down")
+        logger.info("[RME] Service shut down.")
 
     async def _setup_osc_server(self):
         """Setup OSC server to receive updates from TotalMix."""
@@ -141,10 +141,12 @@ class RMETotalMixService:
 
             # Start serving and keep reference to transport
             self._osc_transport, _ = await self._osc_server.create_serve_endpoint()
-            logger.info(f"OSC server listening on port {self.totalmix_receive_port}")
+            logger.info(
+                f"[RME] OSC server listening. port={self.totalmix_receive_port}"
+            )
 
         except Exception as e:
-            logger.error(f"Failed to setup OSC server: {e}")
+            logger.error(f'[RME] Failed to setup OSC server. error="{str(e)}"')
             raise
 
     async def _restore_persisted_state(self):
@@ -159,14 +161,13 @@ class RMETotalMixService:
 
             if saved_state is not None:
                 self._mic_muted = saved_state == b"1" or saved_state == "1"
-                logger.info(
-                    f"Restored mic mute state: {'MUTED' if self._mic_muted else 'UNMUTED'}"
-                )
+                state_str = "MUTED" if self._mic_muted else "UNMUTED"
+                logger.info(f"[RME] Mic mute state restored. state={state_str}")
             else:
-                logger.debug("No persisted mic mute state found")
+                logger.debug("[RME] No persisted mic mute state found.")
 
         except Exception as e:
-            logger.error(f"Failed to restore persisted state: {e}")
+            logger.error(f'[RME] Failed to restore persisted state. error="{str(e)}"')
 
     async def _persist_mute_state(self):
         """Save mic mute state to Redis for persistence across restarts."""
@@ -176,40 +177,39 @@ class RMETotalMixService:
 
             state_key = f"rme:mic:{self.mic_channel}:muted"
             await self._redis_client.set(state_key, "1" if self._mic_muted else "0")
-            logger.debug(
-                f"Persisted mic mute state: {'MUTED' if self._mic_muted else 'UNMUTED'}"
-            )
+            state_str = "MUTED" if self._mic_muted else "UNMUTED"
+            logger.debug(f"[RME] Mic mute state persisted. state={state_str}")
 
         except Exception as e:
-            logger.error(f"Failed to persist mute state: {e}")
+            logger.error(f'[RME] Failed to persist mute state. error="{str(e)}"')
 
     async def _request_initial_state(self):
         """Request initial state from TotalMix."""
         try:
             logger.info(
-                f"Sending OSC commands to TotalMix at {self.totalmix_host}:{self.totalmix_send_port}"
+                f"[RME] Sending OSC commands to TotalMix. host={self.totalmix_host} port={self.totalmix_send_port}"
             )
 
             # Enable OSC updates from TotalMix
             self._osc_client.send_message("/1/busInput", 1)  # Enable input bus
-            logger.debug("Sent /1/busInput = 1")
+            logger.debug("[RME] Sent OSC command. address=/1/busInput value=1")
 
             # Request current mute state for mic channel
             # TotalMix doesn't have a direct query, but sending a value triggers a response
             channel_addr = f"/1/mute{self.mic_channel + 1}"
             self._osc_client.send_message(channel_addr, -1)  # Query current state
-            logger.debug(f"Sent {channel_addr} = -1")
+            logger.debug(f"[RME] Sent OSC command. address={channel_addr} value=-1")
 
-            logger.info(f"Requested initial state for channel {self.mic_channel}")
+            logger.info(f"[RME] Requested initial state. channel={self.mic_channel}")
 
         except Exception as e:
-            logger.error(f"Failed to request initial state: {e}")
+            logger.error(f'[RME] Failed to request initial state. error="{str(e)}"')
 
     def _handle_any_osc(self, address: str, *args):
         """Catch-all handler to log ANY incoming OSC message."""
         # Only log non-heartbeat messages to reduce noise
         if address != "/":
-            logger.debug(f"OSC message received: address={address}, args={args}")
+            logger.debug(f"[RME] OSC message received. address={address} args={args}")
 
         # Since wildcards might not work, handle mute messages here
         if address.startswith("/1/mute/"):
@@ -237,8 +237,9 @@ class RMETotalMixService:
 
                     if new_mute_state != self._mic_muted:
                         self._mic_muted = new_mute_state
+                        state_str = "MUTED" if new_mute_state else "UNMUTED"
                         logger.info(
-                            f"Mic channel {channel} mute state: {'MUTED' if new_mute_state else 'UNMUTED'}"
+                            f"[RME] Mic mute state changed. channel={channel} state={state_str}"
                         )
 
                         # Persist state for restoration on restart
@@ -252,9 +253,13 @@ class RMETotalMixService:
                             try:
                                 callback(self._mic_muted)
                             except Exception as e:
-                                logger.error(f"Error in mute callback: {e}")
+                                logger.error(
+                                    f'[RME] Error in mute callback. error="{str(e)}"'
+                                )
             except (ValueError, IndexError) as e:
-                logger.debug(f"Failed to parse mute address {address}: {e}")
+                logger.debug(
+                    f'[RME] Failed to parse mute address. address={address} error="{str(e)}"'
+                )
 
     def _handle_solo_update(self, address: str, *args):
         """Handle solo state update from TotalMix."""
@@ -262,8 +267,9 @@ class RMETotalMixService:
         if len(parts) >= 5:
             bus = parts[3]
             channel = parts[4]
+            state = args[0] if args else "unknown"
             logger.debug(
-                f"Solo update: bus={bus}, channel={channel}, state={args[0] if args else 'unknown'}"
+                f"[RME] Solo update. bus={bus} channel={channel} state={state}"
             )
 
     def _handle_volume_update(self, address: str, *args):
@@ -278,33 +284,37 @@ class RMETotalMixService:
                     new_level = float(args[0]) if args else 0.0
                     if abs(new_level - self._mic_level) > 0.01:
                         self._mic_level = new_level
-                        logger.debug(f"Mic channel {channel} level: {new_level:.2f}")
+                        logger.debug(
+                            f"[RME] Mic level changed. channel={channel} level={new_level:.2f}"
+                        )
                         asyncio.create_task(self._broadcast_mic_level())
             except (ValueError, IndexError) as e:
-                logger.debug(f"Failed to parse volume address {address}: {e}")
+                logger.debug(
+                    f'[RME] Failed to parse volume address. address={address} error="{str(e)}"'
+                )
 
     def _handle_pan_update(self, address: str, *args):
         """Handle pan update from TotalMix."""
-        logger.debug(f"Pan update: address={address}, args={args}")
+        logger.debug(f"[RME] Pan update. address={address} args={args}")
 
     def _handle_bus_input(self, address: str, *args):
         """Handle bus input selection."""
-        logger.debug(f"Bus input: {args}")
+        logger.debug(f"[RME] Bus input. args={args}")
 
     def _handle_bus_output(self, address: str, *args):
         """Handle bus output selection."""
-        logger.debug(f"Bus output: {args}")
+        logger.debug(f"[RME] Bus output. args={args}")
 
     def _handle_bus_playback(self, address: str, *args):
         """Handle bus playback selection."""
-        logger.debug(f"Bus playback: {args}")
+        logger.debug(f"[RME] Bus playback. args={args}")
 
     async def _broadcast_mic_state(self):
         """Broadcast mic mute state to Redis."""
         try:
             if not self._redis_client:
                 logger.warning(
-                    "Redis client not initialized, cannot broadcast mic state"
+                    "[RME] Cannot broadcast mic state. reason=redis_not_initialized"
                 )
                 return
 
@@ -324,12 +334,13 @@ class RMETotalMixService:
                 "events:audio", json.dumps(message)
             )
 
+            state_str = "MUTED" if self._mic_muted else "UNMUTED"
             logger.debug(
-                f"Broadcasted mic mute state: {'MUTED' if self._mic_muted else 'UNMUTED'} to {num_subscribers} subscribers"
+                f"[RME] Mic state broadcasted. state={state_str} subscribers={num_subscribers}"
             )
 
         except Exception as e:
-            logger.error(f"Error broadcasting mic state: {e}")
+            logger.error(f'[RME] Error broadcasting mic state. error="{str(e)}"')
 
     async def _broadcast_mic_level(self):
         """Broadcast mic level to Redis."""
@@ -352,7 +363,7 @@ class RMETotalMixService:
             await self._redis_client.publish("events:audio", json.dumps(message))
 
         except Exception as e:
-            logger.error(f"Error broadcasting mic level: {e}")
+            logger.error(f'[RME] Error broadcasting mic level. error="{str(e)}"')
 
     # Public API methods
 
@@ -378,12 +389,13 @@ class RMETotalMixService:
             self._mic_muted = muted
             await self._persist_mute_state()
 
+            state_str = "MUTED" if muted else "UNMUTED"
             logger.info(
-                f"Set mic channel {self.mic_channel} to {'MUTED' if muted else 'UNMUTED'}"
+                f"[RME] Set mic mute state. channel={self.mic_channel} state={state_str}"
             )
 
         except Exception as e:
-            logger.error(f"Error setting mic mute: {e}")
+            logger.error(f'[RME] Error setting mic mute. error="{str(e)}"')
             raise
 
     async def toggle_mic_mute(self):

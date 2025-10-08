@@ -56,16 +56,16 @@ class RainwaveService:
     def broadcast_update(self, track_info: Dict) -> None:
         """Broadcast music update via the central music service."""
         logger.info(
-            f"🎵 Rainwave track update: {track_info.get('title')} by {track_info.get('artist')}"
+            f'[Rainwave] 🎵 Track update. title="{track_info.get("title")}" artist="{track_info.get("artist")}"'
         )
         # Log if we have queue/history data
         if "upcoming" in track_info:
             logger.info(
-                f"📋 Rainwave queue data: {len(track_info['upcoming'])} upcoming items"
+                f"[Rainwave] Queue data retrieved. count={len(track_info['upcoming'])}"
             )
         if "history" in track_info:
             logger.info(
-                f"📚 Rainwave history data: {len(track_info['history'])} previous tracks"
+                f"[Rainwave] History data retrieved. count={len(track_info['history'])}"
             )
         # Use the central music service to broadcast
         self.music_service.process_rainwave_update(track_info)
@@ -81,11 +81,11 @@ class RainwaveService:
             current_time = time.time()
             if current_time - self._last_error_time < self._error_backoff:
                 logger.debug(
-                    f"Circuit breaker open, waiting {self._error_backoff - (current_time - self._last_error_time):.1f}s"
+                    f"[Rainwave] Circuit breaker open. wait_time={self._error_backoff - (current_time - self._last_error_time):.1f}s"
                 )
                 return None
             # Try to reset circuit breaker
-            logger.info("Attempting to reset Rainwave circuit breaker")
+            logger.info("[Rainwave] Attempting circuit breaker reset.")
 
         try:
             async with httpx.AsyncClient(
@@ -106,7 +106,7 @@ class RainwaveService:
                 # Check if user is actually tuned in
                 user_info = data.get("user", {})
                 if not user_info.get("tuned_in", False):
-                    logger.debug("User not tuned in to Rainwave, skipping update")
+                    logger.debug("[Rainwave] User not tuned in.")
                     return None
 
                 # Process current track
@@ -142,12 +142,12 @@ class RainwaveService:
 
                     # Log the enhanced data for debugging
                     logger.debug(
-                        f"📊 Rainwave data: current={bool(current_track)}, upcoming={len(upcoming)}, history={len(history)}"
+                        f"[Rainwave] Data fetched. has_current={bool(current_track)} upcoming_count={len(upcoming)} history_count={len(history)}"
                     )
 
                     # Reset error state on successful fetch
                     if self._consecutive_errors > 0:
-                        logger.info("Rainwave connection restored")
+                        logger.info("[Rainwave] ✅ Connection restored.")
                         self._consecutive_errors = 0
                         self._error_backoff = 1
 
@@ -157,9 +157,9 @@ class RainwaveService:
                     return None
 
         except httpx.HTTPError as e:
-            await self._handle_error(f"HTTP error fetching Rainwave data: {e}")
+            await self._handle_error(f'HTTP error fetching data. error="{str(e)}"')
         except Exception as e:
-            await self._handle_error(f"Error fetching Rainwave data: {e}")
+            await self._handle_error(f'Error fetching data. error="{str(e)}"')
 
         return None
 
@@ -167,9 +167,9 @@ class RainwaveService:
         """Handle errors with circuit breaker pattern.
 
         Args:
-            error_msg: Error message to log
+            error_msg: Error message to log (without [Rainwave] prefix)
         """
-        logger.error(error_msg)
+        logger.error(f"[Rainwave] {error_msg}")
         self._consecutive_errors += 1
         self._last_error_time = time.time()
 
@@ -177,8 +177,7 @@ class RainwaveService:
             # Circuit breaker tripped
             self._error_backoff = min(self._error_backoff * 2, self._max_backoff)
             logger.warning(
-                f"Rainwave circuit breaker tripped after {self._consecutive_errors} errors. "
-                f"Backing off for {self._error_backoff}s"
+                f"[Rainwave] 🟡 Circuit breaker tripped. consecutive_errors={self._consecutive_errors} backoff={self._error_backoff}s"
             )
 
     def _format_schedule_event(
@@ -336,7 +335,9 @@ class RainwaveService:
                 Q(username__iexact=username) | Q(display_name__iexact=username)
             ).exists()
         except Exception as e:
-            logger.debug(f"Error checking crusader status for {username}: {e}")
+            logger.debug(
+                f'[Rainwave] Failed to check crusader status. username={username} error="{str(e)}"'
+            )
             return False
 
     async def start_monitoring(self, interval: int = 10):
@@ -349,7 +350,7 @@ class RainwaveService:
             interval: Seconds between checks
         """
         logger.info(
-            f"🎵 Starting Rainwave monitoring for station: {self.station_name} (ID: {self.station_id})"
+            f"[Rainwave] 🎵 Monitoring started. station={self.station_name} station_id={self.station_id}"
         )
 
         was_tuned_in = False
@@ -362,7 +363,7 @@ class RainwaveService:
                     # User is tuned in and we have track info
                     if not was_tuned_in:
                         # Just tuned in, send current track
-                        logger.info("🎵 User tuned in to Rainwave")
+                        logger.info("[Rainwave] 🎵 User tuned in.")
                         was_tuned_in = True
                         self.last_track_id = track_info["id"]
                         self.current_track = track_info
@@ -372,14 +373,14 @@ class RainwaveService:
                         self.last_track_id = track_info["id"]
                         self.current_track = track_info
                         logger.info(
-                            f"🎵 Rainwave track changed: {track_info['title']} by {track_info['artist']}"
+                            f'[Rainwave] 🎵 Track changed. title="{track_info["title"]}" artist="{track_info["artist"]}"'
                         )
                         self.broadcast_update(track_info)
                 else:
                     # User not tuned in or failed to fetch
                     if was_tuned_in:
                         # User just tuned out, clear the music display
-                        logger.info("🎵 User tuned out of Rainwave")
+                        logger.info("[Rainwave] 🎵 User tuned out.")
                         was_tuned_in = False
                         self.current_track = None
                         self.last_track_id = None
@@ -392,7 +393,7 @@ class RainwaveService:
                         self.music_service.process_rainwave_update(clear_signal)
 
             except Exception as e:
-                await self._handle_error(f"Error in Rainwave monitoring loop: {e}")
+                await self._handle_error(f'Error in monitoring loop. error="{str(e)}"')
 
             # Use backoff if in error state
             sleep_time = interval
