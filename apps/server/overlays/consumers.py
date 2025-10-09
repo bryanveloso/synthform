@@ -113,7 +113,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         """Build payload for hire event."""
         game_payload = event_data.get("payload", {})
         # Debug log to see what we're getting
-        logger.debug(f"🎮 Hire event payload: {game_payload}")
+        logger.debug(f"[Overlay] 🎮 Hire event received. payload={game_payload}")
         payload = {
             "type": event_type,
             "player": event_data.get("player"),
@@ -123,7 +123,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             "data": game_payload.get("stats", {}),  # Include enriched stats
             "timestamp": event_data.get("timestamp"),
         }
-        logger.debug(f"🎮 Hire event final payload: {payload}")
+        logger.debug(f"[Overlay] 🎮 Hire event built. payload={payload}")
         return payload
 
     def _build_change_payload(self, event_data: dict, event_type: str) -> dict:
@@ -175,7 +175,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
     async def connect(self) -> None:
         """Accept WebSocket connection and initialize overlay state."""
         await self.accept()
-        logger.info(f"Overlay client connected [ID: {self.connection_id}]")
+        logger.info(f"[Overlay] Client connected. id={self.connection_id}")
 
         # Connect to Redis for live events
         from django.conf import settings
@@ -196,7 +196,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # await self.pubsub.subscribe("events:games:ironmon")
         # await self.pubsub.subscribe("events:games:ff14")
         logger.info(
-            "Subscribed to Redis channels: events:twitch, events:obs, events:limitbreak, events:music, events:status, events:audio, events:campaign, and events:games:ffbot"
+            "[Overlay] Subscribed to Redis channels. channels=events:twitch,events:obs,events:limitbreak,events:music,events:status,events:audio,events:campaign,events:games:ffbot"
         )
 
         # Start Redis message listener
@@ -208,7 +208,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code: int) -> None:
         """Clean up connections when overlay disconnects."""
         logger.info(
-            f"Overlay client disconnected [ID: {self.connection_id}] with code: {close_code}"
+            f"[Overlay] Client disconnected. id={self.connection_id} code={close_code}"
         )
 
         await cleanup_redis_connections(self.redis, self.pubsub, self.redis_task)
@@ -225,22 +225,29 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                         event_data = json.loads(message["data"])
                         await self._route_live_event(event_data)
                     except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse Redis message: {e}")
+                        logger.error(
+                            f'[Overlay] Failed to parse Redis message. error="{str(e)}"'
+                        )
                     except Exception as e:
                         # Log the error but continue listening
-                        logger.error(f"Error routing event: {e}", exc_info=True)
+                        logger.error(
+                            f'[Overlay] Error routing event. error="{str(e)}"',
+                            exc_info=True,
+                        )
             except asyncio.CancelledError:
-                logger.info("Redis listener cancelled")
+                logger.info("[Overlay] Redis listener cancelled.")
                 break
             except Exception as e:
-                logger.error(f"Redis listener error: {e}", exc_info=True)
+                logger.error(
+                    f'[Overlay] Redis listener error. error="{str(e)}"', exc_info=True
+                )
                 # Sleep briefly before retrying
                 await asyncio.sleep(1)
 
     async def _route_live_event(self, event_data: dict) -> None:
         """Route live events to appropriate overlay layers."""
         if not event_data:
-            logger.error("Received null event_data in _route_live_event")
+            logger.error("[Overlay] Received null event_data in routing.")
             return
 
         event_type = event_data.get("event_type")
@@ -252,13 +259,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Handle limit break events
         if event_type == "limitbreak.update":
             logger.debug(
-                f"🎯 WebSocket: Sending limitbreak:update to overlay - {event_data.get('data', {})}"
+                f"[Overlay] 🎯 Sending limitbreak:update. data={event_data.get('data', {})}"
             )
             await self._send_message("limitbreak", "update", event_data.get("data", {}))
             return
         elif event_type == "limitbreak.executed":
             logger.debug(
-                f"🔊 WebSocket: Sending limitbreak:executed to overlay - {event_data.get('data', {})}"
+                f"[Overlay] 🔊 Sending limitbreak:executed. data={event_data.get('data', {})}"
             )
             await self._send_message(
                 "limitbreak", "executed", event_data.get("data", {})
@@ -268,13 +275,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Handle music events
         if event_type == "music.update":
             logger.debug(
-                f"🎵 WebSocket: Sending music:update to overlay - {event_data.get('data', {})}"
+                f"[Overlay] 🎵 Sending music:update. data={event_data.get('data', {})}"
             )
             await self._send_message("music", "update", event_data.get("data", {}))
             return
         elif event_type == "music.sync":
             logger.debug(
-                f"🎵 WebSocket: Sending music:sync to overlay - {event_data.get('data', {})}"
+                f"[Overlay] 🎵 Sending music:sync. data={event_data.get('data', {})}"
             )
             await self._send_message("music", "sync", event_data.get("data", {}))
             return
@@ -282,7 +289,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Handle status events
         if event_type == "status.update":
             logger.debug(
-                f"📍 WebSocket: Sending status:update to overlay - {event_data.get('data', {})}"
+                f"[Overlay] 📍 Sending status:update. data={event_data.get('data', {})}"
             )
             await self._send_message("status", "update", event_data.get("data", {}))
             return
@@ -290,7 +297,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Handle audio events from RME TotalMix
         if event_type == "audio.mic.mute":
             logger.debug(
-                f"🎤 WebSocket: Sending audio:rme:update to overlay - {event_data.get('data', {})}"
+                f"[Overlay] 🎤 Sending audio:rme:update. data={event_data.get('data', {})}"
             )
             await self._send_message("audio:rme", "update", event_data.get("data", {}))
             return
@@ -323,14 +330,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # Get the appropriate payload builder
             payload_builder = self._get_ffbot_payload_builder(game_event_type)
             if not payload_builder:
-                logger.warning(f"Unknown FFBot event type: {event_type}")
+                logger.warning(f"[Overlay] Unknown FFBot event type. type={event_type}")
                 return
 
             # Build the payload
             payload = payload_builder(event_data, game_event_type)
 
             # Send with specific message type
-            logger.debug(f"🎮 WebSocket: Sending ffbot:{game_event_type} to overlay")
+            logger.debug(f"[Overlay] 🎮 Sending ffbot:{game_event_type}.")
             await self._send_message("ffbot", game_event_type, payload)
             return
 
@@ -403,11 +410,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                         try:
                             payload = json.loads(payload)
                             logger.warning(
-                                f"Had to parse payload from string for {event_type}"
+                                f"[Overlay] Had to parse payload from string. event_type={event_type}"
                             )
                         except json.JSONDecodeError:
                             logger.error(
-                                f"Failed to parse payload string for {event_type}"
+                                f"[Overlay] Failed to parse payload string. event_type={event_type}"
                             )
                             payload = {}
                     notice_type = payload.get("notice_type", "")
@@ -532,7 +539,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                         payload = json.loads(payload)
                     except json.JSONDecodeError:
                         logger.warning(
-                            f"Failed to parse payload for event {latest_event.id}"
+                            f"[Overlay] Failed to parse payload. event_id={latest_event.id}"
                         )
                         payload = {}
 
@@ -552,10 +559,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 }
             return None
         except DatabaseError as e:
-            logger.error(f"Database error querying latest event: {e}")
+            logger.error(
+                f'[Overlay] Database error querying latest event. error="{str(e)}"'
+            )
             return None
         except Exception as e:
-            logger.error(f"Unexpected error querying latest event: {e}")
+            logger.error(
+                f'[Overlay] Unexpected error querying latest event. error="{str(e)}"'
+            )
             return None
 
     async def _get_recent_events(self, limit: int = 20) -> list[dict]:
@@ -591,7 +602,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                             payload = json.loads(payload)
                         except json.JSONDecodeError:
                             logger.warning(
-                                f"Failed to parse payload for event {event.id}"
+                                f"[Overlay] Failed to parse payload. event_id={event.id}"
                             )
                             payload = {}
 
@@ -618,16 +629,20 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
                 except Exception as e:
                     logger.error(
-                        f"Error processing event {event.id} ({event.event_type}): {e}"
+                        f'[Overlay] Error processing event. event_id={event.id} event_type={event.event_type} error="{str(e)}"'
                     )
                     continue
 
             return events
         except DatabaseError as e:
-            logger.error(f"Database error querying recent events: {e}")
+            logger.error(
+                f'[Overlay] Database error querying recent events. error="{str(e)}"'
+            )
             return []
         except Exception as e:
-            logger.error(f"Unexpected error querying recent events: {e}")
+            logger.error(
+                f'[Overlay] Unexpected error querying recent events. error="{str(e)}"'
+            )
             return []
 
     async def _get_ticker_items(self) -> list[dict]:
@@ -671,10 +686,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 "subscribers": subscribe_count,
             }
         except DatabaseError as e:
-            logger.error(f"Database error querying daily stats: {e}")
+            logger.error(
+                f'[Overlay] Database error querying daily stats. error="{str(e)}"'
+            )
             return {"message": "Daily stats unavailable"}
         except Exception as e:
-            logger.error(f"Unexpected error querying daily stats: {e}")
+            logger.error(
+                f'[Overlay] Unexpected error querying daily stats. error="{str(e)}"'
+            )
             return {"message": "Daily stats unavailable"}
 
     async def _get_recent_follows(self) -> dict:
@@ -695,10 +714,14 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 )
             return {"recent_follows": follows}
         except DatabaseError as e:
-            logger.error(f"Database error querying recent follows: {e}")
+            logger.error(
+                f'[Overlay] Database error querying recent follows. error="{str(e)}"'
+            )
             return {"message": "Recent follows unavailable"}
         except Exception as e:
-            logger.error(f"Unexpected error querying recent follows: {e}")
+            logger.error(
+                f'[Overlay] Unexpected error querying recent follows. error="{str(e)}"'
+            )
             return {"message": "Recent follows unavailable"}
 
     async def _get_obs_state(self) -> dict | None:
@@ -709,7 +732,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             return await obs_service.get_current_state()
 
         except Exception as e:
-            logger.error(f"Error getting OBS state: {e}")
+            logger.error(f'[Overlay] Error getting OBS state. error="{str(e)}"')
             return {"message": "OBS state unavailable", "connected": False}
 
     async def _get_rme_status(self) -> dict | None:
@@ -728,7 +751,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             }
 
         except Exception as e:
-            logger.error(f"Error getting RME status: {e}")
+            logger.error(f'[Overlay] Error getting RME status. error="{str(e)}"')
             return None
 
     async def _get_limit_break_state(self) -> dict | None:
@@ -736,13 +759,15 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         from shared.services.twitch.helix import helix_service
 
         try:
-            logger.info("Fetching limit break state using helix service...")
+            logger.info("[Overlay] Fetching limit break state using helix service.")
 
             # Get the current redemption count directly from helix service
             count = await helix_service.get_reward_redemption_count(
                 "5685d03e-80c2-4640-ba06-566fb8bbc4ce"
             )
-            logger.info(f"Limit break queue count from helix service: {count}")
+            logger.info(
+                f"[Overlay] Limit break queue count from helix service. count={count}"
+            )
 
             # Calculate bar states based on breakpoints at 33/66/100
             bar1 = min(count / 33, 1.0)
@@ -757,11 +782,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 "bar3": bar3,
                 "isMaxed": is_maxed,
             }
-            logger.info(f"Limit break state calculated: {result}")
+            logger.info(f"[Overlay] Limit break state calculated. result={result}")
             return result
 
         except Exception as e:
-            logger.error(f"Error getting limit break state: {e}")
+            logger.error(f'[Overlay] Error getting limit break state. error="{str(e)}"')
             # Return a fallback state instead of None to ensure the message is sent
             return {"count": 0, "bar1": 0, "bar2": 0, "bar3": 0, "isMaxed": False}
 
@@ -773,15 +798,15 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # Get the current track from the service
             if rainwave_service.current_track:
                 logger.info(
-                    f"Sending initial music state: {rainwave_service.current_track.get('title')}"
+                    f'[Overlay] Sending initial music state. title="{rainwave_service.current_track.get("title")}"'
                 )
                 return rainwave_service.current_track
             else:
-                logger.info("No current track in Rainwave service")
+                logger.info("[Overlay] No current track in Rainwave service.")
                 return None
 
         except Exception as e:
-            logger.error(f"Error getting music state: {e}")
+            logger.error(f'[Overlay] Error getting music state. error="{str(e)}"')
             return None
 
     async def _get_campaign_state(self) -> dict | None:
@@ -794,7 +819,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # Get active campaign
             campaign = await Campaign.objects.filter(is_active=True).afirst()
             if not campaign:
-                logger.info("No active campaign found")
+                logger.info("[Overlay] No active campaign found.")
                 return None
 
             # Get metric
@@ -879,12 +904,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             }
 
             logger.info(
-                f"Sending campaign sync: {campaign.name} with {len(milestones)} milestones, duration: {total_duration}s"
+                f'[Overlay] Sending campaign sync. name="{campaign.name}" milestones={len(milestones)} duration={total_duration}'
             )
             return campaign_data
 
         except Exception as e:
-            logger.error(f"Error getting campaign state: {e}")
+            logger.error(f'[Overlay] Error getting campaign state. error="{str(e)}"')
             return None
 
     async def _get_status_state(self) -> dict | None:
@@ -904,7 +929,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 else None,
             }
         except Exception as e:
-            logger.error(f"Error getting status state: {e}")
+            logger.error(f'[Overlay] Error getting status state. error="{str(e)}"')
             return {
                 "status": "online",
                 "message": "",
@@ -938,20 +963,26 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                         }
                     )
                 except Exception as e:
-                    logger.error(f"Error processing chat message {event.id}: {e}")
+                    logger.error(
+                        f'[Overlay] Error processing chat message. event_id={event.id} error="{str(e)}"'
+                    )
                     continue
 
             # Reverse to get chronological order (oldest first)
             return list(reversed(messages))
         except Exception as e:
-            logger.error(f"Error getting recent chat messages: {e}")
+            logger.error(
+                f'[Overlay] Error getting recent chat messages. error="{str(e)}"'
+            )
             return []
 
     async def receive(self, text_data: str) -> None:
         """Handle messages from overlay clients (currently unused)."""
         try:
             data = json.loads(text_data)
-            logger.debug(f"Received message from overlay client: {data}")
+            logger.debug(f"[Overlay] Received message from client. data={data}")
             # Overlays are read-only for now, but we can add controls later
         except json.JSONDecodeError:
-            logger.warning(f"Received invalid JSON from overlay client: {text_data}")
+            logger.warning(
+                f'[Overlay] Received invalid JSON from client. data="{text_data}"'
+            )

@@ -28,7 +28,9 @@ class MusicService:
             "data": data,
         }
         result = self.redis.publish("events:music", json.dumps(event_data))
-        logger.info(f"📡 Redis {event_type} publish result (subscribers): {result}")
+        logger.info(
+            f"[Music] 📡 Published to Redis. event_type={event_type} subscribers={result}"
+        )
 
     def process_apple_music_update(self, data: dict) -> dict:
         """Process Apple Music update data."""
@@ -43,7 +45,7 @@ class MusicService:
         self.broadcast_update(data)
 
         logger.info(
-            f"Apple Music update: {data.get('title', 'No track')} by {data.get('artist', 'Unknown')}"
+            f'[Music] Apple Music update. title="{data.get("title", "No track")}" artist="{data.get("artist", "Unknown")}"'
         )
 
         return data
@@ -61,7 +63,7 @@ class MusicService:
         self.broadcast_update(data)
 
         logger.info(
-            f"Rainwave update: {data.get('title', 'No track')} by {data.get('artist', 'Unknown')}"
+            f'[Music] Rainwave update. title="{data.get("title", "No track")}" artist="{data.get("artist", "Unknown")}"'
         )
 
         return data

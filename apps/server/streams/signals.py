@@ -33,8 +33,10 @@ def publish_status_update(sender, instance, created, **kwargs):
         # Publish to Redis channel
         redis_client.publish("events:status", json.dumps(event_data))
         logger.info(
-            f"📍 Published status update to Redis: {instance.status} - {instance.message}"
+            f'[Status] 📍 Published status update to Redis. status={instance.status} message="{instance.message}"'
         )
 
     except Exception as e:
-        logger.error(f"Failed to publish status update to Redis: {e}")
+        logger.error(
+            f'[Status] Failed to publish status update to Redis. error="{str(e)}"'
+        )

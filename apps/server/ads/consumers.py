@@ -23,7 +23,7 @@ class AdConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         """Accept WebSocket connection and start Redis subscription."""
         await self.accept()
-        logger.info("Ad consumer connected")
+        logger.info("[Ads] Consumer connected.")
 
         # Connect to Redis
         self.redis = redis.from_url(settings.REDIS_URL)
@@ -31,14 +31,14 @@ class AdConsumer(AsyncWebsocketConsumer):
 
         # Subscribe to ad events channel
         await self.pubsub.subscribe("events:ads")
-        logger.info("Subscribed to Redis events:ads channel")
+        logger.info("[Ads] Subscribed to Redis channel. channel=events:ads")
 
         # Start Redis message listener
         self.redis_task = asyncio.create_task(self._listen_to_redis())
 
     async def disconnect(self, close_code):
         """Clean up Redis connections when client disconnects."""
-        logger.info(f"Ad consumer disconnected with code: {close_code}")
+        logger.info(f"[Ads] Consumer disconnected. code={close_code}")
 
         # Cancel Redis listener task
         if self.redis_task:
@@ -54,13 +54,13 @@ class AdConsumer(AsyncWebsocketConsumer):
                 await self.pubsub.unsubscribe()
                 await self.pubsub.close()
         except Exception as e:
-            logger.warning(f"Error closing Redis pubsub: {e}")
+            logger.warning(f'[Ads] Error closing Redis pubsub. error="{str(e)}"')
 
         try:
             if self.redis:
                 await self.redis.close()
         except Exception as e:
-            logger.warning(f"Error closing Redis connection: {e}")
+            logger.warning(f'[Ads] Error closing Redis connection. error="{str(e)}"')
 
     async def _listen_to_redis(self):
         """Listen for Redis pub/sub messages and broadcast to WebSocket."""
@@ -78,19 +78,23 @@ class AdConsumer(AsyncWebsocketConsumer):
                         await self.send(text_data=json.dumps(ad_data))
 
                         logger.debug(
-                            f"Broadcasted {ad_data.get('type')} to ad consumer"
+                            f"[Ads] Broadcasted to consumer. type={ad_data.get('type')}"
                         )
 
                     except (json.JSONDecodeError, KeyError) as e:
-                        logger.error(f"Error processing Redis message: {e}")
+                        logger.error(
+                            f'[Ads] Error processing Redis message. error="{str(e)}"'
+                        )
                     except Exception as e:
-                        logger.error(f"Error broadcasting message to WebSocket: {e}")
+                        logger.error(
+                            f'[Ads] Error broadcasting message to WebSocket. error="{str(e)}"'
+                        )
                         # Continue listening even if broadcast fails
 
         except asyncio.CancelledError:
-            logger.info("Redis listener task cancelled")
+            logger.info("[Ads] Redis listener task cancelled.")
         except Exception as e:
-            logger.error(f"Error in Redis listener: {e}")
+            logger.error(f'[Ads] Error in Redis listener. error="{str(e)}"')
 
     async def receive(self, text_data):
         """Handle messages from WebSocket clients."""
@@ -102,10 +106,12 @@ class AdConsumer(AsyncWebsocketConsumer):
                 # Send current ad schedule status
                 await self.send_status()
             else:
-                logger.debug(f"Received command from ad consumer: {command}")
+                logger.debug(f"[Ads] Received command from consumer. command={command}")
 
         except json.JSONDecodeError:
-            logger.warning(f"Received invalid JSON from ad consumer: {text_data}")
+            logger.warning(
+                f'[Ads] Received invalid JSON from consumer. data="{text_data}"'
+            )
 
     async def send_status(self):
         """Send current ad schedule status from Redis."""
@@ -129,4 +135,4 @@ class AdConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps(status))
 
         except Exception as e:
-            logger.error(f"Error sending status: {e}")
+            logger.error(f'[Ads] Error sending status. error="{str(e)}"')
