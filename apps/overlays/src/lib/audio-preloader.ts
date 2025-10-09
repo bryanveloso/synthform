@@ -28,45 +28,94 @@ function extractSoundFiles(): string[] {
 }
 
 const audioCache = new Map<string, HTMLAudioElement>()
+const failedPreloads = new Set<string>()
 let preloadComplete = false
+let preloadPromise: Promise<void> | null = null
 
 /**
  * Preload all sound files into memory
- * Call once at app startup
+ * Returns a promise that resolves when all sounds are ready
  */
-export function preloadSounds(): void {
-  if (preloadComplete) return
+export function preloadSounds(): Promise<void> {
+  if (preloadPromise) return preloadPromise
 
   const soundFiles = extractSoundFiles()
   console.log('[Audio] Preloading sounds...')
 
-  for (const soundPath of soundFiles) {
-    try {
-      const audio = new Audio(soundPath)
-      audio.preload = 'auto'
-      audioCache.set(soundPath, audio)
-    } catch (error) {
-      console.warn(`[Audio] Failed to preload ${soundPath}:`, error)
-    }
+  if (soundFiles.length === 0) {
+    preloadComplete = true
+    console.log('[Audio] No sounds to preload.')
+    preloadPromise = Promise.resolve()
+    return preloadPromise
   }
 
-  preloadComplete = true
-  console.log(`[Audio] Preloaded ${audioCache.size} sounds`)
+  preloadPromise = Promise.all(
+    soundFiles.map(
+      (soundPath) =>
+        new Promise<void>((resolve) => {
+          try {
+            const audio = new Audio(soundPath)
+            audio.preload = 'auto'
+
+            const onCanPlayThrough = () => {
+              audio.removeEventListener('canplaythrough', onCanPlayThrough)
+              audio.removeEventListener('error', onError)
+              audioCache.set(soundPath, audio)
+              resolve()
+            }
+
+            const onError = (e: Event | string) => {
+              audio.removeEventListener('canplaythrough', onCanPlayThrough)
+              audio.removeEventListener('error', onError)
+              console.warn(`[Audio] Failed to preload ${soundPath}:`, e)
+              failedPreloads.add(soundPath)
+              resolve() // Don't block other sounds
+            }
+
+            audio.addEventListener('canplaythrough', onCanPlayThrough)
+            audio.addEventListener('error', onError)
+            audio.load()
+          } catch (error) {
+            console.warn(`[Audio] Failed to create Audio for ${soundPath}:`, error)
+            failedPreloads.add(soundPath)
+            resolve() // Don't block other sounds
+          }
+        })
+    )
+  ).then(() => {
+    preloadComplete = true
+    console.log(`[Audio] Preloaded ${audioCache.size} sounds`)
+  })
+
+  return preloadPromise
 }
 
 /**
- * Get a preloaded audio element for playback
+ * Get a cloned audio element for playback
+ * Clones the preloaded audio to allow multiple simultaneous playbacks
  * Returns null if sound not found in cache
  */
 export function getPreloadedAudio(soundPath: string): HTMLAudioElement | null {
   if (!soundPath) return null
 
-  const audio = audioCache.get(soundPath)
-  if (!audio) {
-    console.warn(`[Audio] Sound not preloaded: ${soundPath}`)
+  // Don't warn about known failures
+  if (failedPreloads.has(soundPath)) {
     return null
   }
 
+  const cachedAudio = audioCache.get(soundPath)
+  if (!cachedAudio) {
+    // Only warn if preloading is complete
+    if (preloadComplete) {
+      console.warn(`[Audio] Sound not preloaded: ${soundPath}`)
+    }
+    return null
+  }
+
+  // Clone the audio element to allow multiple simultaneous playbacks
+  // The browser will reuse the cached audio buffer
+  const audio = new Audio(cachedAudio.src)
+  audio.preload = 'auto'
   return audio
 }
 

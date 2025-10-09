@@ -26,6 +26,8 @@ export function useAlertSound(
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const completionTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const endedHandlerRef = useRef<(() => void) | null>(null)
+  const activeAlertIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     // Clear any existing completion timer
@@ -37,6 +39,10 @@ export function useAlertSound(
     // Clean up previous audio if it exists
     if (audioRef.current) {
       audioRef.current.pause()
+      if (endedHandlerRef.current) {
+        audioRef.current.removeEventListener('ended', endedHandlerRef.current)
+        endedHandlerRef.current = null
+      }
       audioRef.current.src = ''
       audioRef.current.load()
       audioRef.current = null
@@ -48,17 +54,16 @@ export function useAlertSound(
 
     // Process alert (with or without sound)
     if (alert) {
+      activeAlertIdRef.current = alert.id
       const soundFile = enabled ? getAlertSound(alert) : null
 
       if (soundFile && enabled) {
-        // Use preloaded audio for instant playback
+        // Use preloaded audio for instant playback (gets a cloned element)
         const preloadedAudio = getPreloadedAudio(soundFile)
 
         if (preloadedAudio) {
           audioRef.current = preloadedAudio
           audioRef.current.volume = volume
-          // Reset playback position for cached audio
-          audioRef.current.currentTime = 0
         } else {
           // Fallback to on-demand loading if not preloaded
           audioRef.current = new Audio(soundFile)
@@ -66,7 +71,12 @@ export function useAlertSound(
         }
 
         // Set up completion handlers
-        audioRef.current.addEventListener('ended', () => {
+        const endedHandler = () => {
+          // Ignore stale events from previous alerts
+          if (activeAlertIdRef.current !== alert.id) {
+            return
+          }
+
           // Clear the fallback timer since audio ended naturally
           if (completionTimerRef.current) {
             clearTimeout(completionTimerRef.current)
@@ -74,7 +84,9 @@ export function useAlertSound(
           }
           setIsPlaying(false)
           onComplete?.()
-        })
+        }
+        endedHandlerRef.current = endedHandler
+        audioRef.current.addEventListener('ended', endedHandler)
 
         // Play the audio and handle errors
         audioRef.current
@@ -104,6 +116,8 @@ export function useAlertSound(
           onComplete?.()
         }, duration)
       }
+    } else {
+      activeAlertIdRef.current = null
     }
 
     // Cleanup on unmount or when dependencies change
@@ -114,6 +128,10 @@ export function useAlertSound(
       }
       if (audioRef.current) {
         audioRef.current.pause()
+        if (endedHandlerRef.current) {
+          audioRef.current.removeEventListener('ended', endedHandlerRef.current)
+          endedHandlerRef.current = null
+        }
         audioRef.current.src = ''
         audioRef.current.load()
         audioRef.current = null
