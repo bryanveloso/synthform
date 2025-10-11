@@ -169,16 +169,18 @@ class RainwaveService:
         Args:
             error_msg: Error message to log (without [Rainwave] prefix)
         """
-        logger.error(f"[Rainwave] {error_msg}")
         self._consecutive_errors += 1
         self._last_error_time = time.time()
 
         if self._consecutive_errors >= self._max_consecutive_errors:
-            # Circuit breaker tripped
+            # Circuit breaker tripped - log as error for Sentry
             self._error_backoff = min(self._error_backoff * 2, self._max_backoff)
-            logger.warning(
-                f"[Rainwave] 🟡 Circuit breaker tripped. consecutive_errors={self._consecutive_errors} backoff={self._error_backoff}s"
+            logger.error(
+                f"[Rainwave] Circuit breaker tripped. consecutive_errors={self._consecutive_errors} backoff={self._error_backoff}s {error_msg}"
             )
+        else:
+            # Transient error - log as warning, don't spam Sentry
+            logger.warning(f"[Rainwave] {error_msg}")
 
     def _format_schedule_event(
         self, event: dict, is_current: bool = False
