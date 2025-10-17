@@ -402,6 +402,7 @@ class OBSService:
             if (
                 "broken pipe" in error_msg
                 or "connection" in error_msg
+                or "timeout" in error_msg
                 or "errno 32" in error_msg
             ):
                 logger.info(f'[OBS] Disconnected, will reconnect. error="{str(e)}"')
