@@ -181,7 +181,7 @@ class AdScheduler:
         """
         state = await self.get_state()
 
-        if not state["enabled"] or not state["next_time"]:
+        if not state["enabled"]:
             return False
 
         # Check if stream is live
@@ -189,6 +189,16 @@ class AdScheduler:
         stream_live = await r.get("stream:live")
         if stream_live != b"true":
             logger.debug("[Ads] Stream is not live, skipping ad check")
+            return False
+
+        # Auto-initialize by scheduling first ad 5 minutes after stream goes live
+        # This gives viewers time to join before running first ad to disable prerolls
+        if not state["next_time"]:
+            first_ad_time = timezone.now() + timedelta(minutes=5)
+            await self.set_next_ad_time(first_ad_time)
+            logger.info(
+                "[Ads] Stream is live and ads enabled, first ad scheduled in 5 minutes"
+            )
             return False
 
         next_time = datetime.fromisoformat(state["next_time"])
