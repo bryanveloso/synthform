@@ -181,7 +181,7 @@ class RMETotalMixService:
             logger.debug(f"[RME] Mic mute state persisted. state={state_str}")
 
         except Exception as e:
-            logger.error(f'[RME] Failed to persist mute state. error="{str(e)}"')
+            logger.warning(f'[RME] Failed to persist mute state. error="{str(e)}"')
 
     async def _request_initial_state(self):
         """Request initial state from TotalMix."""
@@ -340,7 +340,7 @@ class RMETotalMixService:
             )
 
         except Exception as e:
-            logger.error(f'[RME] Error broadcasting mic state. error="{str(e)}"')
+            logger.warning(f'[RME] Error broadcasting mic state. error="{str(e)}"')
 
     async def _broadcast_mic_level(self):
         """Broadcast mic level to Redis."""
@@ -363,7 +363,7 @@ class RMETotalMixService:
             await self._redis_client.publish("events:audio", json.dumps(message))
 
         except Exception as e:
-            logger.error(f'[RME] Error broadcasting mic level. error="{str(e)}"')
+            logger.warning(f'[RME] Error broadcasting mic level. error="{str(e)}"')
 
     # Public API methods
 

@@ -201,4 +201,4 @@ class FFBotConsumer(AsyncWebsocketConsumer):
             await self.redis.publish("events:games:ffbot", json.dumps(redis_message))
             logger.debug(f"[FFBot] Published to Redis. event_type={event_type}")
         except Exception as e:
-            logger.error(f'[FFBot] Error publishing to Redis. error="{str(e)}"')
+            logger.warning(f'[FFBot] Error publishing to Redis. error="{str(e)}"')

@@ -100,7 +100,7 @@ class EventConsumer(AsyncWebsocketConsumer):
         except asyncio.CancelledError:
             logger.info("[WebSocket] Redis listener task cancelled.")
         except Exception as e:
-            logger.error(f'[WebSocket] ❌ Error in Redis listener. error="{str(e)}"')
+            logger.warning(f'[WebSocket] Error in Redis listener. error="{str(e)}"')
 
     async def receive(self, text_data):
         """Handle messages from WebSocket clients (if needed for control)."""

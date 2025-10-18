@@ -474,7 +474,7 @@ async def publish_to_redis(
         logger.debug(f"[FFBot] Published to Redis. event_type={event_type}")
 
     except Exception as e:
-        logger.error(f'[FFBot] Error publishing to Redis. error="{str(e)}"')
+        logger.warning(f'[FFBot] Error publishing to Redis. error="{str(e)}"')
     finally:
         if redis_client:
             await redis_client.close()

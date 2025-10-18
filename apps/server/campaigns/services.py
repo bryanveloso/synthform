@@ -532,7 +532,7 @@ class CampaignService:
             await redis_client.publish("events:campaign", json.dumps(redis_message))
             logger.debug(f"[Campaign] Published to Redis. event_type={event_type}")
         except Exception as e:
-            logger.error(f'[Campaign] Failed to publish to Redis. error="{str(e)}"')
+            logger.warning(f'[Campaign] Failed to publish to Redis. error="{str(e)}"')
         finally:
             if redis_client:
                 await redis_client.close()

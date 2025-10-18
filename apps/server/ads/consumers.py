@@ -94,7 +94,7 @@ class AdConsumer(AsyncWebsocketConsumer):
         except asyncio.CancelledError:
             logger.info("[Ads] Redis listener task cancelled.")
         except Exception as e:
-            logger.error(f'[Ads] Error in Redis listener. error="{str(e)}"')
+            logger.warning(f'[Ads] Error in Redis listener. error="{str(e)}"')
 
     async def receive(self, text_data):
         """Handle messages from WebSocket clients."""

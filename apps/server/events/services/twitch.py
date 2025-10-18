@@ -1769,7 +1769,7 @@ class TwitchEventHandler:
             )
 
         except Exception as e:
-            logger.error(f'[TwitchIO] ❌ Failed to publish to Redis. error="{str(e)}"')
+            logger.warning(f'[TwitchIO] Failed to publish to Redis. error="{str(e)}"')
 
     async def _get_or_create_member_from_payload(self, payload) -> Member | None:
         """Extract Member information from EventSub payload using TwitchIO object-based access."""
