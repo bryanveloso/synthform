@@ -184,6 +184,13 @@ class AdScheduler:
         if not state["enabled"] or not state["next_time"]:
             return False
 
+        # Check if stream is live
+        r = await self.get_redis()
+        stream_live = await r.get("stream:live")
+        if stream_live != b"true":
+            logger.debug("[Ads] Stream is not live, skipping ad check")
+            return False
+
         next_time = datetime.fromisoformat(state["next_time"])
 
         # Validate timezone awareness

@@ -141,10 +141,16 @@ class TwitchEventHandler:
     async def event_stream_online(self, payload):
         """Handle stream online events."""
         await self._create_event_from_payload("stream.online", payload)
+        # Track stream status in Redis for ad scheduler
+        await self._redis_client.set("stream:live", "true")
+        logger.info("[Stream] Stream is now live")
 
     async def event_stream_offline(self, payload):
         """Handle stream offline events."""
         await self._create_event_from_payload("stream.offline", payload)
+        # Track stream status in Redis for ad scheduler
+        await self._redis_client.set("stream:live", "false")
+        logger.info("[Stream] Stream is now offline")
 
     async def event_channel_update(self, payload):
         """Handle channel update events."""
