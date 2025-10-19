@@ -15,11 +15,21 @@ def monitor_obs_performance():
     Checks frame drop rate and triggers alerts when threshold exceeded.
     """
     try:
+        import asyncio
+
         from .services.obs import obs_service
 
-        # Check and handle performance alerts
-        result = async_to_sync(obs_service.check_performance_and_alert)()
+        # Handle event loop properly in forked worker processes
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
+        result = loop.run_until_complete(obs_service.check_performance_and_alert())
         return result
 
     except Exception as e:
