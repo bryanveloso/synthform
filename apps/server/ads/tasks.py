@@ -16,10 +16,10 @@ def check_ad_schedule():
     This task runs every 10 seconds.
     """
     try:
-        from asgiref.sync import async_to_sync
+        import asyncio
 
-        # Check and handle ads/warnings
-        result = async_to_sync(ad_scheduler.check_and_run_ad)()
+        # Create a new event loop for each task execution
+        result = asyncio.run(ad_scheduler.check_and_run_ad())
 
         return result
 
