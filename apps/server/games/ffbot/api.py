@@ -20,6 +20,17 @@ logger = logging.getLogger(__name__)
 # Create the FFBot Router
 router = Router(tags=["ffbot"])
 
+# Track background tasks to prevent garbage collection
+_background_tasks = set()
+
+
+def _create_background_task(coro):
+    """Create a background task with proper exception handling."""
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task
+
 
 # Pydantic schemas for request/response validation
 class FFBotStatsData(Schema):
@@ -81,7 +92,7 @@ async def ffbot_event(request, event: FFBotEvent):
     Processing happens asynchronously in the background.
     """
     # Queue for async processing
-    asyncio.create_task(process_ffbot_event(event.dict()))
+    _create_background_task(process_ffbot_event(event.dict()))
 
     # Return 202 Accepted immediately
     return 202, {"status": "accepted"}

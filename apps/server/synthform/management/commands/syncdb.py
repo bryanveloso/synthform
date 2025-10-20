@@ -36,7 +36,7 @@ class Command(BaseCommand):
         server = options["server"]
         container = options["container"]
         tables = options["tables"]
-        days = options["days"]
+        options["days"]
 
         self.stdout.write(f"Syncing database from {server}:{container}")
 

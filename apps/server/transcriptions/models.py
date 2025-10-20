@@ -50,12 +50,12 @@ class Transcription(models.Model):
         ]
         ordering = ["-timestamp"]
 
+    def __str__(self):
+        preview = self.text[:50] + "..." if len(self.text) > 50 else self.text
+        return f"Transcription: {preview} ({self.duration}s)"
+
     def save(self, *args, **kwargs):
         if not self.pk:
             self.created_at = timezone.now()
         self.updated_at = timezone.now()
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        preview = self.text[:50] + "..." if len(self.text) > 50 else self.text
-        return f"Transcription: {preview} ({self.duration}s)"

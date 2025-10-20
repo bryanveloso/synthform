@@ -38,6 +38,9 @@ class Token(models.Model):
             models.Index(fields=["last_refreshed"]),
         ]
 
+    def __str__(self):
+        return f"{self.service}:{self.user_id} (expires: {self.expires_at})"
+
     def save(self, *args, **kwargs):
         if not self.pk:
             self.created_at = timezone.now()
@@ -57,6 +60,3 @@ class Token(models.Model):
         if not self.expires_in:
             return None
         return self.last_refreshed + timedelta(seconds=self.expires_in)
-
-    def __str__(self):
-        return f"{self.service}:{self.user_id} (expires: {self.expires_at})"

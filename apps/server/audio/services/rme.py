@@ -66,6 +66,7 @@ class RMETotalMixService:
         self._mic_muted = False
         self._mic_level = 0.0
         self._callbacks = []
+        self._background_tasks = set()
 
         logger.info(
             f"[RME] Service initialized. host={self.totalmix_host} port={self.totalmix_send_port}"
@@ -121,6 +122,13 @@ class RMETotalMixService:
             await self._redis_client.close()
 
         logger.info("[RME] Service shut down.")
+
+    def _create_background_task(self, coro):
+        """Create a background task with proper exception handling."""
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return task
 
     async def _setup_osc_server(self):
         """Setup OSC server to receive updates from TotalMix."""
@@ -243,10 +251,10 @@ class RMETotalMixService:
                         )
 
                         # Persist state for restoration on restart
-                        asyncio.create_task(self._persist_mute_state())
+                        self._create_background_task(self._persist_mute_state())
 
                         # Broadcast state change
-                        asyncio.create_task(self._broadcast_mic_state())
+                        self._create_background_task(self._broadcast_mic_state())
 
                         # Call registered callbacks
                         for callback in self._callbacks:
@@ -287,7 +295,7 @@ class RMETotalMixService:
                         logger.debug(
                             f"[RME] Mic level changed. channel={channel} level={new_level:.2f}"
                         )
-                        asyncio.create_task(self._broadcast_mic_level())
+                        self._create_background_task(self._broadcast_mic_level())
             except (ValueError, IndexError) as e:
                 logger.debug(
                     f'[RME] Failed to parse volume address. address={address} error="{str(e)}"'

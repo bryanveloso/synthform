@@ -399,7 +399,7 @@ class CampaignServiceConcurrencyTest(TransactionTestCase):
 
     def test_process_subscription_tracks_gift(self):
         """Test that gift subscriptions are tracked."""
-        result = async_to_sync(self.service.process_subscription)(
+        async_to_sync(self.service.process_subscription)(
             self.campaign,
             tier=1,
             is_gift=True,
@@ -455,7 +455,7 @@ class CampaignServiceConcurrencyTest(TransactionTestCase):
     def test_process_subscription_no_gift_tracking_without_id(self):
         """Test that gifts aren't tracked without a gifter ID."""
         # Gift without gifter_id
-        result = async_to_sync(self.service.process_subscription)(
+        async_to_sync(self.service.process_subscription)(
             self.campaign,
             tier=1,
             is_gift=True,

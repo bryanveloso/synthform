@@ -36,14 +36,14 @@ class Member(models.Model):
             models.Index(fields=["created_at"]),
         ]
 
+    def __str__(self):
+        return f"{self.display_name} ({self.username or 'no username'})"
+
     def save(self, *args, **kwargs):
         if not self.pk:
             self.created_at = timezone.now()
         self.updated_at = timezone.now()
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.display_name} ({self.username or 'no username'})"
 
 
 class Event(models.Model):
@@ -87,6 +87,10 @@ class Event(models.Model):
         ]
         ordering = ["-timestamp"]
 
+    def __str__(self):
+        member_info = f" from {self.member.display_name}" if self.member else ""
+        return f"{self.source}.{self.event_type}{member_info} at {self.timestamp}"
+
     def save(self, *args, **kwargs):
         if not self.pk:
             self.created_at = timezone.now()
@@ -116,10 +120,6 @@ class Event(models.Model):
             or self.payload.get("chatter_user_name")
             or self.payload.get("username", "")
         )
-
-    def __str__(self):
-        member_info = f" from {self.member.display_name}" if self.member else ""
-        return f"{self.source}.{self.event_type}{member_info} at {self.timestamp}"
 
 
 # Token model has been moved to authentication.models

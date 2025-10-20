@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 
-from asgiref.sync import async_to_sync
 from celery import shared_task
 
 logger = logging.getLogger(__name__)

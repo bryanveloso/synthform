@@ -77,6 +77,9 @@ class Campaign(models.Model):
     class Meta:
         ordering = ["-start_date"]
 
+    def __str__(self):
+        return self.name
+
     def get_sessions(self):
         """Get all streaming sessions within this campaign's date range."""
         from streams.models import Session
@@ -125,9 +128,6 @@ class Campaign(models.Model):
         )
 
         return current_session.started_at if current_session else None
-
-    def __str__(self):
-        return self.name
 
 
 class Milestone(models.Model):

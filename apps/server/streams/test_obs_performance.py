@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 from unittest.mock import AsyncMock
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from asgiref.sync import async_to_sync
 from django.test import TestCase
 from django.test import override_settings
-from django.utils import timezone
 
 
 class OBSPerformanceTest(TestCase):

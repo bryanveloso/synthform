@@ -139,13 +139,13 @@ class CampaignModelTest(TestCase):
 
         # Create completed sessions with durations
         today = timezone.now().date()
-        session1 = Session.objects.create(
+        Session.objects.create(
             session_date=today,
             started_at=timezone.now() - timedelta(hours=5),
             ended_at=timezone.now() - timedelta(hours=3),
             duration=7200,  # 2 hours
         )
-        session2 = Session.objects.create(
+        Session.objects.create(
             session_date=today + timedelta(days=1),
             started_at=timezone.now() - timedelta(hours=10),
             ended_at=timezone.now() - timedelta(hours=7),
@@ -197,7 +197,7 @@ class CampaignModelTest(TestCase):
         today = now.date()
         started = now - timedelta(hours=2)
 
-        session = Session.objects.create(
+        Session.objects.create(
             session_date=today,
             started_at=started,
             ended_at=None,  # Still live
@@ -570,7 +570,6 @@ class GiftModelTest(TestCase):
 
     def test_gift_cascade_delete_with_member(self):
         """Test that deleting a member deletes associated gifts."""
-        member_id = self.member.id
         gift_id = self.gift.id
 
         self.member.delete()
@@ -580,7 +579,6 @@ class GiftModelTest(TestCase):
 
     def test_gift_cascade_delete_with_campaign(self):
         """Test that deleting a campaign deletes associated gifts."""
-        campaign_id = self.campaign.id
         gift_id = self.gift.id
 
         self.campaign.delete()

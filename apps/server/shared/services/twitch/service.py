@@ -57,6 +57,7 @@ class TwitchService(twitchio.Client):
         self._last_event_time = None  # Track last event received for health monitoring
         self._reconnecting = False  # Prevent concurrent reconnection attempts
         self._broadcaster_user_id = None  # Store broadcaster ID for reconnections
+        self._background_tasks = set()  # Track background tasks
 
         # Redis client for health status tracking
         import redis.asyncio as redis
@@ -90,6 +91,13 @@ class TwitchService(twitchio.Client):
             sentry_sdk.capture_exception(e)
 
         logger.info("[TwitchIO] EventSub connected and subscribed.")
+
+    def _create_background_task(self, coro):
+        """Create a background task with proper exception handling."""
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return task
 
     async def event_oauth_authorized(
         self, payload: twitchio.OAuthAuthorizedPayload
@@ -461,7 +469,7 @@ class TwitchService(twitchio.Client):
             )
             sentry_sdk.capture_exception(e)
 
-        asyncio.create_task(self._handle_reconnection())
+        self._create_background_task(self._handle_reconnection())
 
     async def event_eventsub_notification_websocket_disconnect(self, payload):
         """Handle EventSub WebSocket disconnection."""
@@ -485,7 +493,7 @@ class TwitchService(twitchio.Client):
             )
             sentry_sdk.capture_exception(e)
 
-        asyncio.create_task(self._handle_reconnection())
+        self._create_background_task(self._handle_reconnection())
 
     async def event_eventsub_error(self, error):
         """Handle EventSub errors including 429 rate limit."""
@@ -504,7 +512,7 @@ class TwitchService(twitchio.Client):
                 "[TwitchIO] 🟡 EventSub connection issue detected, triggering reconnection."
             )
             self._eventsub_connected = False
-            asyncio.create_task(self._handle_reconnection())
+            self._create_background_task(self._handle_reconnection())
 
     async def cleanup_subscriptions(self):
         """Clean up EventSub subscriptions on shutdown."""
@@ -638,7 +646,7 @@ class TwitchService(twitchio.Client):
             )
 
             # Schedule another reconnection attempt
-            asyncio.create_task(self._handle_reconnection())
+            self._create_background_task(self._handle_reconnection())
 
     async def _safe_delegate(self, handler_method, payload, event_name: str):
         """Safely delegate events to handler with error handling."""

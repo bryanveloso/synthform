@@ -67,13 +67,26 @@ quote-style = "double"
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 # Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["A", "B", "C", "D", "E", "F", "I"]
-ignore = ["E501", "E741"]  # temporary
+ignore = [
+  "E501",    # line-too-long (handled by formatter)
+  "E741",    # ambiguous-variable-name (temporary)
+  "S101",    # assert (fine in tests)
+  "S104",    # hardcoded-bind-all-interfaces (acceptable for local dev)
+  "S603",    # subprocess-without-shell-equals-true (legitimate use cases)
+  "S607",    # start-process-with-partial-path (legitimate use cases)
+  "S311",    # suspicious-non-cryptographic-random-usage (not always needed)
+  "RUF010",  # explicit-f-string-type-conversion (stylistic preference)
+]
 select = [
-  "B",  # flake8-bugbear
-  "E",  # Pycodestyle
-  "F",  # Pyflakes
-  "I",  # isort
-  "UP"  # pyupgrade
+  "B",    # flake8-bugbear
+  "C4",   # flake8-comprehensions
+  "DJ",   # flake8-django
+  "E",    # Pycodestyle
+  "F",    # Pyflakes
+  "I",    # isort
+  "RUF",  # Ruff-specific rules
+  "SIM",  # flake8-simplify
+  "UP",   # pyupgrade
 ]
 unfixable = []
 

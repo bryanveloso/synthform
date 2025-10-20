@@ -131,8 +131,8 @@ class StatusModelTest(TestCase):
 
     def test_status_singleton(self):
         """Test that only one Status instance exists."""
-        status1 = Status.objects.create(status="online")
-        status2 = Status.objects.create(status="away")
+        Status.objects.create(status="online")
+        Status.objects.create(status="away")
 
         # Should only have one status (the second one)
         self.assertEqual(Status.objects.count(), 1)

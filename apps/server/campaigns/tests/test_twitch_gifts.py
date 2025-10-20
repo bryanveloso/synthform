@@ -77,7 +77,7 @@ class TestGiftSubscriptionHandling(TestCase):
     async def test_process_multiple_gift_subscriptions(self):
         """Test processing multiple gift subscriptions from same user."""
         # Process first batch of gifts
-        for i in range(5):
+        for _i in range(5):
             await campaign_service.process_subscription(
                 self.campaign,
                 tier=1,
@@ -87,7 +87,7 @@ class TestGiftSubscriptionHandling(TestCase):
             )
 
         # Process tier 2 gifts
-        for i in range(3):
+        for _i in range(3):
             await campaign_service.process_subscription(
                 self.campaign,
                 tier=2,
@@ -189,7 +189,7 @@ class TestGiftSubscriptionHandling(TestCase):
         """Test that gift tracking handles race conditions properly."""
         # Simulate concurrent gift processing
         tasks = []
-        for i in range(10):
+        for _i in range(10):
             tasks.append(
                 campaign_service.process_subscription(
                     self.campaign,
