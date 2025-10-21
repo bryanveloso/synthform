@@ -5,8 +5,6 @@ import logging
 import time
 from datetime import datetime
 from datetime import timezone
-from typing import Dict
-from typing import Optional
 
 import httpx
 from django.conf import settings
@@ -38,8 +36,8 @@ class RainwaveService:
         self.station_name = station
         self.base_url = "https://rainwave.cc/api4"
         self.music_service = music_service
-        self.current_track: Optional[Dict] = None
-        self.last_track_id: Optional[str] = None
+        self.current_track: dict | None = None
+        self.last_track_id: str | None = None
         # Hardcoded API credentials as requested
         self.user_id = "53109"
         self.api_key = "vYyXHv30AT"
@@ -53,7 +51,7 @@ class RainwaveService:
             settings, "RAINWAVE_MAX_CONSECUTIVE_ERRORS", 10
         )
 
-    def broadcast_update(self, track_info: Dict) -> None:
+    def broadcast_update(self, track_info: dict) -> None:
         """Broadcast music update via the central music service."""
         logger.info(
             f'[Rainwave] 🎵 Track update. title="{track_info.get("title")}" artist="{track_info.get("artist")}"'
@@ -70,7 +68,7 @@ class RainwaveService:
         # Use the central music service to broadcast
         self.music_service.process_rainwave_update(track_info)
 
-    async def get_current_info(self) -> Optional[Dict]:
+    async def get_current_info(self) -> dict | None:
         """Fetch current track info from Rainwave API.
 
         Returns:
@@ -184,7 +182,7 @@ class RainwaveService:
 
     def _format_schedule_event(
         self, event: dict, is_current: bool = False
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """Format a schedule event (current, next, or history).
 
         Args:
@@ -212,7 +210,7 @@ class RainwaveService:
             # Election with multiple songs (for voting)
             return self._format_election(event)
 
-    def _format_song(self, song: dict, event: dict, is_current: bool = False) -> Dict:
+    def _format_song(self, song: dict, event: dict, is_current: bool = False) -> dict:
         """Format a single song with metadata.
 
         Args:
@@ -264,7 +262,7 @@ class RainwaveService:
 
         return song_info
 
-    def _format_election(self, event: dict) -> Dict:
+    def _format_election(self, event: dict) -> dict:
         """Format an election (voting) event with multiple songs.
 
         Args:

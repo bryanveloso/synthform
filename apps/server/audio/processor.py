@@ -6,12 +6,9 @@ import logging
 import time
 import uuid
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Callable
-from typing import List
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 import websockets
@@ -27,7 +24,7 @@ logger = logging.getLogger(__name__)
 class AudioBuffer:
     """Buffer for accumulating audio chunks before processing."""
 
-    chunks: List[Tuple[bytes, int, int, float]] = field(
+    chunks: list[tuple[bytes, int, int, float]] = field(
         default_factory=list
     )  # (data, sample_rate, channels, timestamp)
     total_size: int = 0
@@ -71,7 +68,7 @@ class AudioProcessor:
         self.websocket = None
         self.channel_layer = get_channel_layer()
         self.running = False
-        self.transcription_callback: Optional[Callable] = None
+        self.transcription_callback: Callable | None = None
         self.client_uid = str(uuid.uuid4())
         self.session_id = session_id  # Track the actual audio session ID
         self.connection_task = None

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import redis.asyncio as redis
 import twitchio
@@ -20,9 +19,9 @@ class HelixService:
     """
 
     def __init__(self) -> None:
-        self._redis: Optional[redis.Redis] = None
+        self._redis: redis.Redis | None = None
 
-    async def _get_redis(self) -> Optional[redis.Redis]:
+    async def _get_redis(self) -> redis.Redis | None:
         """Get or create Redis connection for caching."""
         if not self._redis:
             try:
@@ -35,7 +34,7 @@ class HelixService:
                 self._redis = None
         return self._redis
 
-    async def _create_client(self) -> Optional[twitchio.Client]:
+    async def _create_client(self) -> twitchio.Client | None:
         """Create a fresh TwitchIO client with authentication."""
         from authentication.services import AuthService
 
@@ -202,7 +201,7 @@ class HelixService:
                 )
 
     async def fulfill_redemptions(
-        self, reward_id: str, count: Optional[int] = None
+        self, reward_id: str, count: int | None = None
     ) -> None:
         """Mark redemptions as fulfilled for a specific reward.
 

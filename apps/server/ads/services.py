@@ -5,8 +5,6 @@ import logging
 from datetime import datetime
 from datetime import timedelta
 from typing import Any
-from typing import Dict
-from typing import Optional
 
 import httpx
 import redis.asyncio as redis
@@ -81,7 +79,7 @@ class TwitchAdService:
                 logger.error(f"Failed to refresh token: {e.response.status_code}")
                 raise
 
-    async def start_commercial(self, duration_seconds: int = 90) -> Dict[str, Any]:
+    async def start_commercial(self, duration_seconds: int = 90) -> dict[str, Any]:
         """
         Start a commercial on the channel.
 
@@ -128,7 +126,7 @@ class AdScheduler:
     def __init__(self):
         self.twitch_service = TwitchAdService()
         self.redis_url = settings.REDIS_URL
-        self.redis: Optional[redis.Redis] = None
+        self.redis: redis.Redis | None = None
 
     async def get_redis(self) -> redis.Redis:
         """Get Redis connection (singleton pattern)."""
@@ -136,7 +134,7 @@ class AdScheduler:
             self.redis = redis.from_url(self.redis_url)
         return self.redis
 
-    async def get_state(self) -> Dict[str, Any]:
+    async def get_state(self) -> dict[str, Any]:
         """Get current ad state from Redis."""
         r = await self.get_redis()
         enabled = await r.get("ads:enabled")
@@ -149,7 +147,7 @@ class AdScheduler:
             "warning_active": warning_active == b"true" if warning_active else False,
         }
 
-    async def set_next_ad_time(self, next_time: Optional[datetime] = None) -> None:
+    async def set_next_ad_time(self, next_time: datetime | None = None) -> None:
         """Set the next ad time in Redis."""
         r = await self.get_redis()
         if next_time is None:
