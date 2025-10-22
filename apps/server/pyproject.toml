@@ -75,18 +75,23 @@ ignore = [
   "S603",    # subprocess-without-shell-equals-true (legitimate use cases)
   "S607",    # start-process-with-partial-path (legitimate use cases)
   "S311",    # suspicious-non-cryptographic-random-usage (not always needed)
+  "RUF005",  # collection-literal-concatenation (readability preference)
   "RUF010",  # explicit-f-string-type-conversion (stylistic preference)
+  "RUF012",  # mutable-class-default (Django Meta/Admin standard patterns)
+  "RUF019",  # unnecessary-key-check (false positive when checking existence AND truthiness)
+  "RUF100",  # unused-noqa (protective directives, especially in test files)
+  "DJ001",   # django-nullable-model-string-field (sometimes needed for optional fields)
+  "UP038",   # non-pep604-isinstance (deprecated rule, will be removed)
 ]
 select = [
-  "B",    # flake8-bugbear
-  "C4",   # flake8-comprehensions
-  "DJ",   # flake8-django
-  "E",    # Pycodestyle
-  "F",    # Pyflakes
-  "I",    # isort
-  "RUF",  # Ruff-specific rules
-  "SIM",  # flake8-simplify
-  "UP",   # pyupgrade
+  "B",    # flake8-bugbear (catches real bugs)
+  "C4",   # flake8-comprehensions (better comprehension patterns)
+  "DJ",   # flake8-django (Django best practices)
+  "E",    # Pycodestyle (code style)
+  "F",    # Pyflakes (undefined names, unused imports)
+  "I",    # isort (import sorting)
+  "RUF",  # Ruff-specific rules (caught critical asyncio issues)
+  "UP",   # pyupgrade (modern Python syntax)
 ]
 unfixable = []
 

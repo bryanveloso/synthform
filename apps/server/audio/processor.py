@@ -64,7 +64,7 @@ class AudioBuffer:
 class AudioProcessor:
     """Django-integrated audio processor using external WhisperLive service."""
 
-    def __init__(self, session_id: str = None):
+    def __init__(self, session_id: str | None = None):
         self.websocket = None
         self.channel_layer = get_channel_layer()
         self.running = False
@@ -432,7 +432,7 @@ class AudioProcessor:
         return np.interp(indices, np.arange(len(audio)), audio)
 
     async def _handle_transcription(
-        self, text: str, segment_id: float = None, is_partial: bool = False
+        self, text: str, segment_id: float | None = None, is_partial: bool = False
     ):
         """Handle transcription results from WhisperLive."""
         if not text or not text.strip():
@@ -515,7 +515,7 @@ class TranscriptionEvent:
         text: str,
         timestamp: float,
         duration: float = 1.5,
-        segment_id: float = None,
+        segment_id: float | None = None,
         is_partial: bool = False,
     ):
         self.text = text
