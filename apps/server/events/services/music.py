@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 import redis
 from django.conf import settings
@@ -36,7 +36,7 @@ class MusicService:
         """Process Apple Music update data."""
         # Add timestamp if not present
         if "timestamp" not in data:
-            data["timestamp"] = datetime.now(timezone.utc).isoformat()
+            data["timestamp"] = datetime.now(UTC).isoformat()
 
         # Add source field
         data["source"] = "apple"
@@ -54,7 +54,7 @@ class MusicService:
         """Process Rainwave update data."""
         # Add timestamp if not present
         if "timestamp" not in data:
-            data["timestamp"] = datetime.now(timezone.utc).isoformat()
+            data["timestamp"] = datetime.now(UTC).isoformat()
 
         # Add source field
         data["source"] = "rainwave"

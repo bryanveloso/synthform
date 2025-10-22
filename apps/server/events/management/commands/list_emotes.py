@@ -70,7 +70,7 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f"User tokens expired: {e}"))
                     self.stdout.write("Falling back to app authentication...")
                     await client.close()
-        except:
+        except Exception:
             pass
 
         # Fall back to app authentication

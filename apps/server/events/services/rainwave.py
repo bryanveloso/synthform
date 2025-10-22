@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 import httpx
 from django.conf import settings
@@ -136,7 +136,7 @@ class RainwaveService:
                     track_info = current_track
                     track_info["upcoming"] = upcoming
                     track_info["history"] = history
-                    track_info["timestamp"] = datetime.now(timezone.utc).isoformat()
+                    track_info["timestamp"] = datetime.now(UTC).isoformat()
 
                     # Log the enhanced data for debugging
                     logger.debug(
@@ -388,7 +388,7 @@ class RainwaveService:
                         clear_signal = {
                             "source": "rainwave",
                             "tuned_in": False,
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                            "timestamp": datetime.now(UTC).isoformat(),
                         }
                         self.music_service.process_rainwave_update(clear_signal)
 

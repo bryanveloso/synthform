@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 @shared_task
 def store_transcription(text: str, session_id: str, timestamp: float, duration: float):
     """Store transcription result in database."""
+    from datetime import UTC
     from datetime import datetime
-    from datetime import timezone as dt_timezone
 
     from django.utils import timezone as django_timezone
 
@@ -27,7 +27,7 @@ def store_transcription(text: str, session_id: str, timestamp: float, duration: 
         # Create transcription record
         transcription = Transcription.objects.create(
             text=text,
-            timestamp=datetime.fromtimestamp(timestamp, tz=dt_timezone.utc),
+            timestamp=datetime.fromtimestamp(timestamp, tz=UTC),
             duration=duration,
             confidence=1.0,  # WhisperLive doesn't provide confidence scores
             session=stream_session,  # Link to the streams.Session via ForeignKey

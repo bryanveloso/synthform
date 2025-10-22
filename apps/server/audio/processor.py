@@ -141,7 +141,7 @@ class AudioProcessor:
             if self.websocket:
                 try:
                     await self.websocket.close()
-                except:
+                except Exception:
                     pass
             self.websocket = None
             raise
@@ -275,7 +275,7 @@ class AudioProcessor:
             if self.websocket:
                 try:
                     await self.websocket.close()
-                except:
+                except Exception:
                     pass
             self.websocket = None
 

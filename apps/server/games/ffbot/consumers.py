@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 import redis.asyncio as redis
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -43,7 +43,7 @@ class FFBotConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
             event_type = data.get("type")
             player_username = data.get("player")
-            timestamp = data.get("timestamp", datetime.now(timezone.utc).timestamp())
+            timestamp = data.get("timestamp", datetime.now(UTC).timestamp())
 
             if not event_type or not player_username:
                 logger.warning("[FFBot] Invalid event. reason=missing_type_or_player")
@@ -187,7 +187,7 @@ class FFBotConsumer(AsyncWebsocketConsumer):
         redis_message = {
             "event_type": f"ffbot.{event_type}",
             "source": "ffbot",
-            "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(timestamp, tz=UTC).isoformat(),
             "member": {
                 "id": str(member.id),
                 "username": member.username,
