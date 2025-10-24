@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "events",
     "games.ffbot",
     "overlays",
+    "quotes",
     "streams",
     "transcriptions",
 ]

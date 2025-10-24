@@ -24,6 +24,7 @@ from ninja import NinjaAPI
 
 from campaigns.api import router as campaigns_router
 from games.ffbot.api import router as ffbot_router
+from quotes.api import router as quotes_router
 
 from .health import health_check
 
@@ -33,6 +34,7 @@ api = NinjaAPI(urls_namespace="main", csrf=False)
 # Add routers to main API
 api.add_router("/campaigns/", campaigns_router)
 api.add_router("/games/ffbot/", ffbot_router)
+api.add_router("/quotes/", quotes_router)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
