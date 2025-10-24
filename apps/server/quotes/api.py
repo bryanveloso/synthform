@@ -52,6 +52,69 @@ def _quote_to_response(quote: Quote) -> QuoteResponse:
     )
 
 
+@router.get("/", response=dict)
+async def list_quotes(
+    request,
+    page: int = Query(1, gt=0),
+    per_page: int = Query(100, gt=0, le=100),
+) -> dict:
+    """List all quotes with pagination.
+
+    Args:
+        page: Page number (starts at 1)
+        per_page: Number of quotes per page (1-100, default 100)
+    """
+    queryset = Quote.objects.select_related("quotee", "quoter").order_by("-number")
+
+    total = await queryset.acount()
+    total_pages = (total + per_page - 1) // per_page
+    offset = (page - 1) * per_page
+
+    quotes = []
+    async for quote in queryset[offset : offset + per_page]:
+        quotes.append(_quote_to_response(quote))
+
+    return {
+        "quotes": quotes,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": total_pages,
+        },
+    }
+
+
+@router.get("/users", response=list[dict])
+async def list_all_users(request) -> list[dict]:
+    """Get all users who have been quoted with statistics."""
+    from django.db.models.functions import Min, Max
+
+    queryset = (
+        Quote.objects.values(
+            "quotee__username",
+            "quotee__display_name",
+        )
+        .annotate(
+            quote_count=Count("id"),
+            first_quote_date=Min("created_at"),
+            last_quote_date=Max("created_at"),
+        )
+        .order_by("-quote_count")
+    )
+
+    users = []
+    async for user_data in queryset:
+        users.append({
+            "quotee": user_data["quotee__display_name"] or user_data["quotee__username"],
+            "quote_count": user_data["quote_count"],
+            "first_quote_date": user_data["first_quote_date"].isoformat() if user_data["first_quote_date"] else None,
+            "last_quote_date": user_data["last_quote_date"].isoformat() if user_data["last_quote_date"] else None,
+        })
+
+    return users
+
+
 @router.get("/random", response=list[QuoteResponse])
 async def get_random_quotes(
     request, limit: int = Query(1, gt=0, le=100)
