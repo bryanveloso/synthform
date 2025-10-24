@@ -88,8 +88,6 @@ async def list_quotes(
 @router.get("/users", response=list[dict])
 async def list_all_users(request) -> list[dict]:
     """Get all users who have been quoted with statistics."""
-    from django.db.models.functions import Min, Max
-
     queryset = (
         Quote.objects.values(
             "quotee__username",
@@ -105,12 +103,19 @@ async def list_all_users(request) -> list[dict]:
 
     users = []
     async for user_data in queryset:
-        users.append({
-            "quotee": user_data["quotee__display_name"] or user_data["quotee__username"],
-            "quote_count": user_data["quote_count"],
-            "first_quote_date": user_data["first_quote_date"].isoformat() if user_data["first_quote_date"] else None,
-            "last_quote_date": user_data["last_quote_date"].isoformat() if user_data["last_quote_date"] else None,
-        })
+        users.append(
+            {
+                "quotee": user_data["quotee__display_name"]
+                or user_data["quotee__username"],
+                "quote_count": user_data["quote_count"],
+                "first_quote_date": user_data["first_quote_date"].isoformat()
+                if user_data["first_quote_date"]
+                else None,
+                "last_quote_date": user_data["last_quote_date"].isoformat()
+                if user_data["last_quote_date"]
+                else None,
+            }
+        )
 
     return users
 
