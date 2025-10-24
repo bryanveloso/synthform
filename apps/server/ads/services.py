@@ -189,6 +189,21 @@ class AdScheduler:
             logger.debug("[Ads] Stream is not live, skipping ad check")
             return False
 
+        # Check if ad has ended
+        ad_end_time = await r.get("ads:end_time")
+        if ad_end_time:
+            end_time = datetime.fromisoformat(ad_end_time.decode())
+            if end_time.tzinfo is None:
+                logger.error(
+                    f"Timezone-naive datetime found in ads:end_time: {ad_end_time}"
+                )
+                await r.delete("ads:end_time")
+            elif timezone.now() >= end_time:
+                # Ad has ended
+                await r.publish("bot:ads", json.dumps({"type": "ad_ended"}))
+                await r.delete("ads:end_time")
+                logger.info("Ad ended notification sent")
+
         # Auto-initialize by scheduling first ad 5 minutes after stream goes live
         # This gives viewers time to join before running first ad to disable prerolls
         if not state["next_time"]:
@@ -294,6 +309,10 @@ class AdScheduler:
             )
 
             logger.info(f"Ad started, next ad in {AD_INTERVAL_MINUTES} minutes")
+
+            # Store ad end time for notification
+            ad_end_time = timezone.now() + timedelta(seconds=AD_DURATION_SECONDS)
+            await r.set("ads:end_time", ad_end_time.isoformat())
 
         except Exception as e:
             logger.error(f"Failed to run ad: {e}")
