@@ -11,6 +11,7 @@ from django.db.models import Count
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Q
+from django.db.models.functions import Length
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from ninja import Query
@@ -166,7 +167,7 @@ async def get_user_stats(request, username: str) -> QuoteStatsResponse:
         total=Count("id"),
         first_year=Min("year"),
         last_year=Max("year"),
-        avg_length=Avg("text__length"),
+        avg_length=Avg(Length("text")),
     )
 
     return QuoteStatsResponse(
