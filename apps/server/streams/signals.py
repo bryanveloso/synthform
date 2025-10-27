@@ -30,7 +30,10 @@ def publish_status_update(sender, instance, created, **kwargs):
             },
         }
 
-        # Publish to Redis channel
+        # Store current status in Redis key for instant access
+        redis_client.set("broadcaster:status", instance.status)
+
+        # Publish to Redis channel for real-time updates
         redis_client.publish("events:status", json.dumps(event_data))
         logger.info(
             f'[Status] 📍 Published status update to Redis. status={instance.status} message="{instance.message}"'
