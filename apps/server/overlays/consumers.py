@@ -192,11 +192,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         await self.pubsub.subscribe("events:audio")
         await self.pubsub.subscribe("events:campaign")
         await self.pubsub.subscribe("events:games:ffbot")
+        await self.pubsub.subscribe("events:games:ironmon")
         # Future game channels can be added here:
-        # await self.pubsub.subscribe("events:games:ironmon")
         # await self.pubsub.subscribe("events:games:ff14")
         logger.info(
-            "[Overlay] Subscribed to Redis channels. channels=events:twitch,events:obs,events:limitbreak,events:music,events:status,events:audio,events:campaign,events:games:ffbot"
+            "[Overlay] Subscribed to Redis channels. channels=events:twitch,events:obs,events:limitbreak,events:music,events:status,events:audio,events:campaign,events:games:ffbot,events:games:ironmon"
         )
 
         # Start Redis message listener
@@ -339,6 +339,19 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # Send with specific message type
             logger.debug(f"[Overlay] 🎮 Sending ffbot:{game_event_type}.")
             await self._send_message("ffbot", game_event_type, payload)
+            return
+
+        # Handle game events from IronMON
+        if source == "ironmon":
+            # Extract the event subtype (init, seed, checkpoint, etc.)
+            game_event_type = event_type.replace("ironmon.", "")
+
+            # Get the data payload
+            data = event_data.get("data", {})
+
+            # Send with specific message type
+            logger.debug(f"[Overlay] 🎮 Sending ironmon:{game_event_type}.")
+            await self._send_message("ironmon", game_event_type, data)
             return
 
         # Handle campaign events

@@ -58,6 +58,23 @@ services:
       - "4343:4343"
     command: uv run python -m shared.services.twitch.service
 
+  ironmon:
+    build:
+      context: ./apps/server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./apps/server:/app
+    ports:
+      - "8080:8080"
+    command: uv run python manage.py run_ironmon_tcp
+
 volumes:
   postgres_data:
   redis_data:

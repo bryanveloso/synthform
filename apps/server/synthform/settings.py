@@ -84,6 +84,7 @@ INSTALLED_APPS = [
     "campaigns",
     "events",
     "games.ffbot",
+    "games.ironmon",
     "overlays",
     "quotes",
     "streams",
