@@ -280,6 +280,11 @@ LOGGING = {
         },
     },
     "loggers": {
+        "games.ironmon": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "httpx": {
             "handlers": ["console"],
             "level": "WARNING",  # Only show warnings and errors, not INFO logs
