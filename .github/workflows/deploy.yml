@@ -42,8 +42,8 @@ jobs:
 
         # Server changes (includes both Django app and Twitch service since they share code)
         if echo "$CHANGED_FILES" | grep -q "apps/server"; then
-          echo "Server code changed, rebuilding server, twitch, and celery containers"
-          docker compose -f docker-compose.prod.yml up --build -d server twitch celery
+          echo "Server code changed, rebuilding server, twitch, celery, and ironmon containers"
+          docker compose -f docker-compose.prod.yml up --build -d server twitch celery ironmon
         fi
 
         # Overlays changes

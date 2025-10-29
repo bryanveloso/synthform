@@ -85,6 +85,21 @@ services:
       - REDIS_URL=redis://redis:6379/0
     command: uv run celery -A synthform worker --beat -l info
 
+  ironmon:
+    build:
+      context: ./apps/server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8080:8080"
+    command: uv run python manage.py run_ironmon_tcp
+
   overlays:
     build:
       context: ./apps/overlays
