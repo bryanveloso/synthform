@@ -226,16 +226,16 @@ class IronMONService:
                 await self.handle_checkpoint(metadata)
             elif message_type == "location":
                 await self.handle_location(metadata)
-            elif message_type == "battle_start":
-                await self.handle_battle_start(metadata)
-            elif message_type == "battle_end":
-                await self.handle_battle_end(metadata)
-            elif message_type == "pokemon_update":
-                await self.handle_pokemon_update(metadata)
-            elif message_type == "item_update":
-                await self.handle_item_update(metadata)
-            elif message_type == "stats_update":
-                await self.handle_stats_update(metadata)
+            elif message_type == "battle_started":
+                await self.handle_battle_started(metadata)
+            elif message_type == "battle_ended":
+                await self.handle_battle_ended(metadata)
+            elif message_type == "team_update":
+                await self.handle_team_update(metadata)
+            elif message_type == "item_usage":
+                await self.handle_item_usage(metadata)
+            elif message_type == "healing_summary":
+                await self.handle_healing_summary(metadata)
             elif message_type == "error":
                 await self.handle_error(metadata)
             elif message_type == "heartbeat":
@@ -276,12 +276,12 @@ class IronMONService:
 
     async def handle_seed(self, metadata: dict[str, Any]):
         """Handle new seed (run attempt) message."""
-        seed_count = metadata.get("count")
+        seed_count = metadata.get("attempt") or metadata.get("count")
         if not seed_count:
-            logger.warning("[IronMON] Seed message missing count")
+            logger.warning(f"[IronMON] Seed message missing attempt/count. metadata={metadata}")
             return
 
-        logger.info(f"[IronMON] New attempt started: Seed #{seed_count}")
+        logger.info(f"[IronMON] New attempt started: Attempt #{seed_count}")
 
         # Get or create the first challenge (we'll seed this data separately)
         challenge = await sync_to_async(Challenge.objects.first)()
@@ -385,8 +385,9 @@ class IronMONService:
 
     async def handle_location(self, metadata: dict[str, Any]):
         """Handle location change message."""
-        location_id = metadata.get("id")
-        logger.debug(f"[IronMON] Location changed: {location_id}")
+        location_id = metadata.get("mapId")
+        location_name = metadata.get("name")
+        logger.debug(f"[IronMON] Location changed: {location_name} (ID: {location_id})")
 
         # Update state
         self._location_id = location_id
@@ -396,21 +397,25 @@ class IronMONService:
             "ironmon.location",
             {
                 "location_id": location_id,
+                "location_name": location_name,
             },
         )
 
-    async def handle_battle_start(self, metadata: dict[str, Any]):
-        """Handle battle start message."""
-        trainer = metadata.get("trainer")
-        pokemon = metadata.get("pokemon", [])
+    async def handle_battle_started(self, metadata: dict[str, Any]):
+        """Handle battle_started message."""
+        is_wild = metadata.get("isWild", False)
+        trainer = metadata.get("trainer", {})
+        opponent = metadata.get("opponent", {})
 
-        logger.info(f"[IronMON] Battle started: {trainer}")
+        battle_type = "Wild" if is_wild else trainer.get("name", "Trainer")
+        logger.info(f"[IronMON] Battle started: {battle_type}")
 
         # Update state
         self._battle = {
             "active": True,
+            "is_wild": is_wild,
             "trainer": trainer,
-            "pokemon": pokemon,
+            "opponent": opponent,
             "result": None,
         }
         await self._persist_state()
@@ -418,78 +423,99 @@ class IronMONService:
         await self.publish_event(
             "ironmon.battle_start",
             {
+                "is_wild": is_wild,
                 "trainer": trainer,
-                "pokemon": pokemon,
+                "opponent": opponent,
             },
         )
 
-    async def handle_battle_end(self, metadata: dict[str, Any]):
-        """Handle battle end message."""
-        result = metadata.get("result")
-        pokemon = metadata.get("pokemon", [])
+    async def handle_battle_ended(self, metadata: dict[str, Any]):
+        """Handle battle_ended message."""
+        player_won = metadata.get("playerWon", False)
+        duration = metadata.get("duration", 0)
 
+        result = "Won" if player_won else "Lost"
         logger.info(f"[IronMON] Battle ended: {result}")
 
         # Update state
         if self._battle:
             self._battle["active"] = False
-            self._battle["result"] = result
-            self._battle["pokemon"] = pokemon
+            self._battle["player_won"] = player_won
+            self._battle["duration"] = duration
         await self._persist_state()
 
         await self.publish_event(
             "ironmon.battle_end",
             {
-                "result": result,
+                "player_won": player_won,
+                "duration": duration,
+            },
+        )
+
+    async def handle_team_update(self, metadata: dict[str, Any]):
+        """Handle team_update message."""
+        slot = metadata.get("slot")
+        pokemon = metadata.get("pokemon", {})
+        logger.debug(f"[IronMON] Team updated: Slot {slot} - {pokemon.get('name', 'Unknown')}")
+
+        # Update state - update specific slot
+        if slot and 1 <= slot <= 6:
+            while len(self._team) < slot:
+                self._team.append(None)
+            self._team[slot - 1] = pokemon
+        await self._persist_state()
+
+        await self.publish_event(
+            "ironmon.team_update",
+            {
+                "slot": slot,
                 "pokemon": pokemon,
             },
         )
 
-    async def handle_pokemon_update(self, metadata: dict[str, Any]):
-        """Handle team update message."""
-        team = metadata.get("team", [])
-        logger.debug(f"[IronMON] Team updated: {len(team)} pokemon")
+    async def handle_item_usage(self, metadata: dict[str, Any]):
+        """Handle item_usage message."""
+        item = metadata.get("item", {})
+        action = metadata.get("action")
+        context = metadata.get("context")
+        logger.debug(f"[IronMON] Item {action}: {item.get('name', 'Unknown')} in {context}")
 
         # Update state
-        self._team = team
+        if action == "used":
+            # Remove from inventory
+            pass
+        elif action == "gained":
+            # Add to inventory
+            pass
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.pokemon_update",
+            "ironmon.item_usage",
             {
-                "team": team,
+                "item": item,
+                "action": action,
+                "context": context,
             },
         )
 
-    async def handle_item_update(self, metadata: dict[str, Any]):
-        """Handle inventory update message."""
-        items = metadata.get("items", [])
-        logger.debug(f"[IronMON] Inventory updated: {len(items)} items")
+    async def handle_healing_summary(self, metadata: dict[str, Any]):
+        """Handle healing_summary message."""
+        total_healing = metadata.get("totalHealing", 0)
+        healing_percentage = metadata.get("healingPercentage", 0)
+        logger.debug(f"[IronMON] Healing: {total_healing} HP ({healing_percentage}%)")
 
         # Update state
-        self._items = items
+        self._stats["healing"] = {
+            "total_healing": total_healing,
+            "healing_percentage": healing_percentage,
+        }
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.item_update",
+            "ironmon.healing_summary",
             {
-                "items": items,
-            },
-        )
-
-    async def handle_stats_update(self, metadata: dict[str, Any]):
-        """Handle stats update message."""
-        stats = metadata.get("stats", {})
-        logger.debug(f"[IronMON] Stats updated")
-
-        # Update state
-        self._stats = stats
-        await self._persist_state()
-
-        await self.publish_event(
-            "ironmon.stats_update",
-            {
-                "stats": stats,
+                "total_healing": total_healing,
+                "healing_percentage": healing_percentage,
             },
         )
 
