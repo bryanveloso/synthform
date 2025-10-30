@@ -344,7 +344,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         # Handle game events from IronMON
         if source == "ironmon":
             # Extract the event subtype (init, seed, checkpoint, etc.)
-            game_event_type = event_type.replace("ironmon.", "")
+            game_event_type = event_type.replace("ironmon:", "")
 
             # Get the data payload
             data = event_data.get("data", {})
