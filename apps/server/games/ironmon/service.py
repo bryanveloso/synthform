@@ -266,7 +266,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.init",
+            "ironmon:init",
             {
                 "version": version,
                 "game": game_name,
@@ -317,7 +317,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.seed",
+            "ironmon:seed",
             {
                 "seed_id": seed_count,
                 "challenge_id": challenge.id,
@@ -373,7 +373,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.checkpoint",
+            "ironmon:checkpoint",
             {
                 "seed_id": self.current_seed_id,
                 "checkpoint_id": checkpoint.id,
@@ -394,7 +394,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.location",
+            "ironmon:location",
             {
                 "location_id": location_id,
                 "location_name": location_name,
@@ -421,7 +421,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.battle_start",
+            "ironmon:battle_started",
             {
                 "is_wild": is_wild,
                 "trainer": trainer,
@@ -445,7 +445,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.battle_end",
+            "ironmon:battle_ended",
             {
                 "player_won": player_won,
                 "duration": duration,
@@ -466,7 +466,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.team_update",
+            "ironmon:team_update",
             {
                 "slot": slot,
                 "pokemon": pokemon,
@@ -490,7 +490,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.item_usage",
+            "ironmon:item_usage",
             {
                 "item": item,
                 "action": action,
@@ -512,7 +512,7 @@ class IronMONService:
         await self._persist_state()
 
         await self.publish_event(
-            "ironmon.healing_summary",
+            "ironmon:healing_summary",
             {
                 "total_healing": total_healing,
                 "healing_percentage": healing_percentage,
@@ -527,7 +527,7 @@ class IronMONService:
         logger.warning(f"[IronMON] Plugin error: {code} - {message}")
 
         await self.publish_event(
-            "ironmon.error",
+            "ironmon:error",
             {
                 "code": code,
                 "message": message,
