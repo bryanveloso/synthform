@@ -124,6 +124,63 @@ export interface FFBotSaveMessage {
   timestamp: string
 }
 
+// IronMON types
+export interface IronMONInitData {
+  version: string
+  game: string
+  game_id: number
+}
+
+export interface IronMONSeedData {
+  seed_id: number
+  challenge_id: number
+  challenge_name: string
+}
+
+export interface IronMONCheckpointData {
+  seed_id: number
+  checkpoint_id: number
+  checkpoint_name: string
+  trainer: string | null
+  order: number
+}
+
+export interface IronMONLocationData {
+  location_id: number
+  location_name: string
+}
+
+export interface IronMONBattleStartedData {
+  is_wild: boolean
+  trainer: Record<string, any>
+  opponent: Record<string, any>
+}
+
+export interface IronMONBattleEndedData {
+  player_won: boolean
+  duration: number
+}
+
+export interface IronMONTeamUpdateData {
+  slot: number
+  pokemon: Record<string, any>
+}
+
+export interface IronMONItemUsageData {
+  item: Record<string, any>
+  action: string
+  context: string
+}
+
+export interface IronMONHealingSummaryData {
+  total_healing: number
+  healing_percentage: number
+}
+
+export interface IronMONErrorData {
+  code: string
+  message: string
+}
 
 // OBS types
 export interface OBSSceneData {
@@ -210,6 +267,17 @@ export interface MessagePayloadMap {
   'ffbot:hire': FFBotHireMessage
   'ffbot:change': FFBotChangeMessage
   'ffbot:save': FFBotSaveMessage
+  // IronMON game events
+  'ironmon:init': IronMONInitData
+  'ironmon:seed': IronMONSeedData
+  'ironmon:checkpoint': IronMONCheckpointData
+  'ironmon:location': IronMONLocationData
+  'ironmon:battle_started': IronMONBattleStartedData
+  'ironmon:battle_ended': IronMONBattleEndedData
+  'ironmon:team_update': IronMONTeamUpdateData
+  'ironmon:item_usage': IronMONItemUsageData
+  'ironmon:healing_summary': IronMONHealingSummaryData
+  'ironmon:error': IronMONErrorData
   // Campaign events
   'campaign:sync': Campaign
   'campaign:update': CampaignUpdatePayload
