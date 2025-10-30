@@ -238,6 +238,36 @@ export interface IronMONBattleDamageData {
   }
 }
 
+export interface IronMONBattleActionData {
+  turn: number
+  attacker: 'player' | 'enemy'
+  damageDealt: number
+  playerMon: {
+    id: number
+    name: string
+    hp: number
+    maxHP: number
+    level: number
+    status: number
+  }
+  enemyMon: {
+    id: number
+    name: string
+    hp: number
+    maxHP: number
+    level: number
+    status: number
+  }
+  move?: {
+    id: number
+    name: string
+    type: string
+    power: number
+    effectiveness: string
+    stab: boolean
+  }
+}
+
 export interface IronMONMoveHistoryData {
   pokemon: {
     id: number
@@ -385,6 +415,7 @@ export interface MessagePayloadMap {
   'ironmon:trainer_defeated': IronMONTrainerDefeatedData
   'ironmon:encounter': IronMONEncounterData
   'ironmon:battle_damage': IronMONBattleDamageData
+  'ironmon:battle_action': IronMONBattleActionData
   'ironmon:move_history': IronMONMoveHistoryData
   'ironmon:move_effectiveness': IronMONMoveEffectivenessData
   'ironmon:reset': IronMONResetData

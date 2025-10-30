@@ -20,6 +20,7 @@ function IronMONDebug() {
     'ironmon:trainer_defeated',
     'ironmon:encounter',
     'ironmon:battle_damage',
+    'ironmon:battle_action',
     'ironmon:move_history',
     'ironmon:move_effectiveness',
     'ironmon:reset',

@@ -52,7 +52,7 @@ class IronMONService:
     async def start(self):
         """Start the TCP server and connect to Redis."""
         self.redis_client = await redis.from_url(settings.REDIS_URL)
-        logger.info(f"[IronMON] Connected to Redis")
+        logger.info("[IronMON] Connected to Redis")
 
         # Restore state from Redis
         await self._restore_state()
@@ -242,6 +242,8 @@ class IronMONService:
                 await self.handle_encounter(metadata)
             elif message_type == "battle_damage":
                 await self.handle_battle_damage(metadata)
+            elif message_type == "battle_action":
+                await self.handle_battle_action(metadata)
             elif message_type == "move_history":
                 await self.handle_move_history(metadata)
             elif message_type == "move_effectiveness":
@@ -373,7 +375,7 @@ class IronMONService:
         if created:
             logger.info(f"[IronMON] Recorded checkpoint clear: {checkpoint_name}")
         else:
-            logger.debug(f"[IronMON] Checkpoint result already recorded")
+            logger.debug("[IronMON] Checkpoint result already recorded")
 
         # Update state
         self._checkpoints_cleared.append(
@@ -579,6 +581,24 @@ class IronMONService:
 
         await self.publish_event(
             "ironmon:battle_damage",
+            metadata,
+        )
+
+    async def handle_battle_action(self, metadata: dict[str, Any]):
+        """Handle battle_action message."""
+        turn = metadata.get("turn", 0)
+        attacker = metadata.get("attacker", "unknown")
+        damage = metadata.get("damageDealt", 0)
+        move = metadata.get("move")
+
+        log_msg = f"[IronMON] Turn {turn}: {attacker} dealt {damage} dmg"
+        if move:
+            log_msg += f" with {move.get('name', 'Unknown')} ({move.get('effectiveness', 'Normal')})"
+
+        logger.debug(log_msg)
+
+        await self.publish_event(
+            "ironmon:battle_action",
             metadata,
         )
 
