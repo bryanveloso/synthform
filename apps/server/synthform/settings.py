@@ -282,7 +282,7 @@ LOGGING = {
     "loggers": {
         "games.ironmon": {
             "handlers": ["console"],
-            "level": "INFO",
+            "level": "DEBUG",
             "propagate": False,
         },
         "httpx": {

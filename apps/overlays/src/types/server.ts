@@ -182,6 +182,111 @@ export interface IronMONErrorData {
   message: string
 }
 
+export interface IronMONTrainerDefeatedData {
+  id: number
+  className: string
+  fullName: string
+  location: {
+    mapId: number
+    name: string
+  }
+  party?: Array<{
+    species: number
+    name: string
+    level: number
+  }>
+  isCheckpoint: boolean
+  checkpointName?: string
+}
+
+export interface IronMONEncounterData {
+  pokemon: {
+    id: number
+    name: string
+    level: number
+  }
+  location: {
+    mapId: number
+    name: string
+    routeEncounters: Record<string, any>
+  }
+  statistics: {
+    totalEncountersHere: number
+    isFirstOnRoute: boolean
+  }
+}
+
+export interface IronMONBattleDamageData {
+  turn: number
+  playerDamage: number
+  enemyDamage: number
+  playerMon: {
+    id: number
+    currentHP: number
+    maxHP: number
+    level: number
+  }
+  enemyMon: {
+    id: number
+    currentHP: number
+    maxHP: number
+    level: number
+  }
+  effectiveness: {
+    playerMove: Record<string, any> | null
+    enemyMove: Record<string, any> | null
+  }
+}
+
+export interface IronMONMoveHistoryData {
+  pokemon: {
+    id: number
+    name: string
+    level: number
+  }
+  moves: Array<{
+    id: number
+    name: string
+    type: string
+    power: number
+    accuracy: number
+    pp: number
+    level: number
+  }>
+  totalMovesKnown: number
+  allMovesKnown: boolean
+}
+
+export interface IronMONMoveEffectivenessData {
+  attacker: {
+    id: number
+    name: string
+    level: number
+    role: string
+  }
+  defender: {
+    id: number
+    name: string
+    types: string[]
+  }
+  move: {
+    id: number
+    name: string
+    type: string
+    power: number
+  }
+  effectiveness: {
+    multiplier: number
+    description: string
+    stab: boolean
+    finalMultiplier: number
+  }
+}
+
+export interface IronMONResetData {
+  reason: string
+}
+
 // OBS types
 export interface OBSSceneData {
   current_scene: string
@@ -277,6 +382,12 @@ export interface MessagePayloadMap {
   'ironmon:team_update': IronMONTeamUpdateData
   'ironmon:item_usage': IronMONItemUsageData
   'ironmon:healing_summary': IronMONHealingSummaryData
+  'ironmon:trainer_defeated': IronMONTrainerDefeatedData
+  'ironmon:encounter': IronMONEncounterData
+  'ironmon:battle_damage': IronMONBattleDamageData
+  'ironmon:move_history': IronMONMoveHistoryData
+  'ironmon:move_effectiveness': IronMONMoveEffectivenessData
+  'ironmon:reset': IronMONResetData
   'ironmon:error': IronMONErrorData
   // Campaign events
   'campaign:sync': Campaign

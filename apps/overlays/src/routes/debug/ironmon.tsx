@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useServer } from '@/hooks/use-server'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export const Route = createFileRoute('/debug/ironmon')({
   component: IronMONDebug,
@@ -17,26 +17,34 @@ function IronMONDebug() {
     'ironmon:team_update',
     'ironmon:item_usage',
     'ironmon:healing_summary',
+    'ironmon:trainer_defeated',
+    'ironmon:encounter',
+    'ironmon:battle_damage',
+    'ironmon:move_history',
+    'ironmon:move_effectiveness',
+    'ironmon:reset',
     'ironmon:error',
   ] as const)
   const [events, setEvents] = useState<Array<{ type: string; data: any; timestamp: string }>>([])
+  const previousValuesRef = useRef<Map<string, string>>(new Map())
 
-  // Capture all IronMON events when data changes
+  // Capture IronMON events only when they actually change
   useEffect(() => {
     const keys = Object.keys(data) as Array<keyof typeof data>
     keys.forEach((key) => {
       if (key.startsWith('ironmon:') && data[key]) {
-        const timestamp = new Date().toLocaleTimeString()
-        setEvents((prev) => {
-          // Don't add duplicate events
-          if (prev.length > 0 && prev[0].type === key && JSON.stringify(prev[0].data) === JSON.stringify(data[key])) {
-            return prev
-          }
-          return [
+        const currentValue = JSON.stringify(data[key])
+        const previousValue = previousValuesRef.current.get(key)
+
+        // Only add if this specific message type's data has changed
+        if (previousValue !== currentValue) {
+          const timestamp = new Date().toLocaleTimeString()
+          setEvents((prev) => [
             { type: key, data: data[key], timestamp },
             ...prev.slice(0, 49), // Keep last 50 events
-          ]
-        })
+          ])
+          previousValuesRef.current.set(key, currentValue)
+        }
       }
     })
   }, [data])
