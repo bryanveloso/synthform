@@ -27,9 +27,27 @@ from events.services.twitch import TwitchEventHandler  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
+
+# Filter to suppress expected duplicate subscription errors during reconnection
+class TwitchIODuplicateSubscriptionFilter(logging.Filter):
+    """Suppress 'Disregarding HTTPException' errors that occur during EventSub reconnection."""
+
+    def filter(self, record):
+        # Allow all non-error messages through
+        if record.levelno < logging.ERROR:
+            return True
+        # Suppress the specific duplicate subscription error
+        if "Disregarding HTTPException in subscribe" in record.getMessage():
+            return False
+        # Allow all other errors through
+        return True
+
+
 # Configure TwitchIO logging to reduce noise
 logging.getLogger("twitchio.authentication.tokens").setLevel(logging.WARNING)
 logging.getLogger("twitchio.eventsub.websockets").setLevel(logging.WARNING)
+# Filter out duplicate subscription errors (expected during reconnection)
+logging.getLogger("twitchio.client").addFilter(TwitchIODuplicateSubscriptionFilter())
 
 
 class TwitchService(twitchio.Client):
@@ -717,13 +735,6 @@ class TwitchService(twitchio.Client):
                 sentry_sdk.capture_exception(e)
 
             logger.info("[TwitchIO] ✅ EventSub reconnected.")
-
-            # Alert Sentry on successful recovery
-            sentry_sdk.capture_message(
-                "EventSub reconnected successfully",
-                level="info",
-                extras={"broadcaster_id": self._broadcaster_user_id},
-            )
 
         except Exception as e:
             logger.error(
