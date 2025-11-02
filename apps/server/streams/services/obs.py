@@ -681,13 +681,19 @@ class OBSService:
             if not self._client_req:
                 return None
 
-            # Get stream status which includes frame drop stats
+            # Get stream status which includes output frame drops and network congestion
             stream_status = self._client_req.get_stream_status()
+
+            # Get stats which includes render frame drops
+            stats = self._client_req.get_stats()
 
             return {
                 "output_active": stream_status.output_active,
                 "output_skipped_frames": stream_status.output_skipped_frames,
                 "output_total_frames": stream_status.output_total_frames,
+                "output_congestion": stream_status.output_congestion or 0.0,
+                "render_skipped_frames": stats.render_skipped_frames,
+                "render_total_frames": stats.render_total_frames,
             }
 
         except Exception as e:
@@ -705,8 +711,10 @@ class OBSService:
 
         try:
             # Clear all performance-related Redis keys
-            await self._redis_client.delete("obs:performance:prev_skipped")
-            await self._redis_client.delete("obs:performance:prev_total")
+            await self._redis_client.delete("obs:performance:prev_output_skipped")
+            await self._redis_client.delete("obs:performance:prev_output_total")
+            await self._redis_client.delete("obs:performance:prev_render_skipped")
+            await self._redis_client.delete("obs:performance:prev_render_total")
             await self._redis_client.delete("obs:performance:warning_active")
 
             logger.info("[Streams] Performance metrics reset.")
@@ -718,7 +726,8 @@ class OBSService:
 
     async def check_performance_and_alert(self) -> bool:
         """
-        Check OBS encoder performance and alert if frame drops exceed threshold.
+        Check OBS performance and alert if frame drops exceed threshold.
+        Detects three types of issues: rendering lag, network congestion, and encoding lag.
         Uses hysteresis to prevent alert flickering.
         """
         try:
@@ -731,31 +740,69 @@ class OBSService:
             if not stats or not stats["output_active"]:
                 return False
 
-            current_skipped = stats["output_skipped_frames"]
-            current_total = stats["output_total_frames"]
-
             # Get previous values from Redis
             if not self._redis_client:
                 return False
 
-            prev_skipped = await self._redis_client.get("obs:performance:prev_skipped")
-            prev_total = await self._redis_client.get("obs:performance:prev_total")
-
-            # Calculate delta over this interval
-            skipped_delta = current_skipped - int(
-                (prev_skipped or b"0").decode("utf-8")
+            prev_output_skipped = await self._redis_client.get(
+                "obs:performance:prev_output_skipped"
             )
-            total_delta = current_total - int((prev_total or b"0").decode("utf-8"))
+            prev_output_total = await self._redis_client.get(
+                "obs:performance:prev_output_total"
+            )
+            prev_render_skipped = await self._redis_client.get(
+                "obs:performance:prev_render_skipped"
+            )
+            prev_render_total = await self._redis_client.get(
+                "obs:performance:prev_render_total"
+            )
 
-            # Calculate drop rate for this interval
-            drop_rate = (skipped_delta / total_delta * 100) if total_delta > 0 else 0.0
+            # Calculate deltas for both output and render frames
+            output_skipped_delta = stats["output_skipped_frames"] - int(
+                (prev_output_skipped or b"0").decode("utf-8")
+            )
+            output_total_delta = stats["output_total_frames"] - int(
+                (prev_output_total or b"0").decode("utf-8")
+            )
+            render_skipped_delta = stats["render_skipped_frames"] - int(
+                (prev_render_skipped or b"0").decode("utf-8")
+            )
+            render_total_delta = stats["render_total_frames"] - int(
+                (prev_render_total or b"0").decode("utf-8")
+            )
+
+            # Calculate drop rates
+            output_drop_rate = (
+                (output_skipped_delta / output_total_delta * 100)
+                if output_total_delta > 0
+                else 0.0
+            )
+            render_drop_rate = (
+                (render_skipped_delta / render_total_delta * 100)
+                if render_total_delta > 0
+                else 0.0
+            )
 
             # Store current values for next check (expire after 1 hour)
             await self._redis_client.set(
-                "obs:performance:prev_skipped", current_skipped, ex=3600
+                "obs:performance:prev_output_skipped",
+                stats["output_skipped_frames"],
+                ex=3600,
             )
             await self._redis_client.set(
-                "obs:performance:prev_total", current_total, ex=3600
+                "obs:performance:prev_output_total",
+                stats["output_total_frames"],
+                ex=3600,
+            )
+            await self._redis_client.set(
+                "obs:performance:prev_render_skipped",
+                stats["render_skipped_frames"],
+                ex=3600,
+            )
+            await self._redis_client.set(
+                "obs:performance:prev_render_total",
+                stats["render_total_frames"],
+                ex=3600,
             )
 
             # Check if warning is currently active
@@ -767,15 +814,46 @@ class OBSService:
             trigger_threshold = settings.OBS_FRAME_DROP_THRESHOLD_TRIGGER
             clear_threshold = settings.OBS_FRAME_DROP_THRESHOLD_CLEAR
 
+            # Determine which type of issue is occurring (prioritize render > network > encoding)
+            max_drop_rate = max(render_drop_rate, output_drop_rate)
+
             logger.debug(
-                f"[Streams] Performance check. drop_rate={drop_rate:.2f}% skipped_delta={skipped_delta} total_delta={total_delta}"
+                f"[Streams] Performance check. render_drop={render_drop_rate:.2f}% output_drop={output_drop_rate:.2f}% congestion={stats['output_congestion']:.2f}"
             )
 
-            if drop_rate >= trigger_threshold and not warning_active:
-                # Trigger warning
-                logger.info(
-                    f"[Streams] ⚠️ Frame drop warning triggered. drop_rate={drop_rate:.2f}%"
-                )
+            if max_drop_rate >= trigger_threshold and not warning_active:
+                # Determine severity
+                severity = "minor"
+                if max_drop_rate >= 5.0:
+                    severity = "critical"
+                elif max_drop_rate >= 2.0:
+                    severity = "moderate"
+
+                # Determine issue type and generate appropriate message
+                if render_drop_rate >= trigger_threshold:
+                    issue_type = "rendering_lag"
+                    message_text = f"OBS rendering is dropping {render_drop_rate:.1f}% of frames. GPU/compositing cannot keep up."
+                    recommendation = "Lower OBS canvas resolution, disable resource-intensive sources, or reduce scene complexity."
+                    logger.info(
+                        f"[Streams] ⚠️ Rendering lag detected. drop_rate={render_drop_rate:.2f}%"
+                    )
+                elif (
+                    output_drop_rate >= trigger_threshold
+                    and stats["output_congestion"] > 0.3
+                ):
+                    issue_type = "network_congestion"
+                    message_text = f"Stream is dropping {output_drop_rate:.1f}% of frames due to network congestion. Poor connection to Twitch ingest server."
+                    recommendation = "Check your internet connection or try switching to a different Twitch ingest server."
+                    logger.info(
+                        f"[Streams] ⚠️ Network congestion detected. drop_rate={output_drop_rate:.2f}% congestion={stats['output_congestion']:.2f}"
+                    )
+                else:
+                    issue_type = "encoding_lag"
+                    message_text = f"Stream encoder is dropping {output_drop_rate:.1f}% of frames. CPU/encoder cannot keep up."
+                    recommendation = "Lower bitrate, use a faster encoder preset, or close background applications."
+                    logger.info(
+                        f"[Streams] ⚠️ Encoding lag detected. drop_rate={output_drop_rate:.2f}%"
+                    )
 
                 await self._redis_client.set("obs:performance:warning_active", "1")
 
@@ -786,9 +864,14 @@ class OBSService:
                     "timestamp": timezone.now().isoformat(),
                     "data": {
                         "isWarning": True,
-                        "dropRate": round(drop_rate, 2),
-                        "skippedFrames": skipped_delta,
-                        "totalFrames": total_delta,
+                        "dropRate": round(max_drop_rate, 2),
+                        "renderDropRate": round(render_drop_rate, 2),
+                        "outputDropRate": round(output_drop_rate, 2),
+                        "congestion": round(stats["output_congestion"], 2),
+                        "severity": severity,
+                        "issueType": issue_type,
+                        "message": message_text,
+                        "recommendation": recommendation,
                     },
                 }
                 await self._redis_client.publish(
@@ -796,12 +879,10 @@ class OBSService:
                 )
                 return True
 
-            elif drop_rate < clear_threshold and warning_active:
-                # Clear warning
+            elif max_drop_rate < clear_threshold and warning_active:
                 logger.info(
-                    f"[Streams] Frame drops recovered. drop_rate={drop_rate:.2f}%"
+                    f"[Streams] Stream quality recovered. drop_rate={max_drop_rate:.2f}%"
                 )
-
                 await self._redis_client.delete("obs:performance:warning_active")
 
                 # Broadcast recovery event
@@ -811,9 +892,8 @@ class OBSService:
                     "timestamp": timezone.now().isoformat(),
                     "data": {
                         "isWarning": False,
-                        "dropRate": round(drop_rate, 2),
-                        "skippedFrames": skipped_delta,
-                        "totalFrames": total_delta,
+                        "dropRate": round(max_drop_rate, 2),
+                        "message": f"Stream quality recovered - frame drops back to normal ({max_drop_rate:.1f}%).",
                     },
                 }
                 await self._redis_client.publish(

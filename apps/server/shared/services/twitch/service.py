@@ -92,12 +92,107 @@ class TwitchService(twitchio.Client):
 
         logger.info("[TwitchIO] EventSub connected and subscribed.")
 
+        # Start heartbeat monitoring
+        self._create_background_task(self._heartbeat_monitor())
+
     def _create_background_task(self, coro):
         """Create a background task with proper exception handling."""
         task = asyncio.create_task(coro)
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
         return task
+
+    async def _heartbeat_monitor(self):
+        """Monitor EventSub health and trigger reconnection if no events received."""
+        # Wait 5 minutes before starting monitoring (allow initial setup)
+        await asyncio.sleep(300)
+
+        # Check every 2 minutes
+        check_interval = 120
+        # Reconnect if no events for 10 minutes (stream might be offline)
+        max_silence = 600
+
+        while True:
+            try:
+                await asyncio.sleep(check_interval)
+
+                if not self._eventsub_connected:
+                    continue
+
+                if self._last_event_time is None:
+                    # No events received yet, update timestamp
+                    self._last_event_time = time.time()
+                    continue
+
+                time_since_last_event = time.time() - self._last_event_time
+
+                # Log heartbeat status
+                logger.debug(
+                    f"[TwitchIO] Heartbeat check. seconds_since_last_event={int(time_since_last_event)}"
+                )
+
+                # Update heartbeat status in Redis for monitoring
+                try:
+                    await self._redis.set(
+                        "eventsub:last_event_time", int(self._last_event_time), ex=3600
+                    )
+                    await self._redis.set(
+                        "eventsub:seconds_since_last_event",
+                        int(time_since_last_event),
+                        ex=3600,
+                    )
+                except Exception as e:
+                    logger.debug(
+                        f'[Redis] Failed to update heartbeat. error="{str(e)}"'
+                    )
+
+                if time_since_last_event > max_silence:
+                    # Only check during potential streaming hours (7am+ Pacific)
+                    # This prevents false alarms overnight while still catching failures
+                    from datetime import datetime
+                    import pytz
+
+                    pacific = pytz.timezone("America/Los_Angeles")
+                    now_pacific = datetime.now(pacific)
+
+                    if now_pacific.hour < 7:
+                        logger.debug(
+                            f"[TwitchIO] No EventSub events, but it's {now_pacific.hour}:00 Pacific (before 7am). Skipping check."
+                        )
+                        # Update last_event_time to prevent repeated checks
+                        self._last_event_time = time.time()
+                        continue
+
+                    logger.warning(
+                        f"[TwitchIO] 🟡 No EventSub events received for {int(time_since_last_event)}s during streaming hours. Triggering reconnection."
+                    )
+
+                    # Alert to Sentry
+                    sentry_sdk.capture_message(
+                        "EventSub silent failure detected - no events received",
+                        level="warning",
+                        extras={
+                            "seconds_since_last_event": int(time_since_last_event),
+                            "max_silence": max_silence,
+                            "hour_pacific": now_pacific.hour,
+                        },
+                    )
+
+                    # Mark as disconnected and trigger reconnection
+                    self._eventsub_connected = False
+                    await self._redis.set("eventsub:connected", "0")
+                    self._create_background_task(self._handle_reconnection())
+
+            except asyncio.CancelledError:
+                logger.info("[TwitchIO] Heartbeat monitor cancelled.")
+                break
+            except Exception as e:
+                logger.error(
+                    f'[TwitchIO] ❌ Error in heartbeat monitor. error="{str(e)}"'
+                )
+                sentry_sdk.capture_exception(e)
+                # Continue monitoring despite errors
+                await asyncio.sleep(check_interval)
 
     async def event_oauth_authorized(
         self, payload: twitchio.OAuthAuthorizedPayload
