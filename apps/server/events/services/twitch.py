@@ -283,16 +283,13 @@ class TwitchEventHandler:
     async def _create_event_from_payload(self, event_type: str, payload):
         """Dispatcher - route to type-specific handler based on payload class."""
         payload_class = type(payload)
-        logger.info(
-            f"[TwitchIO] Processing event. type={event_type} payload_class={payload_class.__name__}"
+        logger.debug(
+            f"[TwitchIO] Event received. type={event_type} payload_class={payload_class.__name__}"
         )
 
         # Find the appropriate handler for this payload type
         handler = self.EVENT_HANDLERS.get(payload_class)
         if handler:
-            logger.info(
-                f"[TwitchIO] Handler found. payload_class={payload_class.__name__} handler={handler.__name__}"
-            )
             return await handler(event_type, payload)
         else:
             logger.error(

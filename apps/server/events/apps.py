@@ -47,11 +47,11 @@ class EventsConfig(AppConfig):
             return
 
         # If we get here, we're likely running as a server
-        logger.info("[EventsConfig] 🚀 Starting background services.")
         # Start background services in a separate thread to avoid blocking
         thread = threading.Thread(target=self._start_background_services)
         thread.daemon = True
         thread.start()
+        logger.info("[EventsConfig] Background services thread started.")
 
     def _handle_task_exception(self, loop, context):
         """Handle exceptions from asyncio tasks."""
@@ -69,10 +69,6 @@ class EventsConfig(AppConfig):
 
             # Set exception handler for the loop
             loop.set_exception_handler(self._handle_task_exception)
-
-            logger.info(
-                "[EventsConfig] 🚀 Starting background services from AppConfig."
-            )
 
             # Import here to avoid circular imports
             from audio.services.rme import rme_service

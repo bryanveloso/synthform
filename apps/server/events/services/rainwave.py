@@ -83,7 +83,7 @@ class RainwaveService:
                 )
                 return None
             # Try to reset circuit breaker
-            logger.info("[Rainwave] Attempting circuit breaker reset.")
+            logger.info("[Rainwave] Circuit breaker reset attempted.")
 
         try:
             async with httpx.AsyncClient(

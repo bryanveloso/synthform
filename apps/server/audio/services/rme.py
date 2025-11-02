@@ -78,7 +78,6 @@ class RMETotalMixService:
             return
 
         self._running = True
-        logger.info("[RME] Starting service...")
 
         # Initialize Redis client
         if not self._redis_client:
@@ -108,7 +107,6 @@ class RMETotalMixService:
         if not self._running:
             return
 
-        logger.info("[RME] Shutting down service...")
         self._running = False
 
         # Close OSC server
