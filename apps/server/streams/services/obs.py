@@ -31,21 +31,34 @@ class OBSService:
             cls._instance._running = False
             cls._instance._reconnect_task = None
             cls._instance._reconnect_delay = 1.0  # Start with 1 second delay
-            cls._instance._event_tasks = set()  # Track event broadcast tasks
+            cls._instance._event_queue = None  # Sequential FIFO queue for broadcasts
+            cls._instance._queue_worker_task = None
         return cls._instance
-
-    def _create_event_task(self, coro):
-        """Create and track event broadcast tasks."""
-        task = asyncio.create_task(coro)
-        self._event_tasks.add(task)
-        task.add_done_callback(self._event_tasks.discard)
-        return task
 
     def _serialize_event_data(self, event_obj: object) -> dict:
         """Safely serialize obsws-python event objects to avoid coupling to internals."""
         if not hasattr(event_obj, "attrs"):
             return event_obj if isinstance(event_obj, dict) else {}
         return {attr: getattr(event_obj, attr, None) for attr in event_obj.attrs()}
+
+    async def _process_event_queue(self):
+        """Sequential worker that processes event queue in FIFO order."""
+        while True:
+            try:
+                event_type, data = await self._event_queue.get()
+                try:
+                    await self._broadcast_event(event_type, data)
+                except Exception as e:
+                    logger.error(
+                        f'[OBS] Failed to broadcast queued event. event_type={event_type} error="{str(e)}"'
+                    )
+                finally:
+                    self._event_queue.task_done()
+            except asyncio.CancelledError:
+                logger.info("[OBS] Event queue worker stopped.")
+                break
+            except Exception as e:
+                logger.error(f'[OBS] Error in event queue worker. error="{str(e)}"')
 
     async def startup(self):
         """Start the OBS service when ASGI application is ready."""
@@ -65,6 +78,11 @@ class OBSService:
             self._redis_client = redis.from_url(
                 settings.REDIS_URL or "redis://redis:6379/0"
             )
+
+        # Initialize event queue for FIFO ordering
+        if not self._event_queue:
+            self._event_queue = asyncio.Queue()
+            self._queue_worker_task = asyncio.create_task(self._process_event_queue())
 
         logger.info("[OBS] Service auto-starting.")
         await self._connect()
@@ -135,6 +153,14 @@ class OBSService:
         # Cancel reconnection task if it exists
         if self._reconnect_task and not self._reconnect_task.done():
             self._reconnect_task.cancel()
+
+        # Cancel event queue worker
+        if self._queue_worker_task and not self._queue_worker_task.done():
+            self._queue_worker_task.cancel()
+            try:
+                await self._queue_worker_task
+            except asyncio.CancelledError:
+                pass
 
         await self._disconnect()
 
@@ -217,84 +243,74 @@ class OBSService:
     # Event handlers
     def _on_current_program_scene_changed(self, data):
         """Handle scene change events."""
-        self._create_event_task(
-            self._broadcast_event("obs.scene.changed", self._serialize_event_data(data))
+        self._event_queue.put_nowait(
+            ("obs.scene.changed", self._serialize_event_data(data))
         )
 
     def _on_scene_created(self, data):
         """Handle scene creation events."""
-        self._create_event_task(
-            self._broadcast_event("obs.scene.created", self._serialize_event_data(data))
+        self._event_queue.put_nowait(
+            ("obs.scene.created", self._serialize_event_data(data))
         )
 
     def _on_scene_removed(self, data):
         """Handle scene removal events."""
-        self._create_event_task(
-            self._broadcast_event("obs.scene.removed", self._serialize_event_data(data))
+        self._event_queue.put_nowait(
+            ("obs.scene.removed", self._serialize_event_data(data))
         )
 
     def _on_record_state_changed(self, data):
         """Handle recording state change events."""
-        self._create_event_task(
-            self._broadcast_event(
-                "obs.recording.changed", self._serialize_event_data(data)
-            )
+        self._event_queue.put_nowait(
+            ("obs.recording.changed", self._serialize_event_data(data))
         )
 
     def _on_stream_state_changed(self, data):
         """Handle streaming state change events."""
-        self._create_event_task(
-            self._broadcast_event(
-                "obs.streaming.changed", self._serialize_event_data(data)
-            )
+        self._event_queue.put_nowait(
+            ("obs.streaming.changed", self._serialize_event_data(data))
         )
 
     def _on_scene_item_created(self, data):
         """Handle scene item creation events."""
-        self._create_event_task(
-            self._broadcast_event(
-                "obs.source.created", self._serialize_event_data(data)
-            )
+        self._event_queue.put_nowait(
+            ("obs.source.created", self._serialize_event_data(data))
         )
 
     def _on_scene_item_removed(self, data):
         """Handle scene item removal events."""
-        self._create_event_task(
-            self._broadcast_event(
-                "obs.source.removed", self._serialize_event_data(data)
-            )
+        self._event_queue.put_nowait(
+            ("obs.source.removed", self._serialize_event_data(data))
         )
 
     def _on_scene_item_enable_state_changed(self, data):
         """Handle scene item visibility change events."""
-        self._create_event_task(
-            self._broadcast_event(
-                "obs.source.visibility", self._serialize_event_data(data)
-            )
+        self._event_queue.put_nowait(
+            ("obs.source.visibility", self._serialize_event_data(data))
         )
 
     def _on_input_created(self, data):
         """Handle input creation events."""
-        self._create_event_task(
-            self._broadcast_event("obs.input.created", self._serialize_event_data(data))
+        self._event_queue.put_nowait(
+            ("obs.input.created", self._serialize_event_data(data))
         )
 
     def _on_input_removed(self, data):
         """Handle input removal events."""
-        self._create_event_task(
-            self._broadcast_event("obs.input.removed", self._serialize_event_data(data))
+        self._event_queue.put_nowait(
+            ("obs.input.removed", self._serialize_event_data(data))
         )
 
     def _on_input_name_changed(self, data):
         """Handle input name change events."""
-        self._create_event_task(
-            self._broadcast_event("obs.input.renamed", self._serialize_event_data(data))
+        self._event_queue.put_nowait(
+            ("obs.input.renamed", self._serialize_event_data(data))
         )
 
     def _on_input_mute_state_changed(self, data):
         """Handle input mute state change events."""
-        self._create_event_task(
-            self._broadcast_event("obs.input.muted", self._serialize_event_data(data))
+        self._event_queue.put_nowait(
+            ("obs.input.muted", self._serialize_event_data(data))
         )
 
     async def _broadcast_event(self, event_type: str, data: dict):

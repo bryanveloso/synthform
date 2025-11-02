@@ -66,7 +66,8 @@ class RMETotalMixService:
         self._mic_muted = False
         self._mic_level = 0.0
         self._callbacks = []
-        self._background_tasks = set()
+        self._broadcast_queue = None  # Sequential FIFO queue for broadcasts
+        self._queue_worker_task = None
 
         logger.info(
             f"[RME] Service initialized. host={self.totalmix_host} port={self.totalmix_send_port}"
@@ -87,6 +88,13 @@ class RMETotalMixService:
                 else "redis://redis:6379/0"
             )
             self._redis_client = redis.Redis.from_url(redis_url)
+
+        # Initialize broadcast queue for FIFO ordering
+        if not self._broadcast_queue:
+            self._broadcast_queue = asyncio.Queue()
+            self._queue_worker_task = asyncio.create_task(
+                self._process_broadcast_queue()
+            )
 
         # Initialize OSC client for sending commands
         self._osc_client = SimpleUDPClient(self.totalmix_host, self.totalmix_send_port)
@@ -109,6 +117,14 @@ class RMETotalMixService:
 
         self._running = False
 
+        # Cancel broadcast queue worker
+        if self._queue_worker_task and not self._queue_worker_task.done():
+            self._queue_worker_task.cancel()
+            try:
+                await self._queue_worker_task
+            except asyncio.CancelledError:
+                pass
+
         # Close OSC server
         if self._osc_transport:
             self._osc_transport.close()
@@ -121,12 +137,29 @@ class RMETotalMixService:
 
         logger.info("[RME] Service shut down.")
 
-    def _create_background_task(self, coro):
-        """Create a background task with proper exception handling."""
-        task = asyncio.create_task(coro)
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
-        return task
+    async def _process_broadcast_queue(self):
+        """Sequential worker that processes broadcast queue in FIFO order."""
+        while True:
+            try:
+                broadcast_type, args = await self._broadcast_queue.get()
+                try:
+                    if broadcast_type == "mic_state":
+                        await self._broadcast_mic_state()
+                    elif broadcast_type == "mic_level":
+                        await self._broadcast_mic_level()
+                    elif broadcast_type == "persist_mute":
+                        await self._persist_mute_state()
+                except Exception as e:
+                    logger.error(
+                        f'[RME] Failed to process queued broadcast. type={broadcast_type} error="{str(e)}"'
+                    )
+                finally:
+                    self._broadcast_queue.task_done()
+            except asyncio.CancelledError:
+                logger.info("[RME] Broadcast queue worker stopped.")
+                break
+            except Exception as e:
+                logger.error(f'[RME] Error in broadcast queue worker. error="{str(e)}"')
 
     async def _setup_osc_server(self):
         """Setup OSC server to receive updates from TotalMix."""
@@ -249,10 +282,10 @@ class RMETotalMixService:
                         )
 
                         # Persist state for restoration on restart
-                        self._create_background_task(self._persist_mute_state())
+                        self._broadcast_queue.put_nowait(("persist_mute", None))
 
                         # Broadcast state change
-                        self._create_background_task(self._broadcast_mic_state())
+                        self._broadcast_queue.put_nowait(("mic_state", None))
 
                         # Call registered callbacks
                         for callback in self._callbacks:
@@ -293,7 +326,7 @@ class RMETotalMixService:
                         logger.debug(
                             f"[RME] Mic level changed. channel={channel} level={new_level:.2f}"
                         )
-                        self._create_background_task(self._broadcast_mic_level())
+                        self._broadcast_queue.put_nowait(("mic_level", None))
             except (ValueError, IndexError) as e:
                 logger.debug(
                     f'[RME] Failed to parse volume address. address={address} error="{str(e)}"'
