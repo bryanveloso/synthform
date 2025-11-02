@@ -1644,7 +1644,7 @@ class TwitchEventHandler:
                             "events:limitbreak",
                             json.dumps(
                                 {
-                                    "event_type": "limitbreak.executed",
+                                    "event_type": "limitbreak:executed",
                                     "data": {
                                         "previous_count": previous_count,
                                         "current_count": count,
@@ -1685,7 +1685,7 @@ class TwitchEventHandler:
                             "events:limitbreak",
                             json.dumps(
                                 {
-                                    "event_type": "limitbreak.sync",
+                                    "event_type": "limitbreak:sync",
                                     "data": reset_data,
                                     "timestamp": timezone.now().isoformat(),
                                 }
@@ -1719,7 +1719,7 @@ class TwitchEventHandler:
                 "events:limitbreak",
                 json.dumps(
                     {
-                        "event_type": "limitbreak.update",
+                        "event_type": "limitbreak:update",
                         "data": limit_break_data,
                         "timestamp": timezone.now().isoformat(),
                     }

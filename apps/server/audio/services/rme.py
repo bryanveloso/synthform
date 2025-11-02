@@ -358,7 +358,7 @@ class RMETotalMixService:
                 return
 
             message = {
-                "event_type": "audio.mic.mute",
+                "event_type": "audio:mic:mute",
                 "source": "rme_totalmix",
                 "timestamp": timezone.now().isoformat(),
                 "data": {
@@ -388,7 +388,7 @@ class RMETotalMixService:
                 return
 
             message = {
-                "event_type": "audio.mic.level",
+                "event_type": "audio:mic:level",
                 "source": "rme_totalmix",
                 "timestamp": timezone.now().isoformat(),
                 "data": {

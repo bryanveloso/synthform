@@ -244,73 +244,73 @@ class OBSService:
     def _on_current_program_scene_changed(self, data):
         """Handle scene change events."""
         self._event_queue.put_nowait(
-            ("obs.scene.changed", self._serialize_event_data(data))
+            ("obs:scene:changed", self._serialize_event_data(data))
         )
 
     def _on_scene_created(self, data):
         """Handle scene creation events."""
         self._event_queue.put_nowait(
-            ("obs.scene.created", self._serialize_event_data(data))
+            ("obs:scene:created", self._serialize_event_data(data))
         )
 
     def _on_scene_removed(self, data):
         """Handle scene removal events."""
         self._event_queue.put_nowait(
-            ("obs.scene.removed", self._serialize_event_data(data))
+            ("obs:scene:removed", self._serialize_event_data(data))
         )
 
     def _on_record_state_changed(self, data):
         """Handle recording state change events."""
         self._event_queue.put_nowait(
-            ("obs.recording.changed", self._serialize_event_data(data))
+            ("obs:recording:changed", self._serialize_event_data(data))
         )
 
     def _on_stream_state_changed(self, data):
         """Handle streaming state change events."""
         self._event_queue.put_nowait(
-            ("obs.streaming.changed", self._serialize_event_data(data))
+            ("obs:streaming:changed", self._serialize_event_data(data))
         )
 
     def _on_scene_item_created(self, data):
         """Handle scene item creation events."""
         self._event_queue.put_nowait(
-            ("obs.source.created", self._serialize_event_data(data))
+            ("obs:source:created", self._serialize_event_data(data))
         )
 
     def _on_scene_item_removed(self, data):
         """Handle scene item removal events."""
         self._event_queue.put_nowait(
-            ("obs.source.removed", self._serialize_event_data(data))
+            ("obs:source:removed", self._serialize_event_data(data))
         )
 
     def _on_scene_item_enable_state_changed(self, data):
         """Handle scene item visibility change events."""
         self._event_queue.put_nowait(
-            ("obs.source.visibility", self._serialize_event_data(data))
+            ("obs:source:visibility", self._serialize_event_data(data))
         )
 
     def _on_input_created(self, data):
         """Handle input creation events."""
         self._event_queue.put_nowait(
-            ("obs.input.created", self._serialize_event_data(data))
+            ("obs:input:created", self._serialize_event_data(data))
         )
 
     def _on_input_removed(self, data):
         """Handle input removal events."""
         self._event_queue.put_nowait(
-            ("obs.input.removed", self._serialize_event_data(data))
+            ("obs:input:removed", self._serialize_event_data(data))
         )
 
     def _on_input_name_changed(self, data):
         """Handle input name change events."""
         self._event_queue.put_nowait(
-            ("obs.input.renamed", self._serialize_event_data(data))
+            ("obs:input:renamed", self._serialize_event_data(data))
         )
 
     def _on_input_mute_state_changed(self, data):
         """Handle input mute state change events."""
         self._event_queue.put_nowait(
-            ("obs.input.muted", self._serialize_event_data(data))
+            ("obs:input:muted", self._serialize_event_data(data))
         )
 
     async def _broadcast_event(self, event_type: str, data: dict):
@@ -875,7 +875,7 @@ class OBSService:
 
                 # Broadcast warning event
                 message = {
-                    "event_type": "obs.performance.warning",
+                    "event_type": "obs:performance:warning",
                     "source": "obs",
                     "timestamp": timezone.now().isoformat(),
                     "data": {
@@ -903,7 +903,7 @@ class OBSService:
 
                 # Broadcast recovery event
                 message = {
-                    "event_type": "obs.performance.ok",
+                    "event_type": "obs:performance:ok",
                     "source": "obs",
                     "timestamp": timezone.now().isoformat(),
                     "data": {

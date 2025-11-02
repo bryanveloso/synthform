@@ -21,7 +21,7 @@ class MusicService:
     def broadcast_update(self, data: dict, is_sync: bool = False) -> None:
         """Broadcast music update to WebSocket clients via Redis."""
         # Send appropriate event type
-        event_type = "music.sync" if is_sync else "music.update"
+        event_type = "music:sync" if is_sync else "music:update"
         event_data = {
             "event_type": event_type,
             "source": "music",

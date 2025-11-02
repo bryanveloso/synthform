@@ -19,7 +19,7 @@ def publish_status_update(sender, instance, created, **kwargs):
     """Publish status updates to Redis when a Status is saved."""
     try:
         event_data = {
-            "event_type": "status.update",
+            "event_type": "status:update",
             "source": "status",
             "data": {
                 "status": instance.status,

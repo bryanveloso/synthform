@@ -257,13 +257,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             return
 
         # Handle limit break events
-        if event_type == "limitbreak.update":
+        if event_type == "limitbreak:update":
             logger.debug(
                 f"[Overlay] 🎯 Sending limitbreak:update. data={event_data.get('data', {})}"
             )
             await self._send_message("limitbreak", "update", event_data.get("data", {}))
             return
-        elif event_type == "limitbreak.executed":
+        elif event_type == "limitbreak:executed":
             logger.debug(
                 f"[Overlay] 🔊 Sending limitbreak:executed. data={event_data.get('data', {})}"
             )
@@ -273,13 +273,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             return
 
         # Handle music events
-        if event_type == "music.update":
+        if event_type == "music:update":
             logger.debug(
                 f"[Overlay] 🎵 Sending music:update. data={event_data.get('data', {})}"
             )
             await self._send_message("music", "update", event_data.get("data", {}))
             return
-        elif event_type == "music.sync":
+        elif event_type == "music:sync":
             logger.debug(
                 f"[Overlay] 🎵 Sending music:sync. data={event_data.get('data', {})}"
             )
@@ -287,7 +287,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             return
 
         # Handle status events
-        if event_type == "status.update":
+        if event_type == "status:update":
             logger.debug(
                 f"[Overlay] 📍 Sending status:update. data={event_data.get('data', {})}"
             )
@@ -295,7 +295,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             return
 
         # Handle audio events from RME TotalMix
-        if event_type == "audio.mic.mute":
+        if event_type == "audio:mic:mute":
             logger.debug(
                 f"[Overlay] 🎤 Sending audio:rme:update. data={event_data.get('data', {})}"
             )
@@ -377,13 +377,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             await self._send_message("obs", "update", event_data)
 
             # Send performance events to dedicated channel
-            if event_type in ("obs.performance.warning", "obs.performance.ok"):
+            if event_type in ("obs:performance:warning", "obs:performance:ok"):
                 await self._send_message(
                     "obs", "performance", event_data.get("data", {})
                 )
 
             # Also broadcast scene changes to overlays that might need to adapt
-            if event_type == "obs.scene.changed":
+            if event_type == "obs:scene:changed":
                 await self._send_message("base", "obs_scene_changed", event_data)
         else:
             # Send alerts BEFORE timeline to avoid race condition
