@@ -370,64 +370,6 @@ class TwitchService(twitchio.Client):
         try:
             # Store broadcaster ID for reconnections
             self._broadcaster_user_id = user_id
-            # Clean up any existing subscriptions first to avoid hitting rate limits
-            try:
-                logger.info("[TwitchIO] Cleaning up existing EventSub subscriptions.")
-
-                # Fetch existing subscriptions for this broadcaster
-                existing_subs = await self.fetch_eventsub_subscriptions(user_id=user_id)
-
-                if existing_subs:
-                    # EventsubSubscriptions object contains subscription data
-                    try:
-                        # Try to iterate directly over the object
-                        count = 0
-                        for sub in existing_subs:
-                            count += 1
-                            try:
-                                # Access subscription ID - might be sub.subscription_id or sub['id']
-                                sub_id = (
-                                    getattr(sub, "subscription_id", None)
-                                    or getattr(sub, "id", None)
-                                    or sub.get("id")
-                                )
-                                if sub_id:
-                                    await self.delete_eventsub_subscription(sub_id)
-                                    logger.debug(
-                                        f"[TwitchIO] Deleted subscription. id={sub_id}"
-                                    )
-                            except Exception as e:
-                                logger.warning(
-                                    f'[TwitchIO] Failed to delete subscription. error="{str(e)}"'
-                                )
-
-                        if count > 0:
-                            logger.info(
-                                f"[TwitchIO] Cleaned up existing subscriptions. count={count}"
-                            )
-                    except Exception as e:
-                        logger.debug(
-                            f'[TwitchIO] Could not iterate subscriptions directly. error="{str(e)}"'
-                        )
-                        # Try alternative method - delete all at once
-                        try:
-                            await self.delete_all_eventsub_subscriptions()
-                            logger.info(
-                                "[TwitchIO] Deleted all existing EventSub subscriptions."
-                            )
-                        except Exception as e2:
-                            logger.warning(
-                                f'[TwitchIO] Failed to delete all subscriptions. error="{str(e2)}"'
-                            )
-
-                    # Small delay to ensure cleanup is processed
-                    await asyncio.sleep(0.5)
-
-                logger.info("[TwitchIO] EventSub subscription cleanup complete.")
-            except Exception as e:
-                logger.warning(
-                    f'[TwitchIO] Failed to clean up existing subscriptions. error="{str(e)}"'
-                )
 
             # Create subscription payload objects with the correct conditions
             subscriptions = [
@@ -533,6 +475,8 @@ class TwitchService(twitchio.Client):
                     logger.info(
                         f"[TwitchIO] Subscribed to event. type={subscription.__class__.__name__}"
                     )
+                    # Proactive rate limiting: small delay between subscriptions
+                    await asyncio.sleep(0.15)
                 except InvalidTokenException as token_error:
                     logger.error(
                         f'[TwitchIO] Invalid token when subscribing. type={subscription.__class__.__name__} error="{str(token_error)}"'
