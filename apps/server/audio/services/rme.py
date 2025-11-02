@@ -141,7 +141,7 @@ class RMETotalMixService:
         """Sequential worker that processes broadcast queue in FIFO order."""
         while True:
             try:
-                broadcast_type, args = await self._broadcast_queue.get()
+                broadcast_type, _ = await self._broadcast_queue.get()
                 try:
                     if broadcast_type == "mic_state":
                         await self._broadcast_mic_state()

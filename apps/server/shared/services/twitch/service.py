@@ -150,10 +150,10 @@ class TwitchService(twitchio.Client):
                     # Only check during potential streaming hours (7am+ Pacific)
                     # This prevents false alarms overnight while still catching failures
                     from datetime import datetime
-                    import pytz
+                    from zoneinfo import ZoneInfo
 
-                    pacific = pytz.timezone("America/Los_Angeles")
-                    now_pacific = datetime.now(pacific)
+                    pacific_tz = ZoneInfo("America/Los_Angeles")
+                    now_pacific = datetime.now(pacific_tz)
 
                     if now_pacific.hour < 7:
                         logger.debug(
