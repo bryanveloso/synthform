@@ -482,15 +482,32 @@ class TwitchService(twitchio.Client):
                         f'[TwitchIO] Invalid token when subscribing. type={subscription.__class__.__name__} error="{str(token_error)}"'
                     )
                 except HTTPException as http_error:
-                    logger.error(
-                        f'[TwitchIO] HTTP error when subscribing. type={subscription.__class__.__name__} error="{str(http_error)}"'
-                    )
-                    # Check for specific HTTP errors that might indicate rate limiting
-                    if hasattr(http_error, "status") and http_error.status == 429:
+                    error_message = str(http_error)
+
+                    # Check for dead WebSocket session (happens during network outages)
+                    if (
+                        hasattr(http_error, "status")
+                        and http_error.status == 400
+                        and "websocket transport session does not exist"
+                        in error_message
+                    ):
+                        logger.warning(
+                            f"[TwitchIO] 🟡 WebSocket session expired during subscription. type={subscription.__class__.__name__}"
+                        )
+                        # Mark as disconnected to trigger reconnection
+                        self._eventsub_connected = False
+                        break  # Stop trying to subscribe with dead session
+                    # Check for rate limiting
+                    elif hasattr(http_error, "status") and http_error.status == 429:
                         logger.warning(
                             "[TwitchIO] 🟡 Rate limited, waiting before next subscription."
                         )
-                        await asyncio.sleep(2)  # Wait 2 seconds before next attempt
+                        await asyncio.sleep(2)
+                    else:
+                        # Log other HTTP errors as actual errors
+                        logger.error(
+                            f'[TwitchIO] HTTP error when subscribing. type={subscription.__class__.__name__} error="{error_message}"'
+                        )
                 except Exception as e:
                     logger.error(
                         f'[TwitchIO] Failed to subscribe to event. type={subscription.__class__.__name__} error="{str(e)}"'
