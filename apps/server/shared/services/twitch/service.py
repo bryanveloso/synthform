@@ -88,11 +88,9 @@ class TwitchService(twitchio.Client):
         """Called when the client is ready."""
         logger.info("[TwitchIO] Client ready.")
 
-        # Load existing tokens from database
+        # Load existing tokens from database and subscribe to events
+        # Note: _load_existing_tokens() handles subscription, no need for separate call
         await self._load_existing_tokens()
-
-        # Subscribe to EventSub events
-        await self._subscribe_to_events()
 
         self._eventsub_connected = True
         self._reconnect_attempts = 0  # Reset on successful connection
