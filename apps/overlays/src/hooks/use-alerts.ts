@@ -59,20 +59,31 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
 
   // Transform store alerts to include additional properties
   const alertQueue = useMemo(() => {
-    return alerts.queue.map(alert => ({
-      ...alert,
-      username: alert.user_name,
-      soundFile: getAlertSound(alert.type, alert.amount, alert.tier as Alert['tier']),
-    } as Alert))
+    return alerts.queue.map(alert => {
+      const soundFile = getAlertSound(alert)
+      if (!soundFile) {
+        console.warn('[Alerts] No sound mapped for alert:', alert.type, alert)
+      }
+      return {
+        ...alert,
+        username: alert.user_name,
+        soundFile,
+      } as Alert
+    })
   }, [alerts.queue])
 
   const currentAlert = useMemo(() => {
     if (!alerts.currentAlert) return null
 
+    const soundFile = getAlertSound(alerts.currentAlert)
+    if (!soundFile) {
+      console.warn('[Alerts] No sound mapped for current alert:', alerts.currentAlert.type, alerts.currentAlert)
+    }
+
     return {
       ...alerts.currentAlert,
       username: alerts.currentAlert.user_name,
-      soundFile: getAlertSound(alerts.currentAlert.type, alerts.currentAlert.amount, alerts.currentAlert.tier as Alert['tier']),
+      soundFile,
     } as Alert
   }, [alerts.currentAlert])
 

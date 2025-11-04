@@ -389,25 +389,54 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             # Send alerts BEFORE timeline to avoid race condition
             # Client needs alert in queue before timeline event arrives
             if event_type in self.VIEWER_INTERACTIONS:
+                payload = event_data.get("payload", {})
+
                 # Format event for base and alerts with proper structure
                 formatted_event = {
                     "id": event_data.get("event_id"),
                     "type": f"{event_data.get('source', 'twitch')}.{event_type}",
                     "data": {
                         "timestamp": event_data.get("timestamp"),
-                        "payload": event_data.get("payload", {}),
+                        "payload": payload,
                         "user_name": event_data.get("member", {}).get("display_name")
                         or event_data.get("member", {}).get("username")
-                        or event_data.get("payload", {}).get("user_name")
-                        or event_data.get("payload", {}).get("chatter_user_name")
+                        or payload.get("user_name")
+                        or payload.get("chatter_user_name")
                         or "Unknown",
                     },
                 }
                 await self._send_message("base", "update", formatted_event)
 
                 # Skip alerts for events marked suppress_alert (gift recipients)
-                if not event_data.get("payload", {}).get("suppress_alert"):
-                    await self._send_message("alerts", "push", formatted_event)
+                if not payload.get("suppress_alert"):
+                    # Create alert with flattened fields for sound system
+                    alert_data = {
+                        "id": event_data.get("event_id"),
+                        "type": f"{event_data.get('source', 'twitch')}.{event_type}",
+                        "message": payload.get("message", ""),
+                        "user_name": event_data.get("member", {}).get("display_name")
+                        or event_data.get("member", {}).get("username")
+                        or payload.get("user_name")
+                        or payload.get("chatter_user_name")
+                        or "Unknown",
+                        "timestamp": event_data.get("timestamp"),
+                        # Flatten essential fields for sound selection
+                        "amount": (
+                            payload.get("total")
+                            if payload.get("total") is not None
+                            else payload.get("bits")
+                            if payload.get("bits") is not None
+                            else payload.get("viewers")
+                            if payload.get("viewers") is not None
+                            else 1
+                        ),
+                        "tier": payload.get("tier"),
+                        # Keep nested data for additional info
+                        "data": {
+                            "payload": payload,
+                        },
+                    }
+                    await self._send_message("alerts", "push", alert_data)
 
             # Send timeline-worthy events to timeline AFTER alerts
             if event_type in [

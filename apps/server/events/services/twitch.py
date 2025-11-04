@@ -654,20 +654,21 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
 
-        # Track campaign metrics for bits
-        active_campaign = await campaign_service.get_active_campaign()
-        if active_campaign:
-            campaign_result = await campaign_service.process_bits(
-                active_campaign, bits=payload.bits
-            )
-            if campaign_result:
-                payload_dict["campaign_data"] = campaign_result
-
         await self._publish_to_redis(event_type, event, member, payload_dict)
         user_name = "Anonymous" if payload.anonymous else payload.user.name
         logger.info(
             f"[TwitchIO] Processed ChannelCheer. user={user_name} bits={payload.bits}"
         )
+
+        # Track campaign metrics for bits asynchronously
+        active_campaign = await campaign_service.get_active_campaign()
+        if active_campaign:
+            try:
+                await campaign_service.process_bits(active_campaign, bits=payload.bits)
+            except Exception as e:
+                logger.error(
+                    f'[Campaign] ❌ Failed to process bits for campaign. error="{str(e)}"'
+                )
 
     async def _handle_channel_raid(self, event_type: str, payload):
         """Handle ChannelRaid payload."""
@@ -741,27 +742,6 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
 
-        # Track campaign metrics - only for direct subscriptions (not gifts)
-        # Gift subscriptions are counted in _handle_channel_subscription_gift
-        active_campaign = await campaign_service.get_active_campaign()
-        if active_campaign and not payload.gift:
-            campaign_result = await campaign_service.process_subscription(
-                active_campaign, tier=payload.tier, is_gift=False
-            )
-
-            # Add campaign data to payload for Redis
-            if campaign_result:
-                payload_dict["campaign_data"] = campaign_result
-
-                # If a milestone was unlocked, publish special event
-                if "milestone_unlocked" in campaign_result:
-                    await self._publish_to_redis(
-                        "campaign.milestone.unlocked",
-                        event,
-                        member,
-                        campaign_result["milestone_unlocked"],
-                    )
-
         # Only publish to Redis if it's not a gift subscription
         # Gift subscriptions are published via channel.subscription.gift event
         if not payload.gift:
@@ -773,6 +753,20 @@ class TwitchEventHandler:
             logger.info(
                 f"[TwitchIO] Processed ChannelSubscribe (gift recipient, skipped alert). user={payload.user.name}"
             )
+
+        # Track campaign metrics - only for direct subscriptions (not gifts)
+        # Gift subscriptions are counted in _handle_channel_subscription_gift
+        if not payload.gift:
+            active_campaign = await campaign_service.get_active_campaign()
+            if active_campaign:
+                try:
+                    await campaign_service.process_subscription(
+                        active_campaign, tier=payload.tier, is_gift=False
+                    )
+                except Exception as e:
+                    logger.error(
+                        f'[Campaign] ❌ Failed to process subscription for campaign. error="{str(e)}"'
+                    )
 
     async def _handle_channel_subscription_end(self, event_type: str, payload):
         """Handle ChannelSubscriptionEnd payload."""
@@ -808,37 +802,28 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
 
-        # Track campaign metrics - process each gift sub
-        active_campaign = await campaign_service.get_active_campaign()
-        if active_campaign:
-            milestones_unlocked = []
-            for _ in range(payload.total):
-                campaign_result = await campaign_service.process_subscription(
-                    active_campaign,
-                    tier=payload.tier,
-                    is_gift=True,
-                    gifter_id=payload.user.id if payload.user else None,
-                    gifter_name=payload.user.display_name if payload.user else None,
-                )
-
-                # Collect any milestones that were unlocked
-                if campaign_result and "milestone_unlocked" in campaign_result:
-                    milestones_unlocked.append(campaign_result["milestone_unlocked"])
-
-            # Add campaign data to payload
-            if milestones_unlocked:
-                payload_dict["milestones_unlocked"] = milestones_unlocked
-                # Publish milestone unlock events
-                for milestone in milestones_unlocked:
-                    await self._publish_to_redis(
-                        "campaign.milestone.unlocked", event, member, milestone
-                    )
-
         await self._publish_to_redis(event_type, event, member, payload_dict)
         user_name = "Anonymous" if payload.anonymous else payload.user.name
         logger.info(
             f"[TwitchIO] Processed ChannelSubscriptionGift. user={user_name} count={payload.total}"
         )
+
+        # Track campaign metrics - process each gift sub asynchronously
+        active_campaign = await campaign_service.get_active_campaign()
+        if active_campaign:
+            try:
+                for _ in range(payload.total):
+                    await campaign_service.process_subscription(
+                        active_campaign,
+                        tier=payload.tier,
+                        is_gift=True,
+                        gifter_id=payload.user.id if payload.user else None,
+                        gifter_name=payload.user.display_name if payload.user else None,
+                    )
+            except Exception as e:
+                logger.error(
+                    f'[Campaign] ❌ Failed to process gift subscriptions for campaign. error="{str(e)}"'
+                )
 
     async def _handle_channel_subscription_message(self, event_type: str, payload):
         """Handle ChannelSubscriptionMessage payload."""
@@ -868,17 +853,21 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
 
-        # Track campaign metrics for resubs
-        active_campaign = await campaign_service.get_active_campaign()
-        if active_campaign:
-            campaign_result = await campaign_service.process_resub(active_campaign)
-            if campaign_result:
-                payload_dict["campaign_data"] = campaign_result
-
+        # Publish immediately to avoid delaying user-facing alerts
         await self._publish_to_redis(event_type, event, member, payload_dict)
         logger.info(
             f"[TwitchIO] Processed ChannelSubscriptionMessage. user={payload.user.name} months={payload.cumulative_months}"
         )
+
+        # Track campaign metrics for resubs asynchronously
+        active_campaign = await campaign_service.get_active_campaign()
+        if active_campaign:
+            try:
+                await campaign_service.process_resub(active_campaign)
+            except Exception as e:
+                logger.error(
+                    f'[Campaign] ❌ Failed to process resub for campaign. error="{str(e)}"'
+                )
 
     async def _handle_stream_online(self, event_type: str, payload):
         """Handle StreamOnline payload."""

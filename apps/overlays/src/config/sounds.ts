@@ -183,7 +183,8 @@ export function getAlertSound(alert: {
       tier &&
       (noticeType === 'sub' || noticeType === 'resub' || noticeType.includes('upgrade'))
     ) {
-      const tierNum = tier === 'Tier 3' ? 3 : tier === 'Tier 2' ? 2 : 1
+      // Handle Twitch's tier format: "1000", "2000", "3000"
+      const tierNum = tier === '3000' ? 3 : tier === '2000' ? 2 : 1
       return config.sounds[tierNum] || config.sounds[1]
     }
 
@@ -191,6 +192,20 @@ export function getAlertSound(alert: {
     if (amount && config.sounds) {
       const sound = findSoundByThreshold(config.sounds, amount)
       if (sound) return sound
+    }
+
+    return config.sounds[1]
+  }
+
+  // Handle subscription.message events (legacy format, still used by TwitchIO)
+  if (type === 'twitch.channel.subscription.message') {
+    const config = alertSoundConfig['resub']
+    if (!config) return undefined
+
+    // Use tier to select sound
+    if (tier) {
+      const tierNum = tier === '3000' ? 3 : tier === '2000' ? 2 : 1
+      return config.sounds[tierNum] || config.sounds[1]
     }
 
     return config.sounds[1]

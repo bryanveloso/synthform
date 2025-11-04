@@ -112,8 +112,8 @@ export function getPreloadedAudio(soundPath: string): HTMLAudioElement | null {
     return null
   }
 
-  // Clone the audio element to allow multiple simultaneous playbacks
-  // The browser will reuse the cached audio buffer
+  // Create new audio element with same src - browser HTTP cache handles it
+  // This is more reliable than cloneNode for sharing audio buffers
   const audio = new Audio(cachedAudio.src)
   audio.preload = 'auto'
   return audio
