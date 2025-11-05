@@ -185,7 +185,7 @@ class TwitchService(twitchio.Client):
                         continue
 
                     logger.warning(
-                        f"[TwitchIO] 🟡 No EventSub events received for {int(time_since_last_event)}s during streaming hours. Triggering reconnection."
+                        f"[TwitchIO] 🟡 No EventSub events received for {int(time_since_last_event)}s during streaming hours. Container restart recommended."
                     )
 
                     # Alert to Sentry
@@ -199,10 +199,10 @@ class TwitchService(twitchio.Client):
                         },
                     )
 
-                    # Mark as disconnected and trigger reconnection
+                    # Mark as disconnected but don't auto-reconnect (prevents duplicate connections)
                     self._eventsub_connected = False
                     await self._redis.set("eventsub:connected", "0")
-                    self._create_background_task(self._handle_reconnection())
+                    # Daily restart at 7am will handle recovery
 
             except asyncio.CancelledError:
                 logger.info("[TwitchIO] Heartbeat monitor cancelled.")
@@ -216,9 +216,10 @@ class TwitchService(twitchio.Client):
                 await asyncio.sleep(check_interval)
 
     async def _daily_reconnection_scheduler(self):
-        """Reconnect EventSub daily at 7am Pacific to ensure fresh connection before streams."""
+        """Exit process daily at 7am Pacific to trigger container restart for fresh EventSub connection."""
         from datetime import datetime, timedelta
         from zoneinfo import ZoneInfo
+        import sys
 
         pacific_tz = ZoneInfo("America/Los_Angeles")
 
@@ -227,34 +228,30 @@ class TwitchService(twitchio.Client):
                 now = datetime.now(pacific_tz)
 
                 # Calculate next 7am Pacific
-                next_reconnect = now.replace(hour=7, minute=0, second=0, microsecond=0)
-                if now >= next_reconnect:
+                next_restart = now.replace(hour=7, minute=0, second=0, microsecond=0)
+                if now >= next_restart:
                     # Already past 7am today, schedule for tomorrow
-                    next_reconnect += timedelta(days=1)
+                    next_restart += timedelta(days=1)
 
-                seconds_until_reconnect = (next_reconnect - now).total_seconds()
+                seconds_until_restart = (next_restart - now).total_seconds()
                 logger.info(
-                    f"[TwitchIO] Daily reconnection scheduled for {next_reconnect.strftime('%Y-%m-%d %H:%M %Z')} ({int(seconds_until_reconnect / 3600)}h {int((seconds_until_reconnect % 3600) / 60)}m)"
+                    f"[TwitchIO] Daily restart scheduled for {next_restart.strftime('%Y-%m-%d %H:%M %Z')} ({int(seconds_until_restart / 3600)}h {int((seconds_until_restart % 3600) / 60)}m)"
                 )
 
                 # Sleep until 7am Pacific
-                await asyncio.sleep(seconds_until_reconnect)
+                await asyncio.sleep(seconds_until_restart)
 
-                # Trigger reconnection
-                logger.info("[TwitchIO] Daily scheduled reconnection at 7am Pacific.")
-                self._eventsub_connected = False
+                # Exit to trigger container restart
+                logger.info("[TwitchIO] Daily scheduled restart at 7am Pacific. Exiting to restart container.")
                 await self._redis.set("eventsub:connected", "0")
-                self._create_background_task(self._handle_reconnection())
-
-                # Wait a bit before scheduling next one
-                await asyncio.sleep(60)
+                sys.exit(0)
 
             except asyncio.CancelledError:
-                logger.info("[TwitchIO] Daily reconnection scheduler cancelled.")
+                logger.info("[TwitchIO] Daily restart scheduler cancelled.")
                 break
             except Exception as e:
                 logger.error(
-                    f'[TwitchIO] ❌ Error in daily reconnection scheduler. error="{str(e)}"'
+                    f'[TwitchIO] ❌ Error in daily restart scheduler. error="{str(e)}"'
                 )
                 sentry_sdk.capture_exception(e)
                 # Retry in 1 hour if error
@@ -570,16 +567,16 @@ class TwitchService(twitchio.Client):
 
     async def event_eventsub_notification_subscription_revoked(self, payload):
         """Handle EventSub subscription revocation."""
-        logger.warning(f"[TwitchIO] EventSub subscription revoked. payload={payload}")
+        logger.warning(f"[TwitchIO] EventSub subscription revoked. Container restart required. payload={payload}")
 
         # Alert to Sentry
         sentry_sdk.capture_message(
-            "EventSub subscription revoked",
+            "EventSub subscription revoked - container restart required",
             level="warning",
             extras={"payload": str(payload)},
         )
 
-        # Mark that we need to re-subscribe
+        # Mark as disconnected
         self._eventsub_connected = False
 
         # Update health status in Redis
@@ -591,15 +588,13 @@ class TwitchService(twitchio.Client):
             )
             sentry_sdk.capture_exception(e)
 
-        self._create_background_task(self._handle_reconnection())
-
     async def event_eventsub_notification_websocket_disconnect(self, payload):
         """Handle EventSub WebSocket disconnection."""
-        logger.warning(f"[TwitchIO] EventSub WebSocket disconnected. payload={payload}")
+        logger.warning(f"[TwitchIO] EventSub WebSocket disconnected. Container restart required. payload={payload}")
 
         # Alert to Sentry on disconnect
         sentry_sdk.capture_message(
-            "EventSub WebSocket disconnected",
+            "EventSub WebSocket disconnected - container restart required",
             level="warning",
             extras={"payload": str(payload)},
         )
@@ -615,8 +610,6 @@ class TwitchService(twitchio.Client):
             )
             sentry_sdk.capture_exception(e)
 
-        self._create_background_task(self._handle_reconnection())
-
     async def event_eventsub_error(self, error):
         """Handle EventSub errors including 429 rate limit."""
         logger.error(f'[TwitchIO] ❌ EventSub error received. error="{str(error)}"')
@@ -631,10 +624,9 @@ class TwitchService(twitchio.Client):
         # Check for rate limit or bad request errors
         if "429" in str(error) or "400" in str(error):
             logger.warning(
-                "[TwitchIO] 🟡 EventSub connection issue detected, triggering reconnection."
+                "[TwitchIO] 🟡 EventSub connection issue detected. Container restart required."
             )
             self._eventsub_connected = False
-            self._create_background_task(self._handle_reconnection())
 
     async def cleanup_subscriptions(self):
         """Clean up EventSub subscriptions on shutdown."""
