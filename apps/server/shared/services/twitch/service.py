@@ -111,6 +111,9 @@ class TwitchService(twitchio.Client):
         # Start heartbeat monitoring
         self._create_background_task(self._heartbeat_monitor())
 
+        # Start daily reconnection scheduler
+        self._create_background_task(self._daily_reconnection_scheduler())
+
     def _create_background_task(self, coro):
         """Create a background task with proper exception handling."""
         task = asyncio.create_task(coro)
@@ -209,6 +212,51 @@ class TwitchService(twitchio.Client):
                 sentry_sdk.capture_exception(e)
                 # Continue monitoring despite errors
                 await asyncio.sleep(check_interval)
+
+    async def _daily_reconnection_scheduler(self):
+        """Reconnect EventSub daily at 7am Pacific to ensure fresh connection before streams."""
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+
+        pacific_tz = ZoneInfo("America/Los_Angeles")
+
+        while True:
+            try:
+                now = datetime.now(pacific_tz)
+
+                # Calculate next 7am Pacific
+                next_reconnect = now.replace(hour=7, minute=0, second=0, microsecond=0)
+                if now >= next_reconnect:
+                    # Already past 7am today, schedule for tomorrow
+                    next_reconnect += timedelta(days=1)
+
+                seconds_until_reconnect = (next_reconnect - now).total_seconds()
+                logger.info(
+                    f"[TwitchIO] Daily reconnection scheduled for {next_reconnect.strftime('%Y-%m-%d %H:%M %Z')} ({int(seconds_until_reconnect / 3600)}h {int((seconds_until_reconnect % 3600) / 60)}m)"
+                )
+
+                # Sleep until 7am Pacific
+                await asyncio.sleep(seconds_until_reconnect)
+
+                # Trigger reconnection
+                logger.info("[TwitchIO] Daily scheduled reconnection at 7am Pacific.")
+                self._eventsub_connected = False
+                await self._redis.set("eventsub:connected", "0")
+                self._create_background_task(self._handle_reconnection())
+
+                # Wait a bit before scheduling next one
+                await asyncio.sleep(60)
+
+            except asyncio.CancelledError:
+                logger.info("[TwitchIO] Daily reconnection scheduler cancelled.")
+                break
+            except Exception as e:
+                logger.error(
+                    f'[TwitchIO] ❌ Error in daily reconnection scheduler. error="{str(e)}"'
+                )
+                sentry_sdk.capture_exception(e)
+                # Retry in 1 hour if error
+                await asyncio.sleep(3600)
 
     async def event_oauth_authorized(
         self, payload: twitchio.OAuthAuthorizedPayload
