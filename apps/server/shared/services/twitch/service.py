@@ -76,6 +76,8 @@ class TwitchService(twitchio.Client):
         self._reconnecting = False  # Prevent concurrent reconnection attempts
         self._broadcaster_user_id = None  # Store broadcaster ID for reconnections
         self._background_tasks = set()  # Track background tasks
+        self._processed_event_ids = set()  # Track recently processed event IDs for deduplication
+        self._event_id_max_size = 1000  # Maximum event IDs to track
 
         # Redis client for health status tracking
         import redis.asyncio as redis
@@ -764,6 +766,21 @@ class TwitchService(twitchio.Client):
     async def _safe_delegate(self, handler_method, payload, event_name: str):
         """Safely delegate events to handler with error handling."""
         try:
+            # Deduplicate events by ID (handles multiple WebSocket connections)
+            event_id = getattr(payload, 'id', None)
+            if event_id:
+                if event_id in self._processed_event_ids:
+                    logger.debug(f"[TwitchIO] Duplicate event detected, skipping. event_id={event_id} type={event_name}")
+                    return
+
+                # Add to processed set
+                self._processed_event_ids.add(event_id)
+
+                # Limit set size to prevent memory growth
+                if len(self._processed_event_ids) > self._event_id_max_size:
+                    # Remove oldest half of events (FIFO approximation)
+                    self._processed_event_ids = set(list(self._processed_event_ids)[self._event_id_max_size // 2:])
+
             # Track that we received an event (for health monitoring)
             self._last_event_time = time.time()
 
