@@ -28,6 +28,11 @@ from events.services.twitch import TwitchEventHandler  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
+class ScheduledRestartException(Exception):
+    """Exception raised to trigger a clean scheduled restart."""
+    pass
+
+
 # Filter to suppress expected duplicate subscription errors during reconnection
 class TwitchIODuplicateSubscriptionFilter(logging.Filter):
     """Suppress 'Disregarding HTTPException' errors that occur during EventSub reconnection."""
@@ -219,7 +224,6 @@ class TwitchService(twitchio.Client):
         """Exit process daily at 7am Pacific to trigger container restart for fresh EventSub connection."""
         from datetime import datetime, timedelta
         from zoneinfo import ZoneInfo
-        import sys
 
         pacific_tz = ZoneInfo("America/Los_Angeles")
 
@@ -241,14 +245,17 @@ class TwitchService(twitchio.Client):
                 # Sleep until 7am Pacific
                 await asyncio.sleep(seconds_until_restart)
 
-                # Exit to trigger container restart
-                logger.info("[TwitchIO] Daily scheduled restart at 7am Pacific. Exiting to restart container.")
+                # Trigger clean shutdown for container restart
+                logger.info("[TwitchIO] Daily scheduled restart at 7am Pacific. Shutting down cleanly.")
                 await self._redis.set("eventsub:connected", "0")
-                sys.exit(0)
+                raise ScheduledRestartException("Daily restart at 7am Pacific")
 
             except asyncio.CancelledError:
                 logger.info("[TwitchIO] Daily restart scheduler cancelled.")
                 break
+            except ScheduledRestartException:
+                # Re-raise to be caught by main()
+                raise
             except Exception as e:
                 logger.error(
                     f'[TwitchIO] ❌ Error in daily restart scheduler. error="{str(e)}"'
@@ -1068,6 +1075,9 @@ async def main():
     try:
         logger.info("[TwitchIO] Service starting. port=4343")
         await service.start()
+    except ScheduledRestartException as e:
+        logger.info(f"[TwitchIO] {e}. Shutting down cleanly.")
+        await service.cleanup_subscriptions()
     except KeyboardInterrupt:
         logger.info("[TwitchIO] Received interrupt signal, shutting down.")
         await service.cleanup_subscriptions()
