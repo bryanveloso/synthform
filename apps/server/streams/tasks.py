@@ -37,8 +37,13 @@ def monitor_obs_performance():
             return False
 
         # Get current performance stats (both are synchronous OBS API calls)
-        stream_status = obs_service._client_req.get_stream_status()
-        stats = obs_service._client_req.get_stats()
+        try:
+            stream_status = obs_service._client_req.get_stream_status()
+            stats = obs_service._client_req.get_stats()
+        except (BrokenPipeError, ConnectionRefusedError, TimeoutError, OSError) as e:
+            # OBS not running or disconnected - expected, don't spam Sentry
+            logger.debug(f"[Streams] OBS not available for performance monitoring. error={e.__class__.__name__}")
+            return False
 
         if not stream_status or not stats:
             return False
