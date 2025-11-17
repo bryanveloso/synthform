@@ -28,11 +28,11 @@ export const Campaign: FC = () => {
     <Frame className="grow">
       <div className="flex items-center gap-3 pl-6 text-white">
         {/* Campaign */}
-        <div className="inset-ring-shark-800 flex items-center rounded-sm bg-black inset-ring-1">
+        <div className="inset-ring-shark-800 inset-ring-1 flex items-center rounded-sm bg-black">
           <div className="font-caps to-lime from-marigold bg-linear-to-r/longer bg-clip-text p-0.5 px-3 text-2xl text-transparent">
             {campaign?.name}
           </div>
-          <div className="border-l-shark-800 text-md border-l p-1 px-3 font-sans font-bold tabular-nums">
+          <div className="border-l-shark-800 text-md hidden border-l p-1 px-3 font-sans font-bold tabular-nums">
             {formatDurationDisplay(totalDuration)}
           </div>
           <div className="border-l-shark-800 text-md border-l p-1 px-3 font-sans font-bold tabular-nums">
