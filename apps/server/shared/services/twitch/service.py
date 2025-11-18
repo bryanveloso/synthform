@@ -207,10 +207,10 @@ class TwitchService(twitchio.Client):
                         },
                     )
 
-                    # Mark as disconnected but don't auto-reconnect (prevents duplicate connections)
-                    self._eventsub_connected = False
-                    await self._redis.set("eventsub:connected", "0")
-                    # Daily restart at 7am will handle recovery
+                    # Trigger immediate container restart to restore EventSub
+                    raise ScheduledRestartException(
+                        "EventSub silent failure - restarting container"
+                    )
 
             except asyncio.CancelledError:
                 logger.info("[TwitchIO] Heartbeat monitor cancelled.")
