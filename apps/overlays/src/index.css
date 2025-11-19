@@ -11,6 +11,18 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'M PLUS Rounded 1c';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src:
+    url(@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-japanese-400-normal.woff2)
+      format('woff2'),
+    url(@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-japanese-400-normal.woff)
+      format('woff');
+}
+
 @theme {
   --color-sage: #bbf4b0;
   --color-periwinkle: #928add;
@@ -59,7 +71,7 @@
 
   /* Typography */
   --font-sans: 'Sora Variable', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  --font-caps: 'Optiker K', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-caps: 'Optiker K', 'M PLUS Rounded 1c', system-ui, Avenir, Helvetica, Arial, sans-serif;
   --font-fira: 'Fira Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 

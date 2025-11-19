@@ -13,6 +13,7 @@
   "dependencies": {
     "@fontsource-variable/sora": "^5.2.8",
     "@fontsource/fira-sans": "^5.2.7",
+    "@fontsource/m-plus-rounded-1c": "^5.2.9",
     "@gsap/react": "^2.1.2",
     "@nberlette/clsx": "^0.3.1",
     "@tailwindcss/vite": "^4.1.17",
