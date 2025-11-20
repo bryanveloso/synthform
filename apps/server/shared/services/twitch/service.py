@@ -215,6 +215,9 @@ class TwitchService(twitchio.Client):
             except asyncio.CancelledError:
                 logger.info("[TwitchIO] Heartbeat monitor cancelled.")
                 break
+            except ScheduledRestartException:
+                # Re-raise to trigger container restart
+                raise
             except Exception as e:
                 logger.error(
                     f'[TwitchIO] ❌ Error in heartbeat monitor. error="{str(e)}"'
