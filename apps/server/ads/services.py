@@ -248,10 +248,15 @@ class AdScheduler:
             await self.broadcast_countdown(int(seconds_until))
             return False
 
-        # Time to run the ad
+        # Time to run the ad (with lock to prevent duplicate execution)
         if seconds_until <= 0:
-            await self.run_ad()
-            return True
+            lock_acquired = await r.set("ads:run_lock", "1", nx=True, ex=120)
+            if lock_acquired:
+                await self.run_ad()
+                return True
+            else:
+                logger.debug("[Ads] Ad run lock held by another worker, skipping")
+                return False
 
         return False
 
@@ -292,10 +297,11 @@ class AdScheduler:
             # Schedule next ad in AD_INTERVAL_MINUTES
             await self.set_next_ad_time()
 
-            # Clear warning state
+            # Clear warning state and run lock
             r = await self.get_redis()
             await r.delete("ads:warning_active")
             await r.delete("ads:warning_lock")
+            await r.delete("ads:run_lock")
 
             # Notify that ad is running
             message = {
@@ -316,6 +322,9 @@ class AdScheduler:
 
         except Exception as e:
             logger.error(f"Failed to run ad: {e}")
+            # Clear run lock on failure
+            r = await self.get_redis()
+            await r.delete("ads:run_lock")
             # Retry failed ad after AD_RETRY_MINUTES
             retry_time = timezone.now() + timedelta(minutes=AD_RETRY_MINUTES)
             await self.set_next_ad_time(retry_time)
