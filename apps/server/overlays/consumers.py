@@ -28,12 +28,13 @@ class OverlayConsumer(AsyncWebsocketConsumer):
     ]
 
     # Keep the old list for other uses (like base layer)
+    # Note: channel.subscription.message removed to avoid duplicate resub alerts
+    # (resubs come through channel.chat.notification with notice_type: resub)
     VIEWER_INTERACTIONS = [
         "channel.chat.notification",
         "channel.follow",
         "channel.subscribe",
         "channel.subscription.gift",
-        "channel.subscription.message",
         "channel.cheer",
         "channel.raid",
     ]

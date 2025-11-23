@@ -173,6 +173,7 @@ export function getAlertSound(alert: {
   }
 
   // Handle chat.notification events - need to check notice_type
+  // This is the primary path for subs, resubs, gifts, raids, etc.
   if (type === 'twitch.channel.chat.notification' && data?.payload?.notice_type) {
     const noticeType = data.payload.notice_type
     const config = alertSoundConfig[noticeType]
@@ -192,20 +193,6 @@ export function getAlertSound(alert: {
     if (amount && config.sounds) {
       const sound = findSoundByThreshold(config.sounds, amount)
       if (sound) return sound
-    }
-
-    return config.sounds[1]
-  }
-
-  // Handle subscription.message events (legacy format, still used by TwitchIO)
-  if (type === 'twitch.channel.subscription.message') {
-    const config = alertSoundConfig['resub']
-    if (!config) return undefined
-
-    // Use tier to select sound
-    if (tier) {
-      const tierNum = tier === '3000' ? 3 : tier === '2000' ? 2 : 1
-      return config.sounds[tierNum] || config.sounds[1]
     }
 
     return config.sounds[1]
