@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 
 export const Omnibar = () => {
   const containerRef = useRef<HTMLDivElement>(null)
-  const { currentAlert, onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: true })
+  const { currentAlert, onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: false })
   const { isMuted, isConnected } = useMicStatus()
 
   return (

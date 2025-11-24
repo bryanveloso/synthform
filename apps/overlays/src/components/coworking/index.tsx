@@ -13,7 +13,7 @@ import { useAlertQueue } from '@/hooks/use-alerts'
 
 export const Coworking = () => {
   const containerRef = useRef<HTMLDivElement>(null)
-  const { currentAlert, onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: true })
+  const { currentAlert, onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: false })
 
   // Animate entire overlay on mount
   useGSAP(() => {
