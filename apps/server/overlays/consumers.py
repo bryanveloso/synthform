@@ -257,6 +257,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         if not event_type:
             return
 
+        # Debug log for ALL twitch events to trace duplicates
+        if source == "twitch":
+            logger.debug(
+                f"[Overlay] 📨 Received Twitch event. type={event_type} id={event_data.get('event_id')} notice_type={event_data.get('payload', {}).get('notice_type', 'N/A')}"
+            )
+
         # Handle limit break events
         if event_type == "limitbreak:update":
             logger.debug(
@@ -410,6 +416,12 @@ class OverlayConsumer(AsyncWebsocketConsumer):
 
                 # Skip alerts for events marked suppress_alert (gift recipients)
                 if not payload.get("suppress_alert"):
+                    # Log for debugging duplicate alerts
+                    notice_type = payload.get("notice_type", "unknown")
+                    logger.info(
+                        f"[Overlay] 🔔 Pushing alert. event_type={event_type} notice_type={notice_type} event_id={event_data.get('event_id')}"
+                    )
+
                     # Create alert with flattened fields for sound system
                     alert_data = {
                         "id": event_data.get("event_id"),

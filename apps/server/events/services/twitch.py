@@ -342,6 +342,11 @@ class TwitchEventHandler:
 
     async def _handle_chat_notification(self, event_type: str, payload):
         """Handle ChatNotification payload."""
+        # Debug: Log chat notifications to trace duplicates
+        logger.info(
+            f"[TwitchIO] 📨 ChatNotification received. notice_type={payload.notice_type} user={payload.chatter.name} message_id={payload.id}"
+        )
+
         payload_dict = {
             "broadcaster_user_id": payload.broadcaster.id,
             "broadcaster_user_name": payload.broadcaster.name,
@@ -827,6 +832,11 @@ class TwitchEventHandler:
 
     async def _handle_channel_subscription_message(self, event_type: str, payload):
         """Handle ChannelSubscriptionMessage payload."""
+        # Debug: Log subscription messages to trace duplicates
+        logger.info(
+            f"[TwitchIO] 📨 SubscriptionMessage received. user={payload.user.name} months={payload.cumulative_months}"
+        )
+
         payload_dict = {
             "user_id": payload.user.id,
             "user_name": payload.user.name,
