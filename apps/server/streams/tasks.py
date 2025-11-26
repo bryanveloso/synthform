@@ -42,7 +42,9 @@ def monitor_obs_performance():
             stats = obs_service._client_req.get_stats()
         except Exception as e:
             # OBS not running, disconnected, or timeout - expected, don't spam Sentry
-            logger.debug(f"[Streams] OBS not available for performance monitoring. error={e.__class__.__name__}: {e}")
+            logger.debug(
+                f"[Streams] OBS not available for performance monitoring. error={e.__class__.__name__}: {e}"
+            )
             return False
 
         if not stream_status or not stats:
