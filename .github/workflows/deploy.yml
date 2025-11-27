@@ -37,28 +37,58 @@ jobs:
     
     - name: Check changes and deploy selectively
       run: |
-        # Check what changed in this push (all commits since the previous push)
-        CHANGED_FILES=$(git diff --name-only ${{ github.event.before }}..HEAD 2>/dev/null || git ls-files)
+        # Handle null SHA (force push, new branch, or first push)
+        BEFORE_SHA="${{ github.event.before }}"
+        if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || [ -z "$BEFORE_SHA" ]; then
+          echo "No previous SHA available, checking last commit only"
+          CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null || git ls-files)
+        else
+          CHANGED_FILES=$(git diff --name-only "$BEFORE_SHA"..HEAD 2>/dev/null || git ls-files)
+        fi
+
+        echo "=== Changed files ==="
+        echo "$CHANGED_FILES"
+        echo "===================="
+
+        REBUILD_SERVER=false
+        REBUILD_OVERLAYS=false
+        REBUILD_ALL=false
 
         # Server changes (includes both Django app and Twitch service since they share code)
         if echo "$CHANGED_FILES" | grep -q "apps/server"; then
-          echo "Server code changed, rebuilding server, twitch, celery, and ironmon containers"
-          docker compose -f docker-compose.prod.yml up --build -d server twitch celery ironmon
+          echo "✓ Detected: Server code changed"
+          REBUILD_SERVER=true
         fi
 
         # Overlays changes
         if echo "$CHANGED_FILES" | grep -q "apps/overlays"; then
-          echo "Overlay code changed, rebuilding overlays container"
-          docker compose -f docker-compose.prod.yml up --build -d overlays
+          echo "✓ Detected: Overlay code changed"
+          REBUILD_OVERLAYS=true
         fi
 
         # Infrastructure changes (compose files, Dockerfiles)
-        if echo "$CHANGED_FILES" | grep -q "docker-compose\|Dockerfile"; then
-          echo "Infrastructure changed, rebuilding all containers"
-          docker compose -f docker-compose.prod.yml up --build -d --remove-orphans
+        if echo "$CHANGED_FILES" | grep -qE "docker-compose|Dockerfile"; then
+          echo "✓ Detected: Infrastructure changed"
+          REBUILD_ALL=true
         fi
 
-        # Ensure all services are running (non-destructive)
+        # Execute rebuilds with force-recreate to ensure containers restart
+        if [ "$REBUILD_ALL" = true ]; then
+          echo ">>> Rebuilding ALL containers"
+          docker compose -f docker-compose.prod.yml up --build --force-recreate -d --remove-orphans
+        else
+          if [ "$REBUILD_SERVER" = true ]; then
+            echo ">>> Rebuilding server, twitch, celery, ironmon containers"
+            docker compose -f docker-compose.prod.yml up --build --force-recreate -d server twitch celery ironmon
+          fi
+
+          if [ "$REBUILD_OVERLAYS" = true ]; then
+            echo ">>> Rebuilding overlays container"
+            docker compose -f docker-compose.prod.yml up --build --force-recreate -d overlays
+          fi
+        fi
+
+        # Ensure all services are running (start any stopped services, no rebuild)
         docker compose -f docker-compose.prod.yml up -d
     
     - name: Wait for services to be ready
