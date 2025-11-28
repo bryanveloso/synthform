@@ -21,6 +21,7 @@ from django.utils import timezone  # noqa: E402
 from campaigns.services import campaign_service  # noqa: E402
 from events.models import Event  # noqa: E402
 from events.models import Member  # noqa: E402
+from streams.models import Session  # noqa: E402
 from streams.services.obs import obs_service  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -100,6 +101,93 @@ class TwitchEventHandler:
             # Shoutout events
             eventsub_.ShoutoutCreate: self._handle_shoutout_create,
         }
+
+    @staticmethod
+    def _serialize_twitchio_object(obj):
+        """Safely serialize TwitchIO objects to dict, excluding internal properties.
+
+        Recursively converts TwitchIO objects (which use __slots__) and regular
+        Python objects to JSON-serializable dictionaries.
+        """
+        if obj is None:
+            return None
+
+        # Handle primitive types
+        if isinstance(obj, (str, int, float, bool)):
+            return obj
+
+        # Handle lists
+        if isinstance(obj, list):
+            return [TwitchEventHandler._serialize_twitchio_object(item) for item in obj]
+
+        # Handle dicts
+        if isinstance(obj, dict):
+            return {
+                k: TwitchEventHandler._serialize_twitchio_object(v)
+                for k, v in obj.items()
+                if not k.startswith("_")
+            }
+
+        # Handle TwitchIO objects
+        result = {}
+
+        # Check if object uses __slots__ (common in TwitchIO)
+        if hasattr(obj, "__slots__"):
+            logger.debug(
+                f"Serializing {type(obj).__name__} with __slots__: {obj.__slots__}"
+            )
+            for slot in obj.__slots__:
+                # Skip private/internal attributes
+                if slot.startswith("_"):
+                    continue
+                try:
+                    attr_value = getattr(obj, slot)
+                    if attr_value is not None:
+                        # Skip internal TwitchIO objects
+                        if slot in [
+                            "_http",
+                            "_session",
+                            "_client_id",
+                            "_session_set",
+                            "_should_close",
+                        ]:
+                            continue
+                        logger.debug(
+                            f"  Slot '{slot}' = {attr_value!r} ({type(attr_value).__name__})"
+                        )
+                        # Recursively serialize nested objects
+                        result[slot] = TwitchEventHandler._serialize_twitchio_object(
+                            attr_value
+                        )
+                except AttributeError:
+                    # Slot exists but not set
+                    logger.debug(f"  Slot '{slot}' not set")
+                    continue
+        # Fallback to __dict__ for regular objects
+        elif hasattr(obj, "__dict__"):
+            for key, value in obj.__dict__.items():
+                # Skip private attributes and None values
+                if key.startswith("_") or value is None:
+                    continue
+                # Skip internal TwitchIO properties
+                if key in [
+                    "_http",
+                    "_session",
+                    "_client_id",
+                    "_session_set",
+                    "_should_close",
+                    "_url",
+                    "_ext",
+                    "_original_url",
+                    "user_agent",
+                ]:
+                    continue
+                result[key] = TwitchEventHandler._serialize_twitchio_object(value)
+        else:
+            # If neither __slots__ nor __dict__, convert to string
+            return str(obj)
+
+        return result if result else None
 
     # Public event methods for TwitchIO integration
     async def event_follow(self, payload):
@@ -342,7 +430,7 @@ class TwitchEventHandler:
 
     async def _handle_chat_notification(self, event_type: str, payload):
         """Handle ChatNotification payload."""
-        # Debug: Log chat notifications to trace duplicates
+        # Log incoming notification for event tracing
         logger.info(
             f"[TwitchIO] 📨 ChatNotification received. notice_type={payload.notice_type} user={payload.chatter.name} message_id={payload.id}"
         )
@@ -414,86 +502,6 @@ class TwitchEventHandler:
             "shared_announcement",  # Shared chat announcement
         ]
 
-        def serialize_twitchio_object(obj):
-            """Safely serialize TwitchIO objects to dict, excluding internal properties."""
-            if obj is None:
-                return None
-
-            # Handle primitive types
-            if isinstance(obj, (str, int, float, bool)):
-                return obj
-
-            # Handle lists
-            if isinstance(obj, list):
-                return [serialize_twitchio_object(item) for item in obj]
-
-            # Handle dicts
-            if isinstance(obj, dict):
-                return {
-                    k: serialize_twitchio_object(v)
-                    for k, v in obj.items()
-                    if not k.startswith("_")
-                }
-
-            # Handle TwitchIO objects
-            result = {}
-
-            # Check if object uses __slots__ (common in TwitchIO)
-            if hasattr(obj, "__slots__"):
-                logger.debug(
-                    f"Serializing {type(obj).__name__} with __slots__: {obj.__slots__}"
-                )
-                for slot in obj.__slots__:
-                    # Skip private/internal attributes
-                    if slot.startswith("_"):
-                        continue
-                    try:
-                        attr_value = getattr(obj, slot)
-                        if attr_value is not None:
-                            # Skip internal TwitchIO objects
-                            if slot in [
-                                "_http",
-                                "_session",
-                                "_client_id",
-                                "_session_set",
-                                "_should_close",
-                            ]:
-                                continue
-                            logger.debug(
-                                f"  Slot '{slot}' = {attr_value!r} ({type(attr_value).__name__})"
-                            )
-                            # Recursively serialize nested objects
-                            result[slot] = serialize_twitchio_object(attr_value)
-                    except AttributeError:
-                        # Slot exists but not set
-                        logger.debug(f"  Slot '{slot}' not set")
-                        continue
-            # Fallback to __dict__ for regular objects
-            elif hasattr(obj, "__dict__"):
-                for key, value in obj.__dict__.items():
-                    # Skip private attributes and None values
-                    if key.startswith("_") or value is None:
-                        continue
-                    # Skip internal TwitchIO properties
-                    if key in [
-                        "_http",
-                        "_session",
-                        "_client_id",
-                        "_session_set",
-                        "_should_close",
-                        "_url",
-                        "_ext",
-                        "_original_url",
-                        "user_agent",
-                    ]:
-                        continue
-                    result[key] = serialize_twitchio_object(value)
-            else:
-                # If neither __slots__ nor __dict__, convert to string
-                return str(obj)
-
-            return result if result else None
-
         # Track community gift ID for aggregation
         community_gift_id = None
 
@@ -504,7 +512,7 @@ class TwitchEventHandler:
                     logger.debug(
                         f"Processing notice field '{field}' for {payload.notice_type}"
                     )
-                    serialized_field = serialize_twitchio_object(field_value)
+                    serialized_field = self._serialize_twitchio_object(field_value)
                     payload_dict[field] = serialized_field
 
                     # Extract community_gift_id from community_sub_gift or sub_gift
@@ -832,7 +840,7 @@ class TwitchEventHandler:
 
     async def _handle_channel_subscription_message(self, event_type: str, payload):
         """Handle ChannelSubscriptionMessage payload."""
-        # Debug: Log subscription messages to trace duplicates
+        # Log incoming subscription message for event tracing
         logger.info(
             f"[TwitchIO] 📨 SubscriptionMessage received. user={payload.user.name} months={payload.cumulative_months}"
         )
@@ -892,10 +900,6 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
 
         # Track session start
-        from django.utils import timezone
-
-        from streams.models import Session
-
         today = timezone.now().date()
         session, created = await Session.objects.aget_or_create(
             session_date=today, defaults={"started_at": payload.started_at}
@@ -911,8 +915,6 @@ class TwitchEventHandler:
         )
 
         # Sync campaign state when stream starts
-        from campaigns.services import campaign_service
-
         try:
             await campaign_service.sync_campaign_state()
         except Exception as e:
@@ -938,10 +940,6 @@ class TwitchEventHandler:
         event = await self._create_event(event_type, payload_dict, member)
 
         # Track session end - find the most recent open session
-        from django.utils import timezone
-
-        from streams.models import Session
-
         # Find the most recent session that has started but not ended
         try:
             session = (
@@ -974,8 +972,6 @@ class TwitchEventHandler:
         )
 
         # Sync campaign state when stream ends
-        from campaigns.services import campaign_service
-
         try:
             await campaign_service.sync_campaign_state()
         except Exception as e:
@@ -1817,13 +1813,10 @@ class TwitchEventHandler:
         """Create Event record using sync_to_async."""
         # Get or create session based on stream state, not just date
         session = None
-        from django.utils import timezone as django_timezone
-
-        from streams.models import Session
 
         if event_type == "stream.online":
             # Create session for stream start date and store in Redis
-            stream_date = django_timezone.now().date()
+            stream_date = timezone.now().date()
             try:
                 session, created = await sync_to_async(Session.objects.get_or_create)(
                     session_date=stream_date
@@ -1910,7 +1903,7 @@ class TwitchEventHandler:
                     # Look for a session created today or yesterday (to handle UTC boundary)
                     from datetime import timedelta
 
-                    today = django_timezone.now().date()
+                    today = timezone.now().date()
                     yesterday = today - timedelta(days=1)
 
                     recent_session = await sync_to_async(
