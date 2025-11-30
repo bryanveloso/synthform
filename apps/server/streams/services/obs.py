@@ -332,6 +332,20 @@ class OBSService:
                 f"[OBS] Broadcasted event to Redis. event_type={event_type} channel={channel}"
             )
 
+            # Trigger EventSub health check when streaming starts
+            if event_type == "obs:streaming:changed" and data.get("output_active"):
+                logger.info(
+                    "[OBS] 📡 Stream started - triggering EventSub health check."
+                )
+                try:
+                    from events.tasks import trigger_eventsub_health_check
+
+                    trigger_eventsub_health_check.delay()
+                except Exception as e:
+                    logger.warning(
+                        f'[OBS] Could not trigger EventSub health check. error="{str(e)}"'
+                    )
+
         except Exception as e:
             logger.error(
                 f'[OBS] ❌ Failed to broadcast event to Redis. error="{str(e)}"'

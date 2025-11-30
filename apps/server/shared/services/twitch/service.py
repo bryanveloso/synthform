@@ -145,6 +145,27 @@ class TwitchService(twitchio.Client):
             try:
                 await asyncio.sleep(check_interval)
 
+                # Check for restart requested by Celery health check task
+                try:
+                    restart_requested = await self._redis.get("eventsub:restart_requested")
+                    if restart_requested:
+                        restart_reason = restart_requested.decode() if isinstance(restart_requested, bytes) else restart_requested
+                        logger.warning(
+                            f"[TwitchIO] 🔄 Restart requested by health check. reason={restart_reason}"
+                        )
+                        # Clear the flag before restarting
+                        await self._redis.delete("eventsub:restart_requested")
+                        await self._redis.delete("eventsub:restart_requested_at")
+                        raise ScheduledRestartException(
+                            f"Restart requested by health check: {restart_reason}"
+                        )
+                except ScheduledRestartException:
+                    raise
+                except Exception as e:
+                    logger.debug(
+                        f'[TwitchIO] Could not check restart flag. error="{str(e)}"'
+                    )
+
                 if not self._eventsub_connected:
                     continue
 

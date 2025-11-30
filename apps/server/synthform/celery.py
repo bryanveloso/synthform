@@ -29,6 +29,10 @@ app.conf.beat_schedule = {
         "task": "streams.tasks.monitor_obs_performance",
         "schedule": 5.0,  # Every 5 seconds
     },
+    "check-eventsub-health": {
+        "task": "events.tasks.check_eventsub_health",
+        "schedule": 14400.0,  # Every 4 hours
+    },
 }
 
 
