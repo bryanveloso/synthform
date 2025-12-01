@@ -14,6 +14,7 @@ import {
   type LimitBreakData,
   type LimitBreakExecutedData,
   type StreamStatus,
+  type StreamInfo,
   type OBSSceneData,
   type OBSStreamData,
 } from '@/types/server'
@@ -178,6 +179,9 @@ interface RealtimeStore {
   // Stream status
   status: StreamStatus | null
 
+  // Stream info (title, category from Twitch)
+  stream: StreamInfo | null
+
   // RME audio state
   rme: RMEMicStatus | null
 
@@ -267,6 +271,7 @@ export const useRealtimeStore = create<RealtimeStore>()(
     limitbreakExecuted: null,
     music: null,
     status: null,
+    stream: null,
     rme: null,
     obs: {
       scene: null,
@@ -426,6 +431,12 @@ export const useRealtimeStore = create<RealtimeStore>()(
         case 'status:sync':
         case 'status:update':
           set({ status: payload as StreamStatus })
+          break
+
+        // Stream info messages (title, category from Twitch)
+        case 'stream:sync':
+        case 'stream:update':
+          set({ stream: payload as StreamInfo })
           break
 
         // RME messages
@@ -851,6 +862,8 @@ const MESSAGE_TYPES: MessageType[] = [
   'music:update',
   'status:sync',
   'status:update',
+  'stream:sync',
+  'stream:update',
   'audio:rme:status',
   'audio:rme:update',
   'obs:sync',

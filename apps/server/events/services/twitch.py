@@ -647,6 +647,18 @@ class TwitchEventHandler:
         member = await self._get_or_create_member_from_payload(payload)
         event = await self._create_event(event_type, payload_dict, member)
         await self._publish_to_redis(event_type, event, member, payload_dict)
+
+        # Cache stream info in Redis for overlay sync
+        stream_info = json.dumps(
+            {
+                "title": payload.title,
+                "category_id": payload.category_id,
+                "category_name": payload.category_name,
+                "content_classification_labels": payload.content_classification_labels,
+            }
+        )
+        await self._redis_client.set("stream:info", stream_info)
+
         logger.info(
             f'[TwitchIO] Processed ChannelUpdate. broadcaster={payload.broadcaster.name} title="{payload.title}" category={payload.category_name}'
         )

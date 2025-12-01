@@ -329,6 +329,23 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             await self._send_message("chat", "message", formatted_message)
             return
 
+        # Handle channel update events (game/title changes)
+        if event_type == "channel.update":
+            payload = event_data.get("payload", {})
+            stream_data = {
+                "title": payload.get("title"),
+                "category_id": payload.get("category_id"),
+                "category_name": payload.get("category_name"),
+                "content_classification_labels": payload.get(
+                    "content_classification_labels", []
+                ),
+            }
+            logger.info(
+                f"[Overlay] 📺 Stream updated. title=\"{stream_data['title']}\" category={stream_data['category_name']}"
+            )
+            await self._send_message("stream", "update", stream_data)
+            return
+
         # Handle game events from FFBot
         if source == "ffbot":
             # Extract the event subtype (stats, hire, change, save)
@@ -562,6 +579,11 @@ class OverlayConsumer(AsyncWebsocketConsumer):
         status_state = await self._get_status_state()
         if status_state:
             await self._send_message("status", "sync", status_state)
+
+        # Stream layer - get current stream info (title, category)
+        stream_state = await self._get_stream_state()
+        if stream_state:
+            await self._send_message("stream", "sync", stream_state)
 
     async def _send_message(self, layer: str, verb: str, payload: dict | list) -> None:
         """Send formatted message to overlay client."""
@@ -990,6 +1012,22 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 "message": "",
                 "updated_at": None,
             }
+
+    async def _get_stream_state(self) -> dict | None:
+        """Get current stream info (title, category) from Redis cache."""
+        try:
+            stream_info = await self.redis.get("stream:info")
+            if stream_info:
+                data = json.loads(stream_info)
+                logger.info(
+                    f"[Overlay] Sending stream sync. title=\"{data.get('title')}\" category={data.get('category_name')}"
+                )
+                return data
+            logger.info("[Overlay] No stream info cached in Redis.")
+            return None
+        except Exception as e:
+            logger.error(f'[Overlay] Error getting stream state. error="{str(e)}"')
+            return None
 
     async def _get_recent_chat_messages(self, limit: int = 15) -> list[dict]:
         """Query database for recent chat messages."""

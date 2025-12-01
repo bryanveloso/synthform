@@ -33,6 +33,14 @@ export interface StreamStatus {
   updated_at: string | null
 }
 
+// Stream info types (from Twitch channel.update)
+export interface StreamInfo {
+  title: string
+  category_id: string
+  category_name: string
+  content_classification_labels: string[]
+}
+
 // Limit break types
 export interface LimitBreakData {
   count: number
@@ -393,6 +401,8 @@ export interface MessagePayloadMap {
   'music:update': MusicData
   'status:sync': StreamStatus
   'status:update': StreamStatus
+  'stream:sync': StreamInfo
+  'stream:update': StreamInfo
   'chat:message': ChatMessage
   'chat:sync': ChatMessage[]
   'audio:rme:status': RMEMicStatus
