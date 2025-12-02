@@ -51,14 +51,20 @@ def monitor_obs_performance():
             return False
 
         # Check if output is active (streaming)
-        if not stream_status.output_active:
+        # Use getattr for safety in case obsws-python API changes
+        if not getattr(stream_status, "output_active", False):
             return False
 
         # Extract frame data (output frames from stream_status, render frames from stats)
-        output_skipped = stream_status.output_skipped_frames
-        output_total = stream_status.output_total_frames
-        render_skipped = stats.render_skipped_frames
-        render_total = stats.render_total_frames
+        # Use getattr for safety in case obsws-python API changes
+        output_skipped = getattr(stream_status, "output_skipped_frames", 0)
+        output_total = getattr(stream_status, "output_total_frames", 0)
+        render_skipped = getattr(stats, "render_skipped_frames", 0)
+        render_total = getattr(stats, "render_total_frames", 0)
+
+        # Bail out if we don't have valid frame counts
+        if output_total == 0 and render_total == 0:
+            return False
 
         # Get previous values from Redis
         prev_output_skipped = int(
