@@ -87,6 +87,9 @@ class TwitchService(twitchio.Client):
         )  # Track recently processed event IDs for deduplication
         self._event_id_max_size = 1000  # Maximum event IDs to track
 
+        # Shutdown signal for background tasks to trigger main loop exit
+        self._shutdown_exception = None
+
         # Redis client for health status tracking
         import redis.asyncio as redis
 
@@ -124,12 +127,47 @@ class TwitchService(twitchio.Client):
         # Start daily reconnection scheduler
         self._create_background_task(self._daily_reconnection_scheduler())
 
+        # Start shutdown monitor to detect when background tasks request restart
+        self._create_background_task(self._shutdown_monitor())
+
     def _create_background_task(self, coro):
         """Create a background task with proper exception handling."""
         task = asyncio.create_task(coro)
         self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
+        task.add_done_callback(self._handle_task_done)
         return task
+
+    def _handle_task_done(self, task):
+        """Handle background task completion, capturing ScheduledRestartException."""
+        self._background_tasks.discard(task)
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            if isinstance(exc, ScheduledRestartException):
+                logger.info(
+                    f"[TwitchIO] Background task requested restart. reason={exc}"
+                )
+                self._shutdown_exception = exc
+            else:
+                logger.error(
+                    f'[TwitchIO] Background task failed. error="{exc}"'
+                )
+
+    async def _shutdown_monitor(self):
+        """Monitor for shutdown signals from background tasks and exit cleanly."""
+        import sys
+
+        while True:
+            await asyncio.sleep(5)  # Check every 5 seconds
+            if self._shutdown_exception is not None:
+                logger.info(
+                    f"[TwitchIO] Shutdown monitor detected restart request. Exiting process."
+                )
+                await self.cleanup_subscriptions()
+                await self._redis.set("eventsub:connected", "0")
+                # Exit the process so Docker can restart the container
+                sys.exit(0)
 
     async def _heartbeat_monitor(self):
         """Monitor EventSub health and trigger reconnection if no events received."""
