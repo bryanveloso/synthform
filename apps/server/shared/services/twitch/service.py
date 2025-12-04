@@ -149,6 +149,9 @@ class TwitchService(twitchio.Client):
                     f"[TwitchIO] Background task requested restart. reason={exc}"
                 )
                 self._shutdown_exception = exc
+            elif isinstance(exc, SystemExit):
+                # SystemExit from os._exit() or sys.exit() - expected during shutdown
+                pass
             else:
                 logger.error(
                     f'[TwitchIO] Background task failed. error="{exc}"'
@@ -156,18 +159,17 @@ class TwitchService(twitchio.Client):
 
     async def _shutdown_monitor(self):
         """Monitor for shutdown signals from background tasks and exit cleanly."""
-        import sys
-
         while True:
             await asyncio.sleep(5)  # Check every 5 seconds
             if self._shutdown_exception is not None:
                 logger.info(
-                    f"[TwitchIO] Shutdown monitor detected restart request. Exiting process."
+                    "[TwitchIO] Shutdown monitor detected restart request. Exiting process."
                 )
                 await self.cleanup_subscriptions()
                 await self._redis.set("eventsub:connected", "0")
-                # Exit the process so Docker can restart the container
-                sys.exit(0)
+                # Use os._exit() to immediately terminate without raising SystemExit
+                # This avoids exception propagation through asyncio
+                os._exit(0)
 
     async def _heartbeat_monitor(self):
         """Monitor EventSub health and trigger reconnection if no events received."""
