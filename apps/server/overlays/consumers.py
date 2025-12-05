@@ -341,7 +341,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
                 ),
             }
             logger.info(
-                f"[Overlay] 📺 Stream updated. title=\"{stream_data['title']}\" category={stream_data['category_name']}"
+                f'[Overlay] 📺 Stream updated. title="{stream_data["title"]}" category={stream_data["category_name"]}'
             )
             await self._send_message("stream", "update", stream_data)
             return
@@ -1020,7 +1020,7 @@ class OverlayConsumer(AsyncWebsocketConsumer):
             if stream_info:
                 data = json.loads(stream_info)
                 logger.info(
-                    f"[Overlay] Sending stream sync. title=\"{data.get('title')}\" category={data.get('category_name')}"
+                    f'[Overlay] Sending stream sync. title="{data.get("title")}" category={data.get("category_name")}'
                 )
                 return data
             logger.info("[Overlay] No stream info cached in Redis.")

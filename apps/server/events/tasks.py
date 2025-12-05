@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 # Health check thresholds
 EVENTSUB_MAX_SILENCE_SECONDS = 14400  # 4 hours without events = unhealthy
-EVENTSUB_STALE_CONNECTION_SECONDS = 21600  # 6 hours since last restart = recommend refresh
+EVENTSUB_STALE_CONNECTION_SECONDS = (
+    21600  # 6 hours since last restart = recommend refresh
+)
 
 
 @shared_task

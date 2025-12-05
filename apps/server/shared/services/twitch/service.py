@@ -153,9 +153,7 @@ class TwitchService(twitchio.Client):
                 # SystemExit from os._exit() or sys.exit() - expected during shutdown
                 pass
             else:
-                logger.error(
-                    f'[TwitchIO] Background task failed. error="{exc}"'
-                )
+                logger.error(f'[TwitchIO] Background task failed. error="{exc}"')
 
     async def _shutdown_monitor(self):
         """Monitor for shutdown signals from background tasks and exit cleanly."""
@@ -187,9 +185,15 @@ class TwitchService(twitchio.Client):
 
                 # Check for restart requested by Celery health check task
                 try:
-                    restart_requested = await self._redis.get("eventsub:restart_requested")
+                    restart_requested = await self._redis.get(
+                        "eventsub:restart_requested"
+                    )
                     if restart_requested:
-                        restart_reason = restart_requested.decode() if isinstance(restart_requested, bytes) else restart_requested
+                        restart_reason = (
+                            restart_requested.decode()
+                            if isinstance(restart_requested, bytes)
+                            else restart_requested
+                        )
                         logger.warning(
                             f"[TwitchIO] 🔄 Restart requested by health check. reason={restart_reason}"
                         )
