@@ -1,3 +1,5 @@
+import { useGSAP } from '@gsap/react'
+import { gsap } from 'gsap'
 import { useRef } from 'react'
 
 import { Alert } from '@/components/shared/alert'
@@ -5,13 +7,29 @@ import { Campaign } from '@/components/shared/campaign'
 import { Timeline } from '@/components/shared/timeline'
 import { Canvas } from '@/components/ui/canvas'
 import { useAlertQueue } from '@/hooks/use-alerts'
+import { useCampaign } from '@/hooks/use-campaign'
 import { useMicStatus } from '@/hooks/use-rme'
 import { cn } from '@/lib/utils'
 
+const BAR_HEIGHT = 64
+const ANIMATION_DURATION = 0.4
+
 export const Omnibar = () => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
   const { currentAlert, onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: false })
   const { isMuted, isConnected } = useMicStatus()
+  const { isActive: isCampaignActive } = useCampaign()
+
+  useGSAP(() => {
+    if (!barRef.current) return
+
+    gsap.to(barRef.current, {
+      y: isCampaignActive ? 0 : BAR_HEIGHT,
+      duration: ANIMATION_DURATION,
+      ease: isCampaignActive ? 'power3.out' : 'power3.in',
+    })
+  }, [isCampaignActive])
 
   return (
     <Canvas>
@@ -20,7 +38,7 @@ export const Omnibar = () => {
 
       <div ref={containerRef} className="h-canvas grid grid-rows-[1fr_64px]">
         <div className="h-full"></div>
-        <div className="relative flex items-center">
+        <div ref={barRef} className="relative flex items-center">
           {/* Base layer: Campaign */}
           <div className="relative z-10 flex w-full items-center">
             <Campaign />

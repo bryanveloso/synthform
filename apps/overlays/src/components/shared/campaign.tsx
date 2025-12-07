@@ -21,12 +21,8 @@ const Milestone: FC<{ next: Milestone }> = ({ next }) => {
 }
 
 export const Campaign: FC = () => {
-  const { campaign, isActive, totalSubsWithResubs, nextMilestone, totalDuration, formatDurationDisplay } =
+  const { campaign, totalSubsWithResubs, nextMilestone, totalDuration, formatDurationDisplay } =
     useCampaign()
-
-  if (!isActive) {
-    return null
-  }
 
   return (
     <Frame className="grow">
