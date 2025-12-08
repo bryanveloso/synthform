@@ -21,14 +21,25 @@ export const Omnibar = () => {
   const { isMuted, isConnected } = useMicStatus()
   const { isActive: isCampaignActive } = useCampaign()
 
+  const hasInitialized = useRef(false)
+
   useGSAP(() => {
     if (!barRef.current) return
 
-    gsap.to(barRef.current, {
-      y: isCampaignActive ? 0 : BAR_HEIGHT,
-      duration: ANIMATION_DURATION,
-      ease: isCampaignActive ? 'power3.out' : 'power3.in',
-    })
+    const targetY = isCampaignActive ? 0 : BAR_HEIGHT
+
+    if (!hasInitialized.current) {
+      // Set initial position without animation
+      gsap.set(barRef.current, { y: targetY })
+      hasInitialized.current = true
+    } else {
+      // Animate on subsequent changes
+      gsap.to(barRef.current, {
+        y: targetY,
+        duration: ANIMATION_DURATION,
+        ease: isCampaignActive ? 'power3.out' : 'power3.in',
+      })
+    }
   }, [isCampaignActive])
 
   return (
