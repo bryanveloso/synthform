@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13"
 
 [[package]]
@@ -867,7 +867,7 @@ requires-dist = [
     { name = "django-environ", specifier = ">=0.11.2" },
     { name = "django-fernet-encrypted-fields", specifier = ">=0.3.0" },
     { name = "django-ninja", specifier = ">=1.5.0" },
-    { name = "httpx", specifier = ">=0.25.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "obsws-python", specifier = ">=1.8.0" },
     { name = "psycopg", specifier = ">=3.3.0" },
