@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13"
 
 [[package]]
@@ -872,7 +872,7 @@ requires-dist = [
     { name = "obsws-python", specifier = ">=1.8.0" },
     { name = "psycopg", specifier = ">=3.3.0" },
     { name = "python-osc", specifier = ">=1.8.0" },
-    { name = "redis", specifier = ">=5.2.0" },
+    { name = "redis", specifier = ">=6.0.0" },
     { name = "ruff", specifier = ">=0.12.10" },
     { name = "sentry-sdk", extras = ["django"], specifier = ">=2.37.0" },
     { name = "twitchio", extras = ["starlette"], specifier = ">=3.1.0" },
@@ -970,14 +970,14 @@ tls = [
 
 [[package]]
 name = "twitchio"
-version = "3.1.0"
+version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4e/03/71aad99700042c98e7194c1d8778dc6ccc7b8a8967afd61bec63da68cf27/twitchio-3.1.0.tar.gz", hash = "sha256:2b1cac9e857bc524cb947c5284e704728a0561b372f1ac170f5de1714e8f8d56", size = 244969, upload-time = "2025-08-10T10:42:05.236Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/55/d0b8f1c6552f23994d925301fa7d5743109568cc8f079fee9866c5a52499/twitchio-3.2.1.tar.gz", hash = "sha256:a1be858a4028625173978db91224326b910a0aaa4c7db879a8867003642a0115", size = 248627, upload-time = "2026-01-29T14:14:44.803Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/f1/3b3ec7cf2784f4a0745f006c1a5c130a3b4fbddcbab457fa80e5b86f8fb7/twitchio-3.1.0-py3-none-any.whl", hash = "sha256:d275d5d8c6879fae7212045e6bc08068166e3ab2824b5cbf78c82737ea94b636", size = 316539, upload-time = "2025-08-10T10:42:03.42Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/a1/2f7e31066eb2c6e78cecd95cf1dd66773cf8f90738339320e12df5e2da2d/twitchio-3.2.1-py3-none-any.whl", hash = "sha256:576d131fdfb0378ee0bfd7f35f8381636f9a911c3961589add97055a578da555", size = 320563, upload-time = "2026-01-29T14:14:43.252Z" },
 ]
 
 [package.optional-dependencies]
