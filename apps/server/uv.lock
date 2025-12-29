@@ -915,7 +915,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "obsws-python", specifier = ">=1.8.0" },
     { name = "psycopg", specifier = ">=3.3.0" },
-    { name = "python-osc", specifier = ">=1.8.0" },
+    { name = "python-osc", specifier = ">=1.9.0" },
     { name = "redis", specifier = ">=6.0.0" },
     { name = "ruff", specifier = ">=0.12.10" },
     { name = "sentry-sdk", extras = ["django"], specifier = ">=2.40.0" },
