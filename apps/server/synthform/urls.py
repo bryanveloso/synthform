@@ -30,7 +30,7 @@ from streams.api import router as streams_router
 from .health import health_check
 
 # Create main API instance with unique namespace
-api = NinjaAPI(urls_namespace="main", csrf=False)
+api = NinjaAPI(urls_namespace="main")
 
 # Add routers to main API
 api.add_router("/campaigns/", campaigns_router)
