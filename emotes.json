@@ -1,0 +1,1868 @@
+{
+	"textures": [
+		{
+			"image": "emotes.png",
+			"format": "RGBA8888",
+			"size": {
+				"w": 2922,
+				"h": 2922
+			},
+			"scale": 1,
+			"frames": [
+				{
+					"filename": "bardLizard.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 500,
+						"h": 500
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 75,
+						"w": 498,
+						"h": 425
+					},
+					"frame": {
+						"x": 0,
+						"y": 0,
+						"w": 498,
+						"h": 425
+					}
+				},
+				{
+					"filename": "avalonAKTUALLY.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 498,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonARTSY.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 798,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonAYAYA.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1098,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonBLANK.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1398,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonBONK.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1698,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonCHU.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1998,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonCOOL.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 2298,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonCOZY.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 2598,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonCRY.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 498,
+						"y": 300,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonDERP.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 0,
+						"y": 425,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonDOZE.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 798,
+						"y": 300,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonESSAY.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1098,
+						"y": 300,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonFEELS.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1398,
+						"y": 300,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonFIESTA.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1698,
+						"y": 300,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonFREEZE.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1998,
+						"y": 300,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonGASP.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 2298,
+						"y": 300,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonGIB.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 2598,
+						"y": 300,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonGLARE.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 0,
+						"y": 725,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonGRIN.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 0,
+						"y": 1025,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonHAPPY.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 0,
+						"y": 1325,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonHOLY.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 0,
+						"y": 1625,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonHUG.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 0,
+						"y": 1925,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonHYPE.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 0,
+						"y": 2225,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonKEK.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 0,
+						"y": 2525,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonLATE.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 300,
+						"y": 600,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonLIZARD.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 300,
+						"y": 900,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonNOTE.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 300,
+						"y": 1200,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonOHWOAHOHNO.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 300,
+						"y": 1500,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonOWO.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 300,
+						"y": 1800,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonPET.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 300,
+						"y": 2100,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonPOP.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 300,
+						"y": 2400,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonDAISHOUWHEE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 15,
+						"y": 81,
+						"w": 259,
+						"h": 219
+					},
+					"frame": {
+						"x": 300,
+						"y": 2700,
+						"w": 259,
+						"h": 219
+					}
+				},
+				{
+					"filename": "avalonSHUCKS.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 600,
+						"y": 600,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonSIP.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 600,
+						"y": 900,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonSUS.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 600,
+						"y": 1200,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonUH.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 600,
+						"y": 1500,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonV.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 600,
+						"y": 1800,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonWAVE.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 600,
+						"y": 2100,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonWHY.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 600,
+						"y": 2400,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonWUT.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 900,
+						"y": 600,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonYUM.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 300
+					},
+					"frame": {
+						"x": 1200,
+						"y": 600,
+						"w": 300,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalon7.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 1,
+						"w": 300,
+						"h": 299
+					},
+					"frame": {
+						"x": 1500,
+						"y": 600,
+						"w": 300,
+						"h": 299
+					}
+				},
+				{
+					"filename": "avalonHIDE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 1,
+						"w": 300,
+						"h": 299
+					},
+					"frame": {
+						"x": 1800,
+						"y": 600,
+						"w": 300,
+						"h": 299
+					}
+				},
+				{
+					"filename": "avalonJAM.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 1,
+						"w": 300,
+						"h": 299
+					},
+					"frame": {
+						"x": 2100,
+						"y": 600,
+						"w": 300,
+						"h": 299
+					}
+				},
+				{
+					"filename": "avalonKANPAI.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 1,
+						"w": 300,
+						"h": 299
+					},
+					"frame": {
+						"x": 2400,
+						"y": 600,
+						"w": 300,
+						"h": 299
+					}
+				},
+				{
+					"filename": "avalonLEAVE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 46,
+						"y": 33,
+						"w": 219,
+						"h": 267
+					},
+					"frame": {
+						"x": 2700,
+						"y": 600,
+						"w": 219,
+						"h": 267
+					}
+				},
+				{
+					"filename": "avalonLOOK.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 1,
+						"w": 300,
+						"h": 299
+					},
+					"frame": {
+						"x": 1500,
+						"y": 899,
+						"w": 300,
+						"h": 299
+					}
+				},
+				{
+					"filename": "avalonTHINK.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 1,
+						"w": 300,
+						"h": 299
+					},
+					"frame": {
+						"x": 900,
+						"y": 900,
+						"w": 300,
+						"h": 299
+					}
+				},
+				{
+					"filename": "avalonDANCE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 2,
+						"w": 300,
+						"h": 298
+					},
+					"frame": {
+						"x": 1200,
+						"y": 900,
+						"w": 300,
+						"h": 298
+					}
+				},
+				{
+					"filename": "avalonDUM.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 2,
+						"w": 300,
+						"h": 298
+					},
+					"frame": {
+						"x": 1800,
+						"y": 899,
+						"w": 300,
+						"h": 298
+					}
+				},
+				{
+					"filename": "avalonFINE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 3,
+						"w": 300,
+						"h": 297
+					},
+					"frame": {
+						"x": 2100,
+						"y": 899,
+						"w": 300,
+						"h": 297
+					}
+				},
+				{
+					"filename": "avalonLOOT.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 6,
+						"w": 300,
+						"h": 294
+					},
+					"frame": {
+						"x": 2400,
+						"y": 899,
+						"w": 300,
+						"h": 294
+					}
+				},
+				{
+					"filename": "avalonEUREKA.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 7,
+						"w": 300,
+						"h": 293
+					},
+					"frame": {
+						"x": 2400,
+						"y": 1193,
+						"w": 300,
+						"h": 293
+					}
+				},
+				{
+					"filename": "avalonLOADING.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 8,
+						"w": 300,
+						"h": 292
+					},
+					"frame": {
+						"x": 2100,
+						"y": 1196,
+						"w": 300,
+						"h": 292
+					}
+				},
+				{
+					"filename": "avalonWAAH.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 15,
+						"w": 300,
+						"h": 285
+					},
+					"frame": {
+						"x": 1800,
+						"y": 1197,
+						"w": 300,
+						"h": 285
+					}
+				},
+				{
+					"filename": "avalonLURK.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 75,
+						"w": 300,
+						"h": 225
+					},
+					"frame": {
+						"x": 2400,
+						"y": 1486,
+						"w": 300,
+						"h": 225
+					}
+				},
+				{
+					"filename": "avalonSTRESS.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 299,
+						"h": 300
+					},
+					"frame": {
+						"x": 1200,
+						"y": 1198,
+						"w": 299,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonCOMFI.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 1,
+						"y": 17,
+						"w": 299,
+						"h": 283
+					},
+					"frame": {
+						"x": 900,
+						"y": 1199,
+						"w": 299,
+						"h": 283
+					}
+				},
+				{
+					"filename": "avalonEYES.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 2,
+						"y": 0,
+						"w": 298,
+						"h": 300
+					},
+					"frame": {
+						"x": 900,
+						"y": 1482,
+						"w": 298,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonJOY.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 2,
+						"y": 0,
+						"w": 298,
+						"h": 300
+					},
+					"frame": {
+						"x": 1499,
+						"y": 1198,
+						"w": 298,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonSPIN.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 2,
+						"y": 1,
+						"w": 298,
+						"h": 299
+					},
+					"frame": {
+						"x": 1797,
+						"y": 1482,
+						"w": 298,
+						"h": 299
+					}
+				},
+				{
+					"filename": "avalonPOINT.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 2,
+						"w": 298,
+						"h": 298
+					},
+					"frame": {
+						"x": 2095,
+						"y": 1488,
+						"w": 298,
+						"h": 298
+					}
+				},
+				{
+					"filename": "avalonPAUSE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 2,
+						"y": 3,
+						"w": 298,
+						"h": 297
+					},
+					"frame": {
+						"x": 2393,
+						"y": 1711,
+						"w": 298,
+						"h": 297
+					}
+				},
+				{
+					"filename": "avalonSIT2.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 49,
+						"y": 2,
+						"w": 227,
+						"h": 298
+					},
+					"frame": {
+						"x": 2691,
+						"y": 1711,
+						"w": 227,
+						"h": 298
+					}
+				},
+				{
+					"filename": "avalonBARK.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 2,
+						"y": 9,
+						"w": 298,
+						"h": 291
+					},
+					"frame": {
+						"x": 1198,
+						"y": 1498,
+						"w": 298,
+						"h": 291
+					}
+				},
+				{
+					"filename": "avalonYIKES.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 3,
+						"y": 0,
+						"w": 297,
+						"h": 300
+					},
+					"frame": {
+						"x": 900,
+						"y": 1782,
+						"w": 297,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonRAGE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 3,
+						"y": 18,
+						"w": 297,
+						"h": 282
+					},
+					"frame": {
+						"x": 1496,
+						"y": 1498,
+						"w": 297,
+						"h": 282
+					}
+				},
+				{
+					"filename": "avalonSLIDE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 2,
+						"w": 296,
+						"h": 298
+					},
+					"frame": {
+						"x": 1496,
+						"y": 1780,
+						"w": 296,
+						"h": 298
+					}
+				},
+				{
+					"filename": "avalonCLAP.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 294,
+						"h": 300
+					},
+					"frame": {
+						"x": 1197,
+						"y": 1789,
+						"w": 294,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonDC.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 294,
+						"h": 300
+					},
+					"frame": {
+						"x": 900,
+						"y": 2082,
+						"w": 294,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonNOD.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 294,
+						"h": 300
+					},
+					"frame": {
+						"x": 1792,
+						"y": 1781,
+						"w": 294,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonSIT.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 32,
+						"w": 294,
+						"h": 267
+					},
+					"frame": {
+						"x": 1491,
+						"y": 2078,
+						"w": 294,
+						"h": 267
+					}
+				},
+				{
+					"filename": "avalonINFLUENCED.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 293,
+						"h": 300
+					},
+					"frame": {
+						"x": 1194,
+						"y": 2089,
+						"w": 293,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonREVERSE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 293,
+						"h": 300
+					},
+					"frame": {
+						"x": 900,
+						"y": 2382,
+						"w": 293,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonNOM.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 0,
+						"w": 292,
+						"h": 300
+					},
+					"frame": {
+						"x": 2086,
+						"y": 1786,
+						"w": 292,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonYEP.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 292,
+						"h": 300
+					},
+					"frame": {
+						"x": 1785,
+						"y": 2081,
+						"w": 292,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonMYAA.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 10,
+						"y": 8,
+						"w": 290,
+						"h": 292
+					},
+					"frame": {
+						"x": 1487,
+						"y": 2345,
+						"w": 290,
+						"h": 292
+					}
+				},
+				{
+					"filename": "avalonSTONKS.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 13,
+						"w": 290,
+						"h": 287
+					},
+					"frame": {
+						"x": 1193,
+						"y": 2389,
+						"w": 290,
+						"h": 287
+					}
+				},
+				{
+					"filename": "avalonWIGGLE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 4,
+						"y": 24,
+						"w": 285,
+						"h": 276
+					},
+					"frame": {
+						"x": 1483,
+						"y": 2637,
+						"w": 285,
+						"h": 276
+					}
+				},
+				{
+					"filename": "avalonCOMFY.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 7,
+						"y": 8,
+						"w": 289,
+						"h": 286
+					},
+					"frame": {
+						"x": 2378,
+						"y": 2008,
+						"w": 289,
+						"h": 286
+					}
+				},
+				{
+					"filename": "avalonANGY.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 27,
+						"y": 2,
+						"w": 255,
+						"h": 298
+					},
+					"frame": {
+						"x": 2667,
+						"y": 2009,
+						"w": 255,
+						"h": 298
+					}
+				},
+				{
+					"filename": "avalonD.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 288,
+						"h": 300
+					},
+					"frame": {
+						"x": 2077,
+						"y": 2086,
+						"w": 288,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonNOPE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 14,
+						"y": 6,
+						"w": 284,
+						"h": 294
+					},
+					"frame": {
+						"x": 1777,
+						"y": 2381,
+						"w": 284,
+						"h": 294
+					}
+				},
+				{
+					"filename": "avalonWOW.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 283,
+						"h": 300
+					},
+					"frame": {
+						"x": 2365,
+						"y": 2294,
+						"w": 283,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonPEACE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 7,
+						"y": 0,
+						"w": 270,
+						"h": 300
+					},
+					"frame": {
+						"x": 2648,
+						"y": 2307,
+						"w": 270,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonLOVE.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 278,
+						"h": 300
+					},
+					"frame": {
+						"x": 2061,
+						"y": 2607,
+						"w": 278,
+						"h": 300
+					}
+				},
+				{
+					"filename": "avalonSPOOK.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 300,
+						"h": 300
+					},
+					"spriteSourceSize": {
+						"x": 10,
+						"y": 2,
+						"w": 278,
+						"h": 298
+					},
+					"frame": {
+						"x": 2339,
+						"y": 2607,
+						"w": 278,
+						"h": 298
+					}
+				}
+			]
+		}
+	],
+	"meta": {
+		"app": "https://www.codeandweb.com/texturepacker",
+		"version": "3.0",
+		"smartupdate": "$TexturePacker:SmartUpdate:9cefd2eaafcdb9e0dfc9439243112ff0:7a2d8745cd9da9e2c18cd861c5f5beb7:50f4303f0256a68a8ac96e20a5037fe9$"
+	}
+}
