@@ -176,8 +176,8 @@ class TwitchService(twitchio.Client):
 
         # Check every 2 minutes
         check_interval = 120
-        # Reconnect if no events for 10 minutes (stream might be offline)
-        max_silence = 600
+        # Reconnect if no events for 3 minutes (reduced from 10 to catch silent failures faster)
+        max_silence = 180
 
         while True:
             try:
