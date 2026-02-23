@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "channels[daphne]>=4.3.2",
     "django>=5.2.5",
-    "twitchio[starlette]>=3.2.0",
+    "twitchio[starlette]>=3.2.1",
     "psycopg>=3.3.0",
     "django-environ>=0.12.0",
     "obsws-python>=1.8.0",
