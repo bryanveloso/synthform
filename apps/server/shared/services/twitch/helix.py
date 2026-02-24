@@ -7,6 +7,7 @@ import logging
 import redis.asyncio as redis
 import twitchio
 from django.conf import settings
+from twitchio.exceptions import HTTPException, InvalidTokenException
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,25 @@ class HelixService:
 
             return client
 
+        except InvalidTokenException as e:
+            # TwitchIO wraps 429 in InvalidTokenException - check original cause
+            original = getattr(e, "original", None)
+            if isinstance(original, HTTPException) and getattr(original, "status", None) == 429:
+                logger.warning("[Helix] Rate limited by Twitch API. Using cached fallback.")
+                return None
+            logger.error(
+                f'[Helix] Invalid token error. error="{str(e)}"', exc_info=True
+            )
+            return None
+        except HTTPException as e:
+            # Handle rate limiting gracefully - don't treat as error
+            if hasattr(e, "status") and e.status == 429:
+                logger.warning("[Helix] Rate limited by Twitch API. Using cached fallback.")
+                return None
+            logger.error(
+                f'[Helix] HTTP error creating Helix client. error="{str(e)}"', exc_info=True
+            )
+            return None
         except Exception as e:
             logger.error(
                 f'[Helix] Error creating Helix client. error="{str(e)}"', exc_info=True
