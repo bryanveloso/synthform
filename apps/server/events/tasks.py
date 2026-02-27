@@ -42,11 +42,10 @@ def check_eventsub_health():
         # Check connection status
         eventsub_connected = redis_client.get("eventsub:connected")
         last_event_time = redis_client.get("eventsub:last_event_time")
-        reconnect_attempts = redis_client.get("eventsub:reconnect_attempts")
 
         logger.info(
             f"[EventSub Health] Checking health. connected={eventsub_connected} "
-            f"last_event_time={last_event_time} reconnect_attempts={reconnect_attempts}"
+            f"last_event_time={last_event_time}"
         )
 
         # If explicitly disconnected, request restart
@@ -90,13 +89,6 @@ def check_eventsub_health():
                 "reason": "prolonged_silence",
                 "seconds_since_event": int(seconds_since_event),
             }
-
-        # Check if too many reconnect attempts (indicates persistent issues)
-        if reconnect_attempts and int(reconnect_attempts) > 5:
-            logger.warning(
-                f"[EventSub Health] ⚠️ High reconnect attempts. count={reconnect_attempts}"
-            )
-            # Don't auto-restart on this, just log - the service handles its own reconnection
 
         logger.info("[EventSub Health] ✅ EventSub appears healthy.")
         return {"healthy": True, "seconds_since_event": int(seconds_since_event)}

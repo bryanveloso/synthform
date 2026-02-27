@@ -74,13 +74,8 @@ class TwitchService(twitchio.Client):
         self._eventsub_connected = False
         self._event_handler = TwitchEventHandler()
         self._auth_service = AuthService("twitch")
-        self._reconnect_attempts = 0
-        self._reconnect_delay = 1  # Start with 1 second
-        self._max_reconnect_delay = 300  # Max 5 minutes
-        self._active_subscriptions = {}  # Track active subscriptions
         self._last_event_time = None  # Track last event received for health monitoring
-        self._reconnecting = False  # Prevent concurrent reconnection attempts
-        self._broadcaster_user_id = None  # Store broadcaster ID for reconnections
+        self._broadcaster_user_id = None  # Store broadcaster ID for cleanup
         self._background_tasks = set()  # Track background tasks
         self._processed_event_ids = (
             set()
@@ -106,15 +101,12 @@ class TwitchService(twitchio.Client):
         await self._load_existing_tokens()
 
         self._eventsub_connected = True
-        self._reconnect_attempts = 0  # Reset on successful connection
-        self._reconnect_delay = 1
 
         # Verify Redis connection and update health status
         try:
             await self._redis.ping()
             logger.info("[Redis] Connected to Redis.")
             await self._redis.set("eventsub:connected", "1")
-            await self._redis.set("eventsub:reconnect_attempts", "0")
         except Exception as e:
             logger.error(f'[Redis] Failed to update health status. error="{str(e)}"')
             sentry_sdk.capture_exception(e)
@@ -474,22 +466,6 @@ class TwitchService(twitchio.Client):
         except Exception as e:
             logger.error(f'[TwitchIO] Failed to load existing tokens. error="{str(e)}"')
 
-    async def _subscribe_to_events(self):
-        """Subscribe to EventSub events for authenticated users."""
-        try:
-            # This method is called after event_ready, check if we have a user
-            if not self.user:
-                logger.debug(
-                    "[TwitchIO] No user context in client - subscriptions handled via loaded tokens."
-                )
-                return
-
-            user_id = str(self.user.id)
-            await self._subscribe_to_events_for_user(user_id)
-
-        except Exception as e:
-            logger.error(f'[TwitchIO] Failed to subscribe to events. error="{str(e)}"')
-
     async def _subscribe_to_events_for_user(self, user_id: str):
         """Subscribe to Twitch EventSub events for a specific user ID using subscription payload objects."""
         try:
@@ -588,15 +564,7 @@ class TwitchService(twitchio.Client):
 
             for subscription in subscriptions:
                 try:
-                    sub_id = await self.subscribe_websocket(
-                        subscription, token_for=user_id
-                    )
-                    # Track active subscription for reconnection
-                    self._active_subscriptions[subscription.__class__.__name__] = {
-                        "subscription": subscription,
-                        "user_id": user_id,
-                        "id": sub_id,
-                    }
+                    await self.subscribe_websocket(subscription, token_for=user_id)
                     logger.info(
                         f"[TwitchIO] Subscribed to event. type={subscription.__class__.__name__}"
                     )
@@ -734,128 +702,12 @@ class TwitchService(twitchio.Client):
                         f'[TwitchIO] Could not delete subscriptions from Twitch. error="{str(e)}"'
                     )
 
-            # Clear tracked subscriptions
-            self._active_subscriptions.clear()
             self._eventsub_connected = False
             logger.info("[TwitchIO] EventSub subscriptions cleaned up.")
         except Exception as e:
             logger.error(
                 f'[TwitchIO] Failed to clean up subscriptions. error="{str(e)}"'
             )
-
-    async def _handle_reconnection(self):
-        """Handle EventSub reconnection with exponential backoff."""
-        # Prevent concurrent reconnection attempts
-        if self._reconnecting:
-            logger.debug("[TwitchIO] Reconnection already in progress, skipping.")
-            return
-
-        self._reconnecting = True
-        self._reconnect_attempts += 1
-        wait_time = min(self._reconnect_delay, self._max_reconnect_delay)
-
-        # Update reconnect attempts in Redis
-        try:
-            await self._redis.set(
-                "eventsub:reconnect_attempts", str(self._reconnect_attempts)
-            )
-        except Exception as e:
-            logger.error(
-                f'[Redis] Failed to update reconnect attempts. error="{str(e)}"'
-            )
-            sentry_sdk.capture_exception(e)
-
-        logger.warning(
-            f"[TwitchIO] 🟡 EventSub disconnected, attempting reconnection. attempt={self._reconnect_attempts} delay={wait_time}s"
-        )
-
-        # Alert to Sentry on attempt 3 and every 10 attempts after
-        if self._reconnect_attempts == 3 or self._reconnect_attempts % 10 == 0:
-            sentry_sdk.capture_message(
-                f"EventSub reconnection attempt #{self._reconnect_attempts}",
-                level="warning",
-                extras={
-                    "reconnect_attempts": self._reconnect_attempts,
-                    "wait_time": wait_time,
-                    "broadcaster_id": self._broadcaster_user_id,
-                },
-            )
-
-        await asyncio.sleep(wait_time)
-        self._reconnect_delay = min(
-            self._reconnect_delay * 2, self._max_reconnect_delay
-        )
-
-        try:
-            if not self._broadcaster_user_id:
-                logger.error(
-                    "[TwitchIO] ❌ No broadcaster ID stored, cannot reconnect."
-                )
-                self._reconnecting = False
-                return
-
-            logger.info("[TwitchIO] Closing existing EventSub WebSocket connections.")
-
-            # Close existing EventSub websocket connections
-            # TwitchIO manages these internally, we need to trigger cleanup
-            if hasattr(self, "_eventsub") and self._eventsub:
-                try:
-                    # Access TwitchIO's internal EventSub websocket manager
-                    if hasattr(self._eventsub, "_websockets"):
-                        for ws in list(self._eventsub._websockets.values()):
-                            try:
-                                await ws.close()
-                            except Exception:
-                                pass
-                except Exception as e:
-                    logger.debug(
-                        f'[TwitchIO] Error closing websockets. error="{str(e)}"'
-                    )
-
-            # Clear tracked subscriptions (will be recreated)
-            self._active_subscriptions.clear()
-
-            # Small delay to ensure cleanup completes
-            await asyncio.sleep(1)
-
-            logger.info("[TwitchIO] Re-subscribing to EventSub events.")
-            # Re-subscribe to events - this will create a new WebSocket connection
-            await self._subscribe_to_events_for_user(self._broadcaster_user_id)
-
-            self._eventsub_connected = True
-            self._reconnect_attempts = 0
-            self._reconnect_delay = 1
-            self._reconnecting = False
-
-            # Update health status in Redis
-            try:
-                await self._redis.set("eventsub:connected", "1")
-                await self._redis.set("eventsub:reconnect_attempts", "0")
-            except Exception as e:
-                logger.error(
-                    f'[Redis] Failed to update health status. context=reconnection_success error="{str(e)}"'
-                )
-                sentry_sdk.capture_exception(e)
-
-            logger.info("[TwitchIO] ✅ EventSub reconnected.")
-
-        except Exception as e:
-            logger.error(
-                f'[TwitchIO] ❌ EventSub reconnection failed. error="{str(e)}"'
-            )
-            self._reconnecting = False
-
-            # Alert Sentry on failure
-            sentry_sdk.capture_exception(
-                e,
-                extras={
-                    "reconnect_attempts": self._reconnect_attempts,
-                    "broadcaster_id": self._broadcaster_user_id,
-                },
-            )
-
-            # Schedule another reconnection attempt
-            self._create_background_task(self._handle_reconnection())
 
     async def _safe_delegate(self, handler_method, payload, event_name: str):
         """Safely delegate events to handler with error handling."""
