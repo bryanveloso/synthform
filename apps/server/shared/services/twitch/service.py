@@ -713,9 +713,27 @@ class TwitchService(twitchio.Client):
             self._eventsub_connected = False
 
     async def cleanup_subscriptions(self):
-        """Clean up EventSub subscriptions on shutdown."""
+        """Clean up EventSub subscriptions on shutdown.
+
+        Deletes all subscriptions from Twitch's servers to prevent accumulation
+        across container restarts.
+        """
         logger.info("[TwitchIO] Cleaning up EventSub subscriptions.")
         try:
+            # Delete all subscriptions from Twitch's servers
+            if self._broadcaster_user_id:
+                try:
+                    await self.delete_all_eventsub_subscriptions(
+                        token_for=str(self._broadcaster_user_id)
+                    )
+                    logger.info(
+                        "[TwitchIO] Deleted all EventSub subscriptions from Twitch."
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f'[TwitchIO] Could not delete subscriptions from Twitch. error="{str(e)}"'
+                    )
+
             # Clear tracked subscriptions
             self._active_subscriptions.clear()
             self._eventsub_connected = False
