@@ -13,7 +13,6 @@ dependencies = [
     "obsws-python>=1.8.0",
     "redis>=6.0.0",
     "channels-redis>=4.3.0",
-    "ruff>=0.12.10",
     "django-fernet-encrypted-fields>=0.3.1",
     "celery>=5.6.0",
     "numpy>=2.0.0",
@@ -23,6 +22,11 @@ dependencies = [
     "httpx>=0.28.0",
     "python-osc>=1.9.0",
     "django-ninja>=1.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.12.10",
 ]
 
 [tool.ruff]

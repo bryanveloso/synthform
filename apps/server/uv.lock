@@ -1144,11 +1144,15 @@ dependencies = [
     { name = "psycopg" },
     { name = "python-osc" },
     { name = "redis" },
-    { name = "ruff" },
     { name = "sentry-sdk", extra = ["django"] },
     { name = "twitchio", extra = ["starlette"] },
     { name = "websockets" },
     { name = "whitenoise" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -1166,12 +1170,13 @@ requires-dist = [
     { name = "psycopg", specifier = ">=3.3.0" },
     { name = "python-osc", specifier = ">=1.9.0" },
     { name = "redis", specifier = ">=6.0.0" },
-    { name = "ruff", specifier = ">=0.12.10" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.10" },
     { name = "sentry-sdk", extras = ["django"], specifier = ">=2.40.0" },
     { name = "twitchio", extras = ["starlette"], specifier = ">=3.2.1" },
     { name = "websockets", specifier = ">=15.0" },
     { name = "whitenoise", specifier = ">=6.9.0" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "service-identity"
