@@ -35,3 +35,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # OAuth Artifacts
 .tio.tokens.json
+
+# Claude Code session data
+.claude/
