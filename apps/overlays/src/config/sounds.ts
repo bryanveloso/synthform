@@ -120,12 +120,12 @@ export const alertSoundConfig: Record<string, SoundConfig> = {
 
   tip: {
     sounds: {
-      1: '/sounds/tip.mp3', // Any tip
-      5: '/sounds/tip-5.mp3', // $5+ tip
-      10: '/sounds/tip-10.mp3', // $10+ tip
-      25: '/sounds/tip-25.mp3', // $25+ tip
-      50: '/sounds/tip-50.mp3', // $50+ tip
-      100: '/sounds/tip-mega.mp3', // $100+ tip
+      // 1: '/sounds/tip.mp3',        // Any tip
+      // 5: '/sounds/tip-5.mp3',      // $5+ tip
+      // 10: '/sounds/tip-10.mp3',    // $10+ tip
+      // 25: '/sounds/tip-25.mp3',    // $25+ tip
+      // 50: '/sounds/tip-50.mp3',    // $50+ tip
+      // 100: '/sounds/tip-mega.mp3', // $100+ tip
     },
   },
 }

@@ -202,6 +202,8 @@ class ServerConnection {
       'music:update',
       'status:sync',
       'status:update',
+      'stream:sync',
+      'stream:update',
       'chat:message',
       'chat:sync',
       'audio:rme:status',
