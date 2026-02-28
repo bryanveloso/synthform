@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useServer } from './use-server'
-import type { LimitBreakData, LimitBreakExecutedData } from '@/types/server'
+import type { LimitBreakData } from '@/types/server'
 
 export type { LimitBreakData }
 
@@ -31,7 +31,7 @@ export function useLimitbreak() {
   const messageTypes = useMemo(() => ['limitbreak:sync', 'limitbreak:update', 'limitbreak:executed'] as const, [])
   const { data, isConnected } = useServer(messageTypes)
 
-  const updateLimitBreakState = useCallback((newData: LimitBreakData, isSync: boolean = false) => {
+  const updateLimitBreakState = useCallback((newData: LimitBreakData, _isSync: boolean = false) => {
     setLimitBreakState(prev => {
       const wasMaxed = prev.data?.isMaxed || false
       const isNowMaxed = newData.isMaxed

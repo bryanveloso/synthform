@@ -20,15 +20,7 @@ const Progress: FC<{ bar: number; isFilled: boolean }> = ({ bar, isFilled }) => 
 }
 
 export const LimitBreak = () => {
-  const { 
-    data,
-    count,
-    progress,
-    filledBars,
-    hasJustMaxed,
-    hasJustExecuted,
-    isConnected 
-  } = useLimitbreak()
+  const { data, count, filledBars, hasJustMaxed, hasJustExecuted, isConnected } = useLimitbreak()
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const executionAudioRef = useRef<HTMLAudioElement>(null)

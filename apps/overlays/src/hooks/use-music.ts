@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useServer } from './use-server'
 import type { MusicData, MusicState } from '../types/music'
-import { isRainwaveData } from '../types/music'
 
 // Re-export for backward compatibility
 export type MusicTrack = MusicData

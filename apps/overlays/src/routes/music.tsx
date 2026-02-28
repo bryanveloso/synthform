@@ -99,8 +99,6 @@ function MusicComponent() {
         {activeTab === 'rainwave' ? (
           <RainwaveView
             currentTrack={currentTrack}
-            previousTrack={previousTrack}
-            isPlaying={isPlaying}
             progress={progress}
             upcoming={upcoming}
             history={history}
@@ -121,7 +119,7 @@ function MusicComponent() {
 }
 
 // Rainwave View Component
-function RainwaveView({ currentTrack, previousTrack, isPlaying, progress, upcoming, history, formatTime }: any) {
+function RainwaveView({ currentTrack, progress, upcoming, history, formatTime }: any) {
   return (
     <div className="space-y-6">
       {/* Header */}

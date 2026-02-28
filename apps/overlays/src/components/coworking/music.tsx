@@ -2,7 +2,7 @@ import { useMusic } from "@/hooks/use-music"
 import type { FC } from "react"
 
 export const Music: FC = () => {
-  const { current, isPlaying, source, isConnected } = useMusic()
+  const { current, source } = useMusic()
 
   return (
     <div>

@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MusicRouteImport } from './routes/music'
 import { Route as LimitbreakRouteImport } from './routes/limitbreak'
+import { Route as AudioRouteImport } from './routes/audio'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SpecialUmamusumeRouteImport } from './routes/special/umamusume'
 import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
+import { Route as DebugIronmonRouteImport } from './routes/debug/ironmon'
 import { Route as DebugEventsRouteImport } from './routes/debug/events'
 import { Route as fullOmnibarRouteImport } from './routes/(full)/omnibar'
 import { Route as fullIntroRouteImport } from './routes/(full)/intro'
@@ -30,6 +32,11 @@ const LimitbreakRoute = LimitbreakRouteImport.update({
   path: '/limitbreak',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AudioRoute = AudioRouteImport.update({
+  id: '/audio',
+  path: '/audio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +50,11 @@ const SpecialUmamusumeRoute = SpecialUmamusumeRouteImport.update({
 const SpecialPodcastRoute = SpecialPodcastRouteImport.update({
   id: '/special/podcast',
   path: '/special/podcast',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugIronmonRoute = DebugIronmonRouteImport.update({
+  id: '/debug/ironmon',
+  path: '/debug/ironmon',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DebugEventsRoute = DebugEventsRouteImport.update({
@@ -73,6 +85,7 @@ const fullCoworkingRoute = fullCoworkingRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/audio': typeof AudioRoute
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/coworking': typeof fullCoworkingRoute
@@ -80,11 +93,13 @@ export interface FileRoutesByFullPath {
   '/intro': typeof fullIntroRoute
   '/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
+  '/debug/ironmon': typeof DebugIronmonRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/audio': typeof AudioRoute
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/coworking': typeof fullCoworkingRoute
@@ -92,12 +107,14 @@ export interface FileRoutesByTo {
   '/intro': typeof fullIntroRoute
   '/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
+  '/debug/ironmon': typeof DebugIronmonRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/audio': typeof AudioRoute
   '/limitbreak': typeof LimitbreakRoute
   '/music': typeof MusicRoute
   '/(full)/coworking': typeof fullCoworkingRoute
@@ -105,6 +122,7 @@ export interface FileRoutesById {
   '/(full)/intro': typeof fullIntroRoute
   '/(full)/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
+  '/debug/ironmon': typeof DebugIronmonRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
 }
@@ -112,6 +130,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/audio'
     | '/limitbreak'
     | '/music'
     | '/coworking'
@@ -119,11 +138,13 @@ export interface FileRouteTypes {
     | '/intro'
     | '/omnibar'
     | '/debug/events'
+    | '/debug/ironmon'
     | '/special/podcast'
     | '/special/umamusume'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/audio'
     | '/limitbreak'
     | '/music'
     | '/coworking'
@@ -131,11 +152,13 @@ export interface FileRouteTypes {
     | '/intro'
     | '/omnibar'
     | '/debug/events'
+    | '/debug/ironmon'
     | '/special/podcast'
     | '/special/umamusume'
   id:
     | '__root__'
     | '/'
+    | '/audio'
     | '/limitbreak'
     | '/music'
     | '/(full)/coworking'
@@ -143,12 +166,14 @@ export interface FileRouteTypes {
     | '/(full)/intro'
     | '/(full)/omnibar'
     | '/debug/events'
+    | '/debug/ironmon'
     | '/special/podcast'
     | '/special/umamusume'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AudioRoute: typeof AudioRoute
   LimitbreakRoute: typeof LimitbreakRoute
   MusicRoute: typeof MusicRoute
   fullCoworkingRoute: typeof fullCoworkingRoute
@@ -156,6 +181,7 @@ export interface RootRouteChildren {
   fullIntroRoute: typeof fullIntroRoute
   fullOmnibarRoute: typeof fullOmnibarRoute
   DebugEventsRoute: typeof DebugEventsRoute
+  DebugIronmonRoute: typeof DebugIronmonRoute
   SpecialPodcastRoute: typeof SpecialPodcastRoute
   SpecialUmamusumeRoute: typeof SpecialUmamusumeRoute
 }
@@ -174,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/limitbreak'
       fullPath: '/limitbreak'
       preLoaderRoute: typeof LimitbreakRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audio': {
+      id: '/audio'
+      path: '/audio'
+      fullPath: '/audio'
+      preLoaderRoute: typeof AudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -195,6 +228,13 @@ declare module '@tanstack/react-router' {
       path: '/special/podcast'
       fullPath: '/special/podcast'
       preLoaderRoute: typeof SpecialPodcastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/ironmon': {
+      id: '/debug/ironmon'
+      path: '/debug/ironmon'
+      fullPath: '/debug/ironmon'
+      preLoaderRoute: typeof DebugIronmonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/debug/events': {
@@ -237,6 +277,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AudioRoute: AudioRoute,
   LimitbreakRoute: LimitbreakRoute,
   MusicRoute: MusicRoute,
   fullCoworkingRoute: fullCoworkingRoute,
@@ -244,6 +285,7 @@ const rootRouteChildren: RootRouteChildren = {
   fullIntroRoute: fullIntroRoute,
   fullOmnibarRoute: fullOmnibarRoute,
   DebugEventsRoute: DebugEventsRoute,
+  DebugIronmonRoute: DebugIronmonRoute,
   SpecialPodcastRoute: SpecialPodcastRoute,
   SpecialUmamusumeRoute: SpecialUmamusumeRoute,
 }
