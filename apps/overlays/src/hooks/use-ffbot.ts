@@ -1,6 +1,13 @@
+/**
+ * @deprecated FFBot integration is deprecated and no longer actively maintained.
+ * The game (https://elbody.itch.io/ffbot) released a new version requiring re-modding.
+ * This hook and related types are kept for reference but should not be used.
+ */
+
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useRealtimeStore } from '@/store/realtime'
 
+/** @deprecated See module deprecation notice */
 export interface FFBotEvent {
   id: string
   timestamp: string
@@ -31,11 +38,13 @@ export interface FFBotEvent {
   metadata?: Record<string, any>
 }
 
+/** @deprecated See module deprecation notice */
 interface UseFFBotOptions {
   maxEvents?: number
   enableActivityTracking?: boolean
 }
 
+/** @deprecated See module deprecation notice */
 export function useFFBot(options: UseFFBotOptions = {}) {
   const { maxEvents = 100, enableActivityTracking = true } = options
 
