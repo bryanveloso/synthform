@@ -2,7 +2,24 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { useMusic } from '@/hooks/use-music'
 import { isRainwaveData, isRainwaveElection } from '@/types/music'
+import type { MusicData, RainwaveSong, RainwaveElection } from '@/types/music'
 import { cn } from '@/lib/utils'
+
+interface MusicViewProps {
+  currentTrack: MusicData | null
+  progress: number
+  formatTime: (seconds: number) => string
+}
+
+interface RainwaveViewProps extends MusicViewProps {
+  upcoming?: Array<RainwaveSong | RainwaveElection>
+  history?: RainwaveSong[]
+}
+
+interface AppleMusicViewProps extends MusicViewProps {
+  previousTrack: MusicData | null
+  isPlaying: boolean
+}
 
 export const Route = createFileRoute('/music')({
   component: MusicComponent,
@@ -119,7 +136,7 @@ function MusicComponent() {
 }
 
 // Rainwave View Component
-function RainwaveView({ currentTrack, progress, upcoming, history, formatTime }: any) {
+function RainwaveView({ currentTrack, progress, upcoming, history, formatTime }: RainwaveViewProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -263,7 +280,7 @@ function RainwaveView({ currentTrack, progress, upcoming, history, formatTime }:
 }
 
 // Apple Music View Component
-function AppleMusicView({ currentTrack, previousTrack, isPlaying, progress, formatTime }: any) {
+function AppleMusicView({ currentTrack, previousTrack, isPlaying, progress, formatTime }: AppleMusicViewProps) {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}

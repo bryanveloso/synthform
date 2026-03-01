@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useServer } from './use-server'
-import type { LimitBreakData } from '@/types/server'
+import type { LimitBreakData, LimitBreakExecutedData } from '@/types/server'
 
 export type { LimitBreakData }
 
@@ -25,7 +25,7 @@ export function useLimitbreak() {
   
   // Track for edge detection
   const previousIsMaxedRef = useRef<boolean>(false)
-  const lastExecutionEventRef = useRef<any>(null)
+  const lastExecutionEventRef = useRef<LimitBreakExecutedData | null>(null)
   
   // Memoize the message types array to prevent infinite loops
   const messageTypes = useMemo(() => ['limitbreak:sync', 'limitbreak:update', 'limitbreak:executed'] as const, [])
