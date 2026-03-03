@@ -1,15 +1,4 @@
 services:
-  # Synthform's DB — only used by IronMON for now (Challenge, Seed, Result models)
-  db:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: synthform
-      POSTGRES_USER: synthform
-      POSTGRES_PASSWORD: synthform
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   tailscale:
     image: tailscale/tailscale:latest
     hostname: synthform
@@ -26,23 +15,6 @@ services:
       - net_admin
     restart: unless-stopped
 
-  ironmon:
-    build:
-      context: ./apps/server
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      - db
-    environment:
-      - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
-      - REDIS_URL=redis://synthfunc-redis-1:6379/0
-    ports:
-      - "8080:8080"
-    networks:
-      - default
-      - synth
-    command: uv run python manage.py run_ironmon_tcp
-
   overlays:
     build:
       context: ./apps/overlays
@@ -51,11 +23,5 @@ services:
     ports:
       - "8008:8008"
 
-networks:
-  default:
-  synth:
-    external: true
-
 volumes:
-  postgres_data:
   tailscale_data:

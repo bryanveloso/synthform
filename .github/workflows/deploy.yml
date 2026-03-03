@@ -4,9 +4,6 @@ on:
   push:
     branches: [ main ]
 
-env:
-  DATABASE_URL: postgresql://synthform:synthform@db:5432/synthform
-
 jobs:
   deploy:
     runs-on: self-hosted
@@ -16,17 +13,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 10
-
-    - name: Create production .env file
-      run: |
-        cd apps/server
-        cat > .env << EOF
-        DEBUG=False
-        SECRET_KEY=${{ secrets.SECRET_KEY }}
-        ALLOWED_HOSTS=*
-        DATABASE_URL=${{ env.DATABASE_URL }}
-        REDIS_URL=redis://synthfunc-redis-1:6379/0
-        EOF
 
     - name: Check changes and deploy selectively
       run: |
@@ -43,15 +29,8 @@ jobs:
         echo "$CHANGED_FILES"
         echo "===================="
 
-        REBUILD_IRONMON=false
         REBUILD_OVERLAYS=false
         REBUILD_ALL=false
-
-        # Server changes (only IronMON now)
-        if echo "$CHANGED_FILES" | grep -q "apps/server"; then
-          echo "✓ Detected: Server code changed"
-          REBUILD_IRONMON=true
-        fi
 
         # Overlays changes
         if echo "$CHANGED_FILES" | grep -q "apps/overlays"; then
@@ -69,25 +48,13 @@ jobs:
         if [ "$REBUILD_ALL" = true ]; then
           echo ">>> Rebuilding ALL containers"
           docker compose -f docker-compose.prod.yml up --build --force-recreate -d --remove-orphans
-        else
-          if [ "$REBUILD_IRONMON" = true ]; then
-            echo ">>> Rebuilding ironmon container"
-            docker compose -f docker-compose.prod.yml up --build --force-recreate -d ironmon
-          fi
-
-          if [ "$REBUILD_OVERLAYS" = true ]; then
-            echo ">>> Rebuilding overlays container"
-            docker compose -f docker-compose.prod.yml up --build --force-recreate -d overlays
-          fi
+        elif [ "$REBUILD_OVERLAYS" = true ]; then
+          echo ">>> Rebuilding overlays container"
+          docker compose -f docker-compose.prod.yml up --build --force-recreate -d overlays
         fi
 
         # Ensure all services are running (start any stopped services, no rebuild)
         docker compose -f docker-compose.prod.yml up -d
-
-    - name: Wait for database to be ready
-      run: |
-        timeout 60 sh -c 'until docker compose -f docker-compose.prod.yml exec -T db pg_isready -U synthform -d synthform; do sleep 1; done'
-        sleep 5
 
     - name: Clean up old Docker images
       run: |
