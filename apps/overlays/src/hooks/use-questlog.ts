@@ -6,9 +6,9 @@ interface CheckpointStat {
   order: number
   name: string
   trainer: string
-  attempts: number
-  clears: number
-  clear_rate: number
+  entered: number
+  survived: number
+  survival_rate: number
 }
 
 interface IronMONStats {

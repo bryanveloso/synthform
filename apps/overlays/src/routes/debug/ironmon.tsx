@@ -100,9 +100,9 @@ function IronMONDebug() {
                       <th className="pr-4">#</th>
                       <th className="pr-4">Checkpoint</th>
                       <th className="pr-4">Trainer</th>
-                      <th className="pr-4">Attempts</th>
-                      <th className="pr-4">Clears</th>
-                      <th>Rate</th>
+                      <th className="pr-4">Entered</th>
+                      <th className="pr-4">Survived</th>
+                      <th>Survival Rate</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -111,9 +111,9 @@ function IronMONDebug() {
                         <td className="pr-4">{cp.order}</td>
                         <td className="pr-4">{cp.name}</td>
                         <td className="pr-4">{cp.trainer}</td>
-                        <td className="pr-4">{cp.attempts}</td>
-                        <td className="pr-4">{cp.clears}</td>
-                        <td>{(cp.clear_rate * 100).toFixed(1)}%</td>
+                        <td className="pr-4">{cp.entered}</td>
+                        <td className="pr-4">{cp.survived}</td>
+                        <td>{(cp.survival_rate * 100).toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
