@@ -1,4 +1,5 @@
 services:
+  # Synthform's DB — only used by IronMON for now (Challenge, Seed, Result models)
   db:
     image: postgres:16
     restart: unless-stopped
@@ -8,17 +9,6 @@ services:
       POSTGRES_PASSWORD: synthform
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:alpine
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
 
   tailscale:
     image: tailscale/tailscale:latest
@@ -35,55 +25,6 @@ services:
     cap_add:
       - net_admin
     restart: unless-stopped
-    ports:
-      - "7175:7175"
-      - "9001:9001/udp"
-
-  server:
-    build:
-      context: ./apps/server
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      - db
-      - redis
-      - tailscale
-    environment:
-      - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
-      - REDIS_URL=redis://redis:6379/0
-    network_mode: service:tailscale
-    command: >
-      sh -c "uv run python manage.py migrate &&
-             uv run daphne -b 0.0.0.0 -p 7175 synthform.asgi:application"
-
-  twitch:
-    build:
-      context: ./apps/server
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      - db
-      - redis
-    environment:
-      - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
-      - REDIS_URL=redis://redis:6379/0
-      - DISABLE_BACKGROUND_SERVICES=true
-    ports:
-      - "4343:4343"
-    command: uv run python -m shared.services.twitch.service
-
-  celery:
-    build:
-      context: ./apps/server
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      - db
-      - redis
-    environment:
-      - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
-      - REDIS_URL=redis://redis:6379/0
-    command: uv run celery -A synthform worker --beat -l info
 
   ironmon:
     build:
@@ -92,12 +33,14 @@ services:
     restart: unless-stopped
     depends_on:
       - db
-      - redis
     environment:
       - DATABASE_URL=postgresql://synthform:synthform@db:5432/synthform
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://synthfunc-redis-1:6379/0
     ports:
       - "8080:8080"
+    networks:
+      - default
+      - synth
     command: uv run python manage.py run_ironmon_tcp
 
   overlays:
@@ -108,7 +51,11 @@ services:
     ports:
       - "8008:8008"
 
+networks:
+  default:
+  synth:
+    external: true
+
 volumes:
   postgres_data:
-  redis_data:
   tailscale_data:
