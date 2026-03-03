@@ -15,6 +15,7 @@ import { Route as AudioRouteImport } from './routes/audio'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SpecialUmamusumeRouteImport } from './routes/special/umamusume'
 import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
+import { Route as DebugServerRouteImport } from './routes/debug/server'
 import { Route as DebugIronmonRouteImport } from './routes/debug/ironmon'
 import { Route as DebugEventsRouteImport } from './routes/debug/events'
 import { Route as fullOmnibarRouteImport } from './routes/(full)/omnibar'
@@ -50,6 +51,11 @@ const SpecialUmamusumeRoute = SpecialUmamusumeRouteImport.update({
 const SpecialPodcastRoute = SpecialPodcastRouteImport.update({
   id: '/special/podcast',
   path: '/special/podcast',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugServerRoute = DebugServerRouteImport.update({
+  id: '/debug/server',
+  path: '/debug/server',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DebugIronmonRoute = DebugIronmonRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/ironmon': typeof DebugIronmonRoute
+  '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/ironmon': typeof DebugIronmonRoute
+  '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/(full)/omnibar': typeof fullOmnibarRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/ironmon': typeof DebugIronmonRoute
+  '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/omnibar'
     | '/debug/events'
     | '/debug/ironmon'
+    | '/debug/server'
     | '/special/podcast'
     | '/special/umamusume'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/omnibar'
     | '/debug/events'
     | '/debug/ironmon'
+    | '/debug/server'
     | '/special/podcast'
     | '/special/umamusume'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/(full)/omnibar'
     | '/debug/events'
     | '/debug/ironmon'
+    | '/debug/server'
     | '/special/podcast'
     | '/special/umamusume'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   fullOmnibarRoute: typeof fullOmnibarRoute
   DebugEventsRoute: typeof DebugEventsRoute
   DebugIronmonRoute: typeof DebugIronmonRoute
+  DebugServerRoute: typeof DebugServerRoute
   SpecialPodcastRoute: typeof SpecialPodcastRoute
   SpecialUmamusumeRoute: typeof SpecialUmamusumeRoute
 }
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/special/podcast'
       fullPath: '/special/podcast'
       preLoaderRoute: typeof SpecialPodcastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/server': {
+      id: '/debug/server'
+      path: '/debug/server'
+      fullPath: '/debug/server'
+      preLoaderRoute: typeof DebugServerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/debug/ironmon': {
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   fullOmnibarRoute: fullOmnibarRoute,
   DebugEventsRoute: DebugEventsRoute,
   DebugIronmonRoute: DebugIronmonRoute,
+  DebugServerRoute: DebugServerRoute,
   SpecialPodcastRoute: SpecialPodcastRoute,
   SpecialUmamusumeRoute: SpecialUmamusumeRoute,
 }
