@@ -14,47 +14,9 @@ jobs:
       with:
         fetch-depth: 10
 
-    - name: Check changes and deploy selectively
+    - name: Deploy containers
       run: |
-        # Handle null SHA (force push, new branch, or first push)
-        BEFORE_SHA="${{ github.event.before }}"
-        if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || [ -z "$BEFORE_SHA" ]; then
-          echo "No previous SHA available, checking last commit only"
-          CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null || git ls-files)
-        else
-          CHANGED_FILES=$(git diff --name-only "$BEFORE_SHA"..HEAD 2>/dev/null || git ls-files)
-        fi
-
-        echo "=== Changed files ==="
-        echo "$CHANGED_FILES"
-        echo "===================="
-
-        REBUILD_OVERLAYS=false
-        REBUILD_ALL=false
-
-        # Overlays changes
-        if echo "$CHANGED_FILES" | grep -q "apps/overlays"; then
-          echo "✓ Detected: Overlay code changed"
-          REBUILD_OVERLAYS=true
-        fi
-
-        # Infrastructure changes (compose files, Dockerfiles)
-        if echo "$CHANGED_FILES" | grep -qE "docker-compose|Dockerfile"; then
-          echo "✓ Detected: Infrastructure changed"
-          REBUILD_ALL=true
-        fi
-
-        # Execute rebuilds with force-recreate to ensure containers restart
-        if [ "$REBUILD_ALL" = true ]; then
-          echo ">>> Rebuilding ALL containers"
-          docker compose -f docker-compose.prod.yml up --build --force-recreate -d --remove-orphans
-        elif [ "$REBUILD_OVERLAYS" = true ]; then
-          echo ">>> Rebuilding overlays container"
-          docker compose -f docker-compose.prod.yml up --build --force-recreate -d overlays
-        fi
-
-        # Ensure all services are running (start any stopped services, no rebuild)
-        docker compose -f docker-compose.prod.yml up -d
+        docker compose -f docker-compose.prod.yml up --build --force-recreate -d --remove-orphans
 
     - name: Clean up old Docker images
       run: |
