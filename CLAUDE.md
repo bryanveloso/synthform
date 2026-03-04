@@ -22,32 +22,6 @@ This file contains important information for Claude when working with this codeb
 - ALWAYS ask for clarification rather than making assumptions.
 - If you're having trouble with something, it's ok to stop and ask for help. Especially if it's something your human might be better at.
 
-## Testing
-
-- Tests MUST cover the functionality being implemented.
-- NEVER ignore the output of the system or the tests. Logs and messages often contain CRITICAL information.
-- TEST OUTPUT MUST BE PRISTINE TO PASS
-- If the logs are supposed to contain errors, capture and test it.
-- When you update a test to pass, remove any comment that mentions it failing.
-- Use Pytest
-- Use the fixtures in the app/tests/conftest.py if you can.
-- Use function-based tests and not classes.
-
-### We practice TDD. That means:
-
-- Write tests before writing the implementation code
-- Only write enough code to make the failing test pass
-- Refactor code continuously while ensuring tests still pass
-
-#### TDD Implementation Process
-
-- Write a failing test that defines a desired function or improvement
-- Run the test to confirm it fails as expected
-- Write minimal code to make the test pass
-- Run the test to confirm success
-- Refactor code to improve design while keeping tests green
-- Repeat the cycle for each new feature or bugfix
-
 ## Project Overview
 
-Landale is a personal streaming overlay system designed for a single user on a local Tailscale network. It provides real-time, animated overlays for OBS streaming, including timer displays, Pokémon game trackers, and customizable visual elements. It is an event-driven monorepo with real-time WebSocket communication. The system coordinates between OBS, audio processing, AI services, and a web-based control dashboard to create dynamic stream content that responds to game events, audio cues, and manual controls.
+Synthform is a personal streaming overlay frontend built with React, Vite, and TailwindCSS. It is a single-tenant app (always `avalonstar`) designed for a local Tailscale network. It provides real-time, animated overlays for OBS streaming, including timer displays, Pokémon game trackers, and customizable visual elements. It consumes real-time data over WebSocket from Synthfunc and historical data over HTTP from Questlog.
