@@ -118,7 +118,7 @@ function TelestratorInput() {
       isDrawingRef.current = true
 
       const point = normalizePoint(e)
-      const id = crypto.randomUUID()
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
       currentStrokeRef.current = {
         id,
