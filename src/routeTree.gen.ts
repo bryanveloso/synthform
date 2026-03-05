@@ -13,6 +13,8 @@ import { Route as MusicRouteImport } from './routes/music'
 import { Route as LimitbreakRouteImport } from './routes/limitbreak'
 import { Route as AudioRouteImport } from './routes/audio'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TelestratorIndexRouteImport } from './routes/telestrator/index'
+import { Route as TelestratorOutputRouteImport } from './routes/telestrator/output'
 import { Route as SpecialUmamusumeRouteImport } from './routes/special/umamusume'
 import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
 import { Route as DebugServerRouteImport } from './routes/debug/server'
@@ -41,6 +43,16 @@ const AudioRoute = AudioRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelestratorIndexRoute = TelestratorIndexRouteImport.update({
+  id: '/telestrator/',
+  path: '/telestrator/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelestratorOutputRoute = TelestratorOutputRouteImport.update({
+  id: '/telestrator/output',
+  path: '/telestrator/output',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SpecialUmamusumeRoute = SpecialUmamusumeRouteImport.update({
@@ -103,6 +115,8 @@ export interface FileRoutesByFullPath {
   '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
+  '/telestrator/output': typeof TelestratorOutputRoute
+  '/telestrator/': typeof TelestratorIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +132,8 @@ export interface FileRoutesByTo {
   '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
+  '/telestrator/output': typeof TelestratorOutputRoute
+  '/telestrator': typeof TelestratorIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +150,8 @@ export interface FileRoutesById {
   '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
+  '/telestrator/output': typeof TelestratorOutputRoute
+  '/telestrator/': typeof TelestratorIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +169,8 @@ export interface FileRouteTypes {
     | '/debug/server'
     | '/special/podcast'
     | '/special/umamusume'
+    | '/telestrator/output'
+    | '/telestrator/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +186,8 @@ export interface FileRouteTypes {
     | '/debug/server'
     | '/special/podcast'
     | '/special/umamusume'
+    | '/telestrator/output'
+    | '/telestrator'
   id:
     | '__root__'
     | '/'
@@ -181,6 +203,8 @@ export interface FileRouteTypes {
     | '/debug/server'
     | '/special/podcast'
     | '/special/umamusume'
+    | '/telestrator/output'
+    | '/telestrator/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +221,8 @@ export interface RootRouteChildren {
   DebugServerRoute: typeof DebugServerRoute
   SpecialPodcastRoute: typeof SpecialPodcastRoute
   SpecialUmamusumeRoute: typeof SpecialUmamusumeRoute
+  TelestratorOutputRoute: typeof TelestratorOutputRoute
+  TelestratorIndexRoute: typeof TelestratorIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -227,6 +253,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telestrator/': {
+      id: '/telestrator/'
+      path: '/telestrator'
+      fullPath: '/telestrator/'
+      preLoaderRoute: typeof TelestratorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telestrator/output': {
+      id: '/telestrator/output'
+      path: '/telestrator/output'
+      fullPath: '/telestrator/output'
+      preLoaderRoute: typeof TelestratorOutputRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/special/umamusume': {
@@ -309,6 +349,8 @@ const rootRouteChildren: RootRouteChildren = {
   DebugServerRoute: DebugServerRoute,
   SpecialPodcastRoute: SpecialPodcastRoute,
   SpecialUmamusumeRoute: SpecialUmamusumeRoute,
+  TelestratorOutputRoute: TelestratorOutputRoute,
+  TelestratorIndexRoute: TelestratorIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

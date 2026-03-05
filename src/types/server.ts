@@ -1,5 +1,6 @@
 import type { TimelineEvent } from './events'
 import type { MusicData } from './music'
+import type { TelestratorDrawData } from './telestrator'
 import type {
   OBSStatusMessage,
   OBSSceneChangedMessage,
@@ -437,6 +438,10 @@ export interface MessagePayloadMap {
   'campaign:timer:started': TimerUpdatePayload
   'campaign:timer:paused': TimerUpdatePayload
   'campaign:timer:tick': TimerUpdatePayload
+  // Telestrator
+  'telestrator:draw': TelestratorDrawData
+  'telestrator:undo': Record<string, never>
+  'telestrator:clear': Record<string, never>
 }
 
 // Extract valid message types

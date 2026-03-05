@@ -41,7 +41,7 @@ class ServerConnection {
       import.meta.env.DEV ||
       window.location.hostname === 'localhost' ||
       window.location.hostname === 'zelan'
-    const host = import.meta.env.VITE_WS_HOST || (isDev ? 'synthfunc' : 'saya')
+    const host = import.meta.env.VITE_WS_HOST || 'saya'
     const port = import.meta.env.VITE_WS_PORT || '7178'
     const slug = import.meta.env.VITE_TENANT_SLUG || 'avalonstar'
     return `${protocol}//${host}:${port}/ws/overlay/${slug}/`
@@ -199,6 +199,9 @@ class ServerConnection {
       'campaign:timer:started',
       'campaign:timer:paused',
       'campaign:timer:tick',
+      'telestrator:draw',
+      'telestrator:undo',
+      'telestrator:clear',
     ]
     return validTypes.includes(type as MessageType)
   }
