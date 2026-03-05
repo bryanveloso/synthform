@@ -195,12 +195,19 @@ function TelestratorInput() {
     const canvas = canvasRef.current
     if (!canvas) return
 
+    // Prevent default touch handling on iPadOS Safari so pointer events fire
+    const preventTouch = (e: TouchEvent) => e.preventDefault()
+    canvas.addEventListener('touchstart', preventTouch, { passive: false })
+    canvas.addEventListener('touchmove', preventTouch, { passive: false })
+
     canvas.addEventListener('pointerdown', handlePointerDown)
     canvas.addEventListener('pointermove', handlePointerMove)
     canvas.addEventListener('pointerup', handlePointerUp)
     canvas.addEventListener('pointercancel', handlePointerUp)
 
     return () => {
+      canvas.removeEventListener('touchstart', preventTouch)
+      canvas.removeEventListener('touchmove', preventTouch)
       canvas.removeEventListener('pointerdown', handlePointerDown)
       canvas.removeEventListener('pointermove', handlePointerMove)
       canvas.removeEventListener('pointerup', handlePointerUp)
