@@ -6,6 +6,3 @@ services:
     restart: unless-stopped
     ports:
       - "8008:8008"
-
-volumes:
-  tailscale_data:
