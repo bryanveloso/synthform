@@ -1,58 +1,66 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useServer } from '@/hooks/use-server'
+import { useRealtimeStore } from '@/store/realtime'
+import { serverConnection } from '@/hooks/use-server'
 import { useIronMONStats, useIronMONRuns } from '@/hooks/use-questlog'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import type { MessageType } from '@/types/server'
 
 export const Route = createFileRoute('/debug/ironmon')({
   component: IronMONDebug,
 })
 
+const IRONMON_TYPES: MessageType[] = [
+  'ironmon:init',
+  'ironmon:seed',
+  'ironmon:checkpoint',
+  'ironmon:location',
+  'ironmon:battle_started',
+  'ironmon:battle_ended',
+  'ironmon:team_update',
+  'ironmon:item_usage',
+  'ironmon:healing_summary',
+  'ironmon:trainer_defeated',
+  'ironmon:encounter',
+  'ironmon:battle_damage',
+  'ironmon:battle_action',
+  'ironmon:move_history',
+  'ironmon:move_effectiveness',
+  'ironmon:reset',
+  'ironmon:error',
+]
+
 function IronMONDebug() {
   const { data: stats, isLoading: statsLoading } = useIronMONStats('kaizo')
   const { data: runs, isLoading: runsLoading } = useIronMONRuns('kaizo', 20)
 
-  const { data, isConnected } = useServer([
-    'ironmon:init',
-    'ironmon:seed',
-    'ironmon:checkpoint',
-    'ironmon:location',
-    'ironmon:battle_started',
-    'ironmon:battle_ended',
-    'ironmon:team_update',
-    'ironmon:item_usage',
-    'ironmon:healing_summary',
-    'ironmon:trainer_defeated',
-    'ironmon:encounter',
-    'ironmon:battle_damage',
-    'ironmon:battle_action',
-    'ironmon:move_history',
-    'ironmon:move_effectiveness',
-    'ironmon:reset',
-    'ironmon:error',
-  ] as const)
+  const isConnected = useRealtimeStore((s) => s.isConnected)
   const [events, setEvents] = useState<Array<{ type: string; data: any; timestamp: string }>>([])
-  const previousValuesRef = useRef<Map<string, string>>(new Map())
 
-  // Capture IronMON events only when they actually change
+  // Stable callback for event logging
+  const handleMessage = useCallback((messageType: string, payload: unknown) => {
+    const timestamp = new Date().toLocaleTimeString()
+    setEvents((prev) => [
+      { type: messageType, data: payload, timestamp },
+      ...prev.slice(0, 49), // Keep last 50 events
+    ])
+  }, [])
+
+  // Subscribe directly to serverConnection for event logging
   useEffect(() => {
-    const keys = Object.keys(data) as Array<keyof typeof data>
-    keys.forEach((key) => {
-      if (key.startsWith('ironmon:') && data[key]) {
-        const currentValue = JSON.stringify(data[key])
-        const previousValue = previousValuesRef.current.get(key)
+    const callbacks = new Map<MessageType, (data: unknown) => void>()
 
-        // Only add if this specific message type's data has changed
-        if (previousValue !== currentValue) {
-          const timestamp = new Date().toLocaleTimeString()
-          setEvents((prev) => [
-            { type: key, data: data[key], timestamp },
-            ...prev.slice(0, 49), // Keep last 50 events
-          ])
-          previousValuesRef.current.set(key, currentValue)
-        }
-      }
+    IRONMON_TYPES.forEach((messageType) => {
+      const callback = (data: unknown) => handleMessage(messageType, data)
+      callbacks.set(messageType, callback)
+      serverConnection.subscribe(messageType, callback as any)
     })
-  }, [data])
+
+    return () => {
+      callbacks.forEach((callback, messageType) => {
+        serverConnection.unsubscribe(messageType, callback as any)
+      })
+    }
+  }, [handleMessage])
 
   return (
     <div className="min-h-screen bg-black text-green-500 p-8 font-mono text-sm">

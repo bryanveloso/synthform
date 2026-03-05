@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { useServer } from './use-server'
+import { useRealtimeStore } from '@/store/realtime'
 
 export interface RMEMicStatus {
   channel: number
@@ -13,28 +12,12 @@ export interface RMEState {
 }
 
 export function useRME() {
-  const [micStatus, setMicStatus] = useState<RMEMicStatus | null>(null)
-
-  const { data, isConnected } = useServer(['audio:rme:status', 'audio:rme:update'] as const)
-
-  const syncData = data['audio:rme:status']
-  const updateData = data['audio:rme:update']
-
-  useEffect(() => {
-    if (syncData) {
-      setMicStatus(syncData)
-    }
-  }, [syncData])
-
-  useEffect(() => {
-    if (updateData) {
-      setMicStatus(updateData)
-    }
-  }, [updateData])
+  const mic = useRealtimeStore((s) => s.rme)
+  const isConnected = useRealtimeStore((s) => s.isConnected)
 
   return {
-    mic: micStatus,
-    isMuted: micStatus?.muted ?? false,
+    mic,
+    isMuted: mic?.muted ?? false,
     isConnected,
   }
 }

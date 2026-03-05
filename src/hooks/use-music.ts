@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { useServer } from './use-server'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useRealtimeStore } from '@/store/realtime'
 import type { MusicData, MusicState } from '../types/music'
 
 // Re-export for backward compatibility
@@ -19,9 +19,8 @@ export function useMusic() {
   const [interpolatedElapsed, setInterpolatedElapsed] = useState(0)
   const animationFrameRef = useRef<number>()
   
-  // Memoize the message types array to prevent infinite loops
-  const messageTypes = useMemo(() => ['music:sync', 'music:update'] as const, [])
-  const { data, isConnected } = useServer(messageTypes)
+  const storeMusic = useRealtimeStore((s) => s.music)
+  const isConnected = useRealtimeStore((s) => s.isConnected)
 
   const updateMusicState = useCallback((data: any) => {
     setMusicState(prev => {
@@ -112,21 +111,12 @@ export function useMusic() {
     })
   }, [])
 
-  // Extract data values to avoid complex dependency warnings
-  const musicSyncData = data['music:sync']
-  const musicUpdateData = data['music:update']
-
+  // Process store music data on each update
   useEffect(() => {
-    if (musicSyncData) {
-      updateMusicState(musicSyncData)
+    if (storeMusic) {
+      updateMusicState(storeMusic)
     }
-  }, [musicSyncData, updateMusicState])
-
-  useEffect(() => {
-    if (musicUpdateData) {
-      updateMusicState(musicUpdateData)
-    }
-  }, [musicUpdateData, updateMusicState])
+  }, [storeMusic, updateMusicState])
 
   // Smooth interpolation of elapsed time
   useEffect(() => {

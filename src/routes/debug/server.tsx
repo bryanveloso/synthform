@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useServer } from '@/hooks/use-server'
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useRealtimeStore } from '@/store/realtime'
+import { serverConnection } from '@/hooks/use-server'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import type { MessageType } from '@/types/server'
 
 export const Route = createFileRoute('/debug/server')({
   component: ServerDebug,
@@ -8,7 +10,7 @@ export const Route = createFileRoute('/debug/server')({
 
 // All message types we want to monitor (core overlay functionality).
 // Game-specific types (ironmon, ffbot) are excluded — they have their own debug pages.
-const MONITORED_TYPES = [
+const MONITORED_TYPES: MessageType[] = [
   'base:sync',
   'base:update',
   'timeline:sync',
@@ -33,7 +35,7 @@ const MONITORED_TYPES = [
   'campaign:timer:started',
   'campaign:timer:paused',
   'campaign:timer:tick',
-] as const
+]
 
 // Sync types that should arrive on connect
 const EXPECTED_SYNCS = [
@@ -92,13 +94,15 @@ function getCategoryBorder(type: string): string {
 }
 
 function ServerDebug() {
-  const messageTypes = useMemo(() => MONITORED_TYPES, [])
-  const { data, isConnected, connectionState } = useServer(messageTypes)
+  const isConnected = useRealtimeStore((s) => s.isConnected)
+  const status = useRealtimeStore((s) => s.status)
+  const stream = useRealtimeStore((s) => s.stream)
+  const limitbreak = useRealtimeStore((s) => s.limitbreak)
+
   const [events, setEvents] = useState<EventLogEntry[]>([])
   const [receivedSyncs, setReceivedSyncs] = useState<Set<string>>(new Set())
   const [connectedAt, setConnectedAt] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('')
-  const previousValuesRef = useRef<Map<string, string>>(new Map())
   const eventIdRef = useRef(0)
   const feedRef = useRef<HTMLDivElement>(null)
 
@@ -112,38 +116,44 @@ function ServerDebug() {
     }
   }, [isConnected])
 
-  // Capture all events
+  // Stable callback for event logging
+  const handleMessage = useCallback((messageType: string, payload: unknown) => {
+    const now = new Date()
+    eventIdRef.current += 1
+    const id = eventIdRef.current
+    setEvents((prev) => [
+      {
+        id,
+        type: messageType,
+        payload,
+        timestamp: now.toISOString(),
+        receivedAt: now.toLocaleTimeString('en-US', { hour12: false, fractionalSecondDigits: 3 }),
+        sequence: id,
+      },
+      ...prev.slice(0, 199), // Keep last 200 events
+    ])
+
+    if (messageType.endsWith(':sync')) {
+      setReceivedSyncs((prev) => new Set([...prev, messageType]))
+    }
+  }, [])
+
+  // Subscribe directly to serverConnection for event logging
   useEffect(() => {
-    const keys = Object.keys(data) as Array<keyof typeof data>
-    keys.forEach((key) => {
-      if (data[key] !== undefined) {
-        const currentValue = JSON.stringify(data[key])
-        const previousValue = previousValuesRef.current.get(key)
+    const callbacks = new Map<MessageType, (data: unknown) => void>()
 
-        if (previousValue !== currentValue) {
-          const now = new Date()
-          eventIdRef.current += 1
-          setEvents((prev) => [
-            {
-              id: eventIdRef.current,
-              type: key,
-              payload: data[key],
-              timestamp: now.toISOString(),
-              receivedAt: now.toLocaleTimeString('en-US', { hour12: false, fractionalSecondDigits: 3 }),
-              sequence: eventIdRef.current,
-            },
-            ...prev.slice(0, 199), // Keep last 200 events
-          ])
-          previousValuesRef.current.set(key, currentValue)
-
-          // Track syncs
-          if (key.endsWith(':sync')) {
-            setReceivedSyncs((prev) => new Set([...prev, key]))
-          }
-        }
-      }
+    MONITORED_TYPES.forEach((messageType) => {
+      const callback = (data: unknown) => handleMessage(messageType, data)
+      callbacks.set(messageType, callback)
+      serverConnection.subscribe(messageType, callback as any)
     })
-  }, [data])
+
+    return () => {
+      callbacks.forEach((callback, messageType) => {
+        serverConnection.unsubscribe(messageType, callback as any)
+      })
+    }
+  }, [handleMessage])
 
   const filteredEvents = filter
     ? events.filter((e) => e.type.includes(filter))
@@ -169,7 +179,7 @@ function ServerDebug() {
           <span className={`inline-block h-2 w-2 rounded-full ${
             isConnected ? 'bg-green-400' : 'bg-red-400 animate-pulse'
           }`} />
-          {connectionState}
+          {isConnected ? 'Connected' : 'Disconnected'}
         </div>
         {connectedAt && (
           <span className="text-gray-500">Connected at {connectedAt}</span>
@@ -239,32 +249,32 @@ function ServerDebug() {
             <h2 className="text-sm font-bold mb-3 text-gray-300">Current State</h2>
 
             {/* Status */}
-            {data['status:sync'] && (
+            {status && (
               <div className="mb-2">
                 <span className="text-gray-500">Status: </span>
                 <span className="text-green-400">
-                  {(data['status:sync'] as { status?: string })?.status ?? '—'}
+                  {status.status ?? '—'}
                 </span>
               </div>
             )}
 
             {/* Stream Info */}
-            {data['stream:sync'] && (
+            {stream && (
               <div className="mb-2">
                 <span className="text-gray-500">Stream: </span>
                 <span className="text-cyan-400 break-words">
-                  {(data['stream:sync'] as { title?: string })?.title ?? '—'}
+                  {stream.title ?? '—'}
                 </span>
               </div>
             )}
 
             {/* Limit Break */}
-            {data['limitbreak:sync'] && (
+            {limitbreak && (
               <div className="mb-2">
                 <span className="text-gray-500">LB: </span>
                 <span className="text-yellow-400">
-                  {(data['limitbreak:sync'] as { count?: number })?.count ?? 0} redeems
-                  {(data['limitbreak:sync'] as { isMaxed?: boolean })?.isMaxed && ' (MAXED)'}
+                  {limitbreak.count ?? 0} redeems
+                  {limitbreak.isMaxed && ' (MAXED)'}
                 </span>
               </div>
             )}
@@ -292,7 +302,7 @@ function ServerDebug() {
               </button>
             )}
             <button
-              onClick={() => { setEvents([]); previousValuesRef.current.clear(); eventIdRef.current = 0 }}
+              onClick={() => { setEvents([]); eventIdRef.current = 0 }}
               className="text-red-400 hover:text-red-300 px-2"
             >
               clear log

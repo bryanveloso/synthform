@@ -1,11 +1,8 @@
-import { useEffect, useState, useCallback, useRef, useReducer, useMemo } from 'react'
 import { ConnectionState } from '@/types/server'
 import type {
   MessageType,
   PayloadType,
   ServerMessage,
-  UseServerOptions,
-  ServerData,
   CacheEntry,
 } from '@/types/server'
 
@@ -18,40 +15,6 @@ const CACHE_CLEANUP_INTERVAL = 60 * 1000 // 1 minute
 const DEFAULT_RECONNECT_DELAY = 1000
 const DEFAULT_MAX_RECONNECT_ATTEMPTS = 10
 const MAX_RECONNECT_DELAY = 30000
-
-// Action types for the reducer
-type DataAction<T extends readonly MessageType[]> =
-  | { type: 'SET_INITIAL'; payload: Partial<ServerData<T>> }
-  | { type: 'UPDATE_MESSAGE'; messageType: T[number]; payload: PayloadType<T[number]> }
-  | {
-      type: 'BATCH_UPDATE'
-      updates: Array<{ messageType: T[number]; payload: PayloadType<T[number]> }>
-    }
-  | { type: 'CLEAR' }
-
-// Reducer for managing message data
-function dataReducer<T extends readonly MessageType[]>(
-  state: ServerData<T>,
-  action: DataAction<T>,
-): ServerData<T> {
-  switch (action.type) {
-    case 'SET_INITIAL':
-      return { ...state, ...action.payload }
-    case 'UPDATE_MESSAGE':
-      return { ...state, [action.messageType]: action.payload }
-    case 'BATCH_UPDATE': {
-      const updates = action.updates.reduce(
-        (acc, { messageType, payload }) => ({ ...acc, [messageType]: payload }),
-        {},
-      )
-      return { ...state, ...updates }
-    }
-    case 'CLEAR':
-      return {} as ServerData<T>
-    default:
-      return state
-  }
-}
 
 // Special key for connection state subscribers
 type SubscriberKey = MessageType | '__connection__'
@@ -376,101 +339,4 @@ class ServerConnection {
 // Singleton instance
 const serverConnection = new ServerConnection()
 
-// Main hook
-export function useServer<T extends readonly MessageType[]>(
-  messageTypes: T,
-  options?: UseServerOptions,
-) {
-  const [data, dispatch] = useReducer(dataReducer<T>, {} as ServerData<T>)
-  const [isConnected, setIsConnected] = useState(false)
-
-  // Use refs for stable references
-  const callbacksRef = useRef<Map<MessageType, (payload: unknown) => void>>(new Map())
-  const optionsRef = useRef(options)
-  optionsRef.current = options
-
-  // Handle connection state changes
-  const handleConnectionChange = useCallback((connected: boolean) => {
-    setIsConnected(connected)
-    optionsRef.current?.onConnectionChange?.(connected)
-  }, [])
-
-  // Subscribe to connection state
-  useEffect(() => {
-    const connectionKey = '__connection__' as MessageType
-    serverConnection.subscribe(connectionKey, handleConnectionChange as (data: unknown) => void)
-    setIsConnected(serverConnection.isConnected())
-
-    return () => {
-      serverConnection.unsubscribe(connectionKey, handleConnectionChange as (data: unknown) => void)
-    }
-  }, [handleConnectionChange])
-
-  // Track message types to avoid re-subscribing
-  const messageTypesKey = useMemo(() => JSON.stringify(messageTypes), [messageTypes])
-
-  // Subscribe to message types
-  useEffect(() => {
-    const initialData: Partial<ServerData<T>> = {}
-
-    // Create subscriptions
-    messageTypes.forEach((messageType) => {
-      // Check if we already have a callback for this message type
-      if (callbacksRef.current.has(messageType)) {
-        return // Skip if already subscribed
-      }
-
-      const callback = (payload: unknown) => {
-        dispatch({
-          type: 'UPDATE_MESSAGE',
-          messageType,
-          payload: payload as PayloadType<T[number]>,
-        })
-      }
-
-      callbacksRef.current.set(messageType, callback)
-      const cachedData = serverConnection.subscribe(
-        messageType,
-        callback as (data: PayloadType<typeof messageType>) => void,
-      )
-
-      // If we have cached data, set it immediately
-      if (cachedData !== undefined) {
-        initialData[messageType] = cachedData as PayloadType<T[number]>
-      }
-    })
-
-    // Set initial data if any
-    if (Object.keys(initialData).length > 0) {
-      dispatch({ type: 'SET_INITIAL', payload: initialData })
-    }
-
-    // Cleanup function
-    return () => {
-      messageTypes.forEach((messageType) => {
-        const callback = callbacksRef.current.get(messageType)
-        if (callback) {
-          serverConnection.unsubscribe(messageType, callback)
-          callbacksRef.current.delete(messageType)
-        }
-      })
-    }
-  }, [messageTypesKey])
-
-  const send = useCallback(<T extends MessageType>(messageType: T, payload: PayloadType<T>) => {
-    return serverConnection.send(messageType, payload)
-  }, [])
-
-  return {
-    data,
-    isConnected,
-    connectionState: serverConnection.getConnectionState(),
-    send,
-    reconnect: () => serverConnection.connect(),
-    disconnect: () => serverConnection.disconnect(),
-    clearCache: () => serverConnection.clearCache(),
-  }
-}
-
-// Export singleton for advanced use cases
 export { serverConnection }

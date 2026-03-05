@@ -453,26 +453,6 @@ export type TypedServerMessage<T extends MessageType = MessageType> = {
   sequence: number
 }
 
-// Connection options for the hook
-export interface UseServerOptions {
-  // Cache configuration
-  useCache?: boolean
-  cacheTTL?: number // in milliseconds
-
-  // Error handling
-  onError?: (error: Error) => void
-  onConnectionChange?: (connected: boolean) => void
-
-  // Retry configuration
-  maxReconnectAttempts?: number
-  reconnectDelay?: number
-}
-
-// Typed data structure for useServer hook
-export type ServerData<T extends readonly MessageType[]> = {
-  [K in T[number]]: PayloadType<K> | undefined
-}
-
 // Cache entry with TTL
 export interface CacheEntry<T = unknown> {
   data: T
