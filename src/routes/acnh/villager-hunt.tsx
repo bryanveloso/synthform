@@ -44,7 +44,7 @@ function VillagerHuntOverlay() {
                   className="size-8 rounded-full"
                 />
                 <div className="flex flex-col">
-                  <span className="font-caps text-[10px] text-shark-560">HUNTING FOR</span>
+                  <span className="font-caps text-xs text-shark-560">HUNTING FOR</span>
                   <span className="font-caps text-sm font-bold text-chalk">
                     {hunt.target_villager.name}
                   </span>
@@ -55,7 +55,7 @@ function VillagerHuntOverlay() {
 
           <div className="h-6 w-px bg-shark-800" />
           <div className="flex flex-col items-center px-5">
-            <span className="font-caps text-[10px] text-shark-560">ISLANDS</span>
+            <span className="font-caps text-xs text-shark-560">ISLANDS</span>
             <span className="font-caps text-lg font-bold tabular-nums text-chalk">
               {hunt.encounter_count}
             </span>
@@ -65,7 +65,7 @@ function VillagerHuntOverlay() {
             <>
               <div className="h-6 w-px bg-shark-800" />
               <div className="flex flex-col items-center px-5">
-                <span className="font-caps text-[10px] text-shark-560">ALL-TIME</span>
+                <span className="font-caps text-xs text-shark-560">ALL-TIME</span>
                 <span className="font-caps text-lg font-bold tabular-nums text-chalk">
                   {stats.total_islands}
                 </span>
@@ -73,7 +73,7 @@ function VillagerHuntOverlay() {
 
               <div className="h-6 w-px bg-shark-800" />
               <div className="flex flex-col items-center px-5">
-                <span className="font-caps text-[10px] text-shark-560">AVG/HUNT</span>
+                <span className="font-caps text-xs text-shark-560">AVG/HUNT</span>
                 <span className="font-caps text-lg font-bold tabular-nums text-chalk">
                   {stats.avg_islands_per_hunt}
                 </span>
@@ -120,7 +120,7 @@ function EncounterItem({
             {villager.name}
           </span>
           {recruited && (
-            <span className="rounded bg-lime/20 px-1 py-0.5 text-[10px] font-bold text-lime">
+            <span className="rounded bg-lime/20 px-1 py-0.5 text-xs font-bold text-lime">
               RECRUITED
             </span>
           )}
