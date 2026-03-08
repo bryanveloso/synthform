@@ -31,14 +31,16 @@ export function useCampaign() {
   // Combined count for display and milestone tracking
   const totalSubsWithResubs = totalSubs + totalResubs
 
-  // Update every second - just count up from the base duration
+  // Update every second for the duration counter, only when campaign is active
   useEffect(() => {
+    if (!isActive) return
+
     const interval = setInterval(() => {
       forceRender()
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [isActive])
 
   // Total duration - if we have a base duration, add seconds since component mounted
   const [mountTime] = useState(Date.now())
