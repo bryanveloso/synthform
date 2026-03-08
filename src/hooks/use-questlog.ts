@@ -61,3 +61,45 @@ export function useIronMONRuns(challenge?: string, limit = 50) {
     staleTime: 30_000,
   })
 }
+
+// ACNH types
+
+interface ACNHVillager {
+  id: number
+  name: string
+  species: string
+  personality: string
+  icon_url: string
+  image_url: string
+}
+
+interface ACNHEncounter {
+  id: string
+  villager: ACNHVillager
+  timestamp: string
+  recruited: boolean
+  notes: string
+}
+
+interface ACNHHunt {
+  id: string
+  date: string
+  target_villager: ACNHVillager | null
+  result_villager: ACNHVillager | null
+  encounter_count: number
+  encounters: ACNHEncounter[]
+}
+
+interface ACNHHuntResponse {
+  hunt: ACNHHunt | null
+}
+
+export type { ACNHVillager, ACNHEncounter, ACNHHunt }
+
+export function useACNHHunt() {
+  return useQuery<ACNHHuntResponse>({
+    queryKey: ['acnh', 'hunt', 'latest'],
+    queryFn: () => fetchJSON('/acnh/hunts/latest'),
+    refetchInterval: 5_000,
+  })
+}

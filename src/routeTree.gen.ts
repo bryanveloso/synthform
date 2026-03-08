@@ -20,6 +20,7 @@ import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
 import { Route as DebugServerRouteImport } from './routes/debug/server'
 import { Route as DebugIronmonRouteImport } from './routes/debug/ironmon'
 import { Route as DebugEventsRouteImport } from './routes/debug/events'
+import { Route as AcnhVillagerHuntRouteImport } from './routes/acnh/villager-hunt'
 import { Route as fullOmnibarRouteImport } from './routes/(full)/omnibar'
 import { Route as fullIntroRouteImport } from './routes/(full)/intro'
 import { Route as fullEmoteRainRouteImport } from './routes/(full)/emote-rain'
@@ -80,6 +81,11 @@ const DebugEventsRoute = DebugEventsRouteImport.update({
   path: '/debug/events',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcnhVillagerHuntRoute = AcnhVillagerHuntRouteImport.update({
+  id: '/acnh/villager-hunt',
+  path: '/acnh/villager-hunt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const fullOmnibarRoute = fullOmnibarRouteImport.update({
   id: '/(full)/omnibar',
   path: '/omnibar',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/emote-rain': typeof fullEmoteRainRoute
   '/intro': typeof fullIntroRoute
   '/omnibar': typeof fullOmnibarRoute
+  '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/emote-rain': typeof fullEmoteRainRoute
   '/intro': typeof fullIntroRoute
   '/omnibar': typeof fullOmnibarRoute
+  '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/(full)/emote-rain': typeof fullEmoteRainRoute
   '/(full)/intro': typeof fullIntroRoute
   '/(full)/omnibar': typeof fullOmnibarRoute
+  '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
@@ -164,6 +173,7 @@ export interface FileRouteTypes {
     | '/emote-rain'
     | '/intro'
     | '/omnibar'
+    | '/acnh/villager-hunt'
     | '/debug/events'
     | '/debug/ironmon'
     | '/debug/server'
@@ -181,6 +191,7 @@ export interface FileRouteTypes {
     | '/emote-rain'
     | '/intro'
     | '/omnibar'
+    | '/acnh/villager-hunt'
     | '/debug/events'
     | '/debug/ironmon'
     | '/debug/server'
@@ -198,6 +209,7 @@ export interface FileRouteTypes {
     | '/(full)/emote-rain'
     | '/(full)/intro'
     | '/(full)/omnibar'
+    | '/acnh/villager-hunt'
     | '/debug/events'
     | '/debug/ironmon'
     | '/debug/server'
@@ -216,6 +228,7 @@ export interface RootRouteChildren {
   fullEmoteRainRoute: typeof fullEmoteRainRoute
   fullIntroRoute: typeof fullIntroRoute
   fullOmnibarRoute: typeof fullOmnibarRoute
+  AcnhVillagerHuntRoute: typeof AcnhVillagerHuntRoute
   DebugEventsRoute: typeof DebugEventsRoute
   DebugIronmonRoute: typeof DebugIronmonRoute
   DebugServerRoute: typeof DebugServerRoute
@@ -304,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DebugEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/acnh/villager-hunt': {
+      id: '/acnh/villager-hunt'
+      path: '/acnh/villager-hunt'
+      fullPath: '/acnh/villager-hunt'
+      preLoaderRoute: typeof AcnhVillagerHuntRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(full)/omnibar': {
       id: '/(full)/omnibar'
       path: '/omnibar'
@@ -344,6 +364,7 @@ const rootRouteChildren: RootRouteChildren = {
   fullEmoteRainRoute: fullEmoteRainRoute,
   fullIntroRoute: fullIntroRoute,
   fullOmnibarRoute: fullOmnibarRoute,
+  AcnhVillagerHuntRoute: AcnhVillagerHuntRoute,
   DebugEventsRoute: DebugEventsRoute,
   DebugIronmonRoute: DebugIronmonRoute,
   DebugServerRoute: DebugServerRoute,
