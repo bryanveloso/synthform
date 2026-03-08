@@ -95,12 +95,53 @@ interface ACNHHuntResponse {
   hunt: ACNHHunt | null
 }
 
-export type { ACNHVillager, ACNHEncounter, ACNHHunt }
+interface ACNHTopVillager {
+  villager: ACNHVillager
+  count: number
+}
+
+interface ACNHPersonalityStat {
+  personality: string
+  count: number
+}
+
+interface ACNHSpeciesStat {
+  species: string
+  count: number
+}
+
+interface ACNHHuntRecord {
+  id: string
+  date: string
+  encounter_count: number
+  result_villager: ACNHVillager | null
+}
+
+interface ACNHStats {
+  total_hunts: number
+  total_islands: number
+  avg_islands_per_hunt: number
+  most_encountered: ACNHTopVillager[]
+  personality_distribution: ACNHPersonalityStat[]
+  species_distribution: ACNHSpeciesStat[]
+  shortest_hunt: ACNHHuntRecord | null
+  longest_hunt: ACNHHuntRecord | null
+}
+
+export type { ACNHVillager, ACNHEncounter, ACNHHunt, ACNHStats }
 
 export function useACNHHunt() {
   return useQuery<ACNHHuntResponse>({
     queryKey: ['acnh', 'hunt', 'latest'],
     queryFn: () => fetchJSON('/acnh/hunts/latest'),
     refetchInterval: 5_000,
+  })
+}
+
+export function useACNHStats() {
+  return useQuery<ACNHStats>({
+    queryKey: ['acnh', 'stats'],
+    queryFn: () => fetchJSON('/acnh/stats'),
+    staleTime: 30_000,
   })
 }

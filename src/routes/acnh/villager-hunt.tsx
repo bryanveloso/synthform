@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useACNHHunt } from '@/hooks/use-questlog'
+import { useACNHHunt, useACNHStats } from '@/hooks/use-questlog'
 import type { ACNHEncounter } from '@/hooks/use-questlog'
 
 export const Route = createFileRoute('/acnh/villager-hunt')({
@@ -7,52 +7,90 @@ export const Route = createFileRoute('/acnh/villager-hunt')({
 })
 
 function VillagerHuntOverlay() {
-  const { data } = useACNHHunt()
-  const hunt = data?.hunt
+  const { data: huntData } = useACNHHunt()
+  const { data: stats } = useACNHStats()
+  const hunt = huntData?.hunt
 
-  if (!hunt || hunt.encounters.length === 0) {
+  if (!hunt) {
     return null
   }
 
   return (
-    <div className="flex h-screen w-screen items-end justify-end p-8">
-      <div className="flex flex-col gap-3">
-        {/* Header with island count */}
-        <div className="flex items-center justify-end gap-3">
-          {hunt.target_villager && (
-            <div className="flex items-center gap-2 rounded-lg bg-shark-950/80 px-3 py-1.5 backdrop-blur">
-              <img
-                src={hunt.target_villager.icon_url}
-                alt={hunt.target_villager.name}
-                className="size-6 rounded-full"
-              />
-              <span className="font-caps text-xs text-shark-400">
-                Hunting for {hunt.target_villager.name}
-              </span>
-            </div>
-          )}
-          <div className="rounded-lg bg-shark-950/80 px-3 py-1.5 backdrop-blur">
-            <span className="font-caps text-sm font-bold tabular-nums text-chalk">
-              {hunt.encounter_count}
-            </span>
-            <span className="font-caps text-xs text-shark-400"> islands</span>
-          </div>
+    <div className="flex h-screen w-screen flex-col justify-end">
+      <div className="relative flex h-16 w-full items-center bg-shark-960">
+        {/* Encounters — scrolls left, most recent first */}
+        <div className="flex h-full items-center">
+          {hunt.encounters.map((encounter, index) => (
+            <EncounterItem
+              key={encounter.id}
+              encounter={encounter}
+              isLatest={index === 0}
+            />
+          ))}
         </div>
 
-        {/* Encounter list */}
-        {hunt.encounters.map((encounter, index) => (
-          <EncounterCard
-            key={encounter.id}
-            encounter={encounter}
-            isLatest={index === 0}
-          />
-        ))}
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Stats cluster */}
+        <div className="flex h-full items-center">
+          {hunt.target_villager && (
+            <>
+              <div className="h-6 w-px bg-shark-800" />
+              <div className="flex items-center gap-2 px-4">
+                <img
+                  src={hunt.target_villager.icon_url}
+                  alt={hunt.target_villager.name}
+                  className="size-8 rounded-full"
+                />
+                <div className="flex flex-col">
+                  <span className="font-caps text-[10px] text-shark-560">HUNTING FOR</span>
+                  <span className="font-caps text-sm font-bold text-chalk">
+                    {hunt.target_villager.name}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="h-6 w-px bg-shark-800" />
+          <div className="flex flex-col items-center px-5">
+            <span className="font-caps text-[10px] text-shark-560">ISLANDS</span>
+            <span className="font-caps text-lg font-bold tabular-nums text-chalk">
+              {hunt.encounter_count}
+            </span>
+          </div>
+
+          {stats && (
+            <>
+              <div className="h-6 w-px bg-shark-800" />
+              <div className="flex flex-col items-center px-5">
+                <span className="font-caps text-[10px] text-shark-560">ALL-TIME</span>
+                <span className="font-caps text-lg font-bold tabular-nums text-chalk">
+                  {stats.total_islands}
+                </span>
+              </div>
+
+              <div className="h-6 w-px bg-shark-800" />
+              <div className="flex flex-col items-center px-5">
+                <span className="font-caps text-[10px] text-shark-560">AVG/HUNT</span>
+                <span className="font-caps text-lg font-bold tabular-nums text-chalk">
+                  {stats.avg_islands_per_hunt}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Decorative borders */}
+        <div className="absolute top-0 h-1 w-full bg-[#040506]" />
+        <div className="from-marigold to-lime absolute bottom-0 h-[1px] w-full bg-gradient-to-r" />
       </div>
     </div>
   )
 }
 
-function EncounterCard({
+function EncounterItem({
   encounter,
   isLatest,
 }: {
@@ -63,33 +101,33 @@ function EncounterCard({
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-lg px-4 py-3 backdrop-blur transition-all ${
+      className={`flex h-full items-center gap-2.5 border-r border-shark-800 px-4 ${
         recruited
-          ? 'bg-lime/20 inset-ring inset-ring-lime/30'
+          ? 'bg-lime/10'
           : isLatest
-            ? 'bg-shark-950/90 inset-ring inset-ring-white/10'
-            : 'bg-shark-950/70'
+            ? 'bg-shark-920'
+            : ''
       }`}
     >
       <img
         src={villager.icon_url}
         alt={villager.name}
-        className="size-12 rounded-full"
+        className="size-10 rounded-full"
       />
       <div className="flex flex-col">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <span className="font-caps text-sm font-bold text-chalk">
             {villager.name}
           </span>
           {recruited && (
-            <span className="rounded bg-lime/20 px-1.5 py-0.5 text-xs font-bold text-lime">
+            <span className="rounded bg-lime/20 px-1 py-0.5 text-[10px] font-bold text-lime">
               RECRUITED
             </span>
           )}
         </div>
         <span className="text-xs text-shark-400">
           {villager.species} · {villager.personality}
-          {encounters > 1 && ` · seen ${encounters}x`}
+          {encounters > 1 && ` · ${encounters}x`}
         </span>
       </div>
     </div>
