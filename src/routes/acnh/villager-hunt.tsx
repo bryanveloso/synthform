@@ -59,7 +59,7 @@ function EncounterCard({
   encounter: ACNHEncounter
   isLatest: boolean
 }) {
-  const { villager, recruited } = encounter
+  const { villager, recruited, encounters } = encounter
 
   return (
     <div
@@ -89,6 +89,7 @@ function EncounterCard({
         </div>
         <span className="text-xs text-shark-400">
           {villager.species} · {villager.personality}
+          {encounters > 1 && ` · seen ${encounters}x`}
         </span>
       </div>
     </div>

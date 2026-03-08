@@ -79,6 +79,7 @@ interface ACNHEncounter {
   timestamp: string
   recruited: boolean
   notes: string
+  encounters: number
 }
 
 interface ACNHHunt {
