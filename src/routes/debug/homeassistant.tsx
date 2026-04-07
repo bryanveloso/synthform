@@ -51,14 +51,14 @@ const ENTITY_GROUPS: Record<string, string[]> = {
     'binary_sensor.unraid_array_health',
     'binary_sensor.unraid_server_connection',
   ],
-  'Network': [
+  Network: [
     'sensor.exandria',
     'sensor.dream_machine_pro_state',
     'sensor.dream_machine_pro_uptime_2',
     'sensor.usw_pro_24_poe_state',
     'sensor.usw_pro_24_poe_temperature',
   ],
-  'Devices': [
+  Devices: [
     'sensor.demi_frontmost_app',
     'sensor.one_four_battery_level',
     'sensor.one_four_steps',
@@ -103,27 +103,39 @@ function freshnessColor(isoString: string): string {
   return 'text-red-400'
 }
 
-function EntityRow({ entity }: { entity: HAState | undefined; }) {
+function EntityRow({ entity }: { entity: HAState | undefined }) {
   if (!entity) return null
 
   const unit = (entity.attributes.unit_of_measurement as string) ?? ''
   const friendly = (entity.attributes.friendly_name as string) ?? entity.entity_id
 
   return (
-    <div className="flex items-baseline gap-3 py-1 border-b border-gray-800/50">
-      <span className="text-gray-500 w-64 shrink-0 truncate" title={entity.entity_id}>
+    <div className="flex items-baseline justify-between border-b border-white/5 py-1">
+      <span className="shrink-0 truncate text-[10px] uppercase tracking-wider text-gray-500" title={entity.entity_id}>
         {friendly}
       </span>
-      <span className="text-white font-bold">
+      <span className="min-w-32 text-right tabular-nums font-bold">
         {entity.state}
-        {unit && <span className="text-gray-500 font-normal ml-1">{unit}</span>}
+        {unit && <span className="ml-1 text-[10px] font-normal text-gray-500">{unit}</span>}
       </span>
-      <span className={`ml-auto text-xs ${freshnessColor(entity.last_changed)}`} title={entity.last_changed}>
-        changed {timeAgo(entity.last_changed)}
+      <span className={`ml-4 min-w-20 text-right text-[10px] ${freshnessColor(entity.last_changed)}`} title={entity.last_changed}>
+        {timeAgo(entity.last_changed)}
       </span>
-      <span className={`text-xs ${freshnessColor(entity.last_updated)}`} title={entity.last_updated}>
-        updated {timeAgo(entity.last_updated)}
+      <span className={`ml-2 min-w-20 text-right text-[10px] ${freshnessColor(entity.last_updated)}`} title={entity.last_updated}>
+        {timeAgo(entity.last_updated)}
       </span>
+    </div>
+  )
+}
+
+function Panel({ title, right, children }: { title: string; right?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col overflow-hidden rounded border border-white/[0.08]">
+      <div className="flex min-h-[30px] shrink-0 items-center justify-between border-b border-white/[0.08] bg-white/[0.02] px-2.5 py-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">{title}</span>
+        {right && <span className="text-[10px] text-gray-500">{right}</span>}
+      </div>
+      <div className="flex-1 overflow-y-auto px-2.5 py-2">{children}</div>
     </div>
   )
 }
@@ -144,40 +156,40 @@ function HomeAssistantDebug() {
   const ungrouped = states?.filter((s) => !groupedIds.has(s.entity_id) && s.state !== 'unavailable') ?? []
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 font-mono text-xs">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl mb-1 text-chalk">Home Assistant Debug</h1>
-        <p className="text-gray-500">Testing entity freshness and poll latency</p>
-      </div>
-
-      {/* Controls */}
-      <div className="mb-6 flex items-center gap-4">
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded ${
-          states ? 'bg-green-900/50 text-green-400' : isError ? 'bg-red-900/50 text-red-400' : 'bg-gray-900/50 text-gray-400'
-        }`}>
-          <span className={`inline-block h-2 w-2 rounded-full ${
-            states ? 'bg-green-400' : isError ? 'bg-red-400 animate-pulse' : 'bg-gray-400 animate-pulse'
-          }`} />
-          {isLoading ? 'Loading...' : isError ? 'Error' : `${states?.length ?? 0} entities`}
+    <div className="min-h-screen bg-[#0a0e14] p-4 font-mono text-[13px] leading-relaxed text-gray-200 antialiased">
+      {/* Topbar */}
+      <div className="mb-4 flex items-center gap-4 rounded border border-white/[0.08] bg-white/[0.02] px-4 py-2">
+        <div
+          className={`flex items-center gap-2 ${
+            states ? 'text-green-400' : isError ? 'text-red-400' : 'text-gray-400'
+          }`}>
+          <span
+            className={`inline-block size-2 rounded-full ${
+              states ? 'bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]' : isError ? 'animate-pulse bg-red-400' : 'animate-pulse bg-gray-400'
+            }`}
+          />
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em]">
+            {isLoading ? 'Connecting' : isError ? 'Error' : 'Live'}
+          </span>
         </div>
 
+        <span className="text-[10px] text-gray-500">{states?.length ?? 0} entities</span>
+
         {dataUpdatedAt > 0 && (
-          <span className="text-gray-500">
-            Last fetch: {new Date(dataUpdatedAt).toLocaleTimeString('en-US', { hour12: false, fractionalSecondDigits: 3 })}
+          <span className="text-[10px] tabular-nums text-gray-500">
+            {new Date(dataUpdatedAt).toLocaleTimeString('en-US', { hour12: false, fractionalSecondDigits: 3 })}
           </span>
         )}
 
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500">Poll:</span>
+        <div className="ml-auto flex items-center gap-1">
+          <span className="mr-1 text-[10px] uppercase tracking-wider text-gray-500">Poll</span>
           {[1_000, 2_000, 5_000, 10_000, 30_000].map((ms) => (
             <button
               key={ms}
               onClick={() => setInterval(ms)}
-              className={`px-2 py-0.5 rounded ${
-                interval === ms ? 'bg-cyan-800 text-cyan-200' : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
-            >
+              className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                interval === ms ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'
+              }`}>
               {ms / 1000}s
             </button>
           ))}
@@ -185,31 +197,31 @@ function HomeAssistantDebug() {
       </div>
 
       {isError && (
-        <div className="mb-6 p-4 bg-red-900/30 border border-red-800 rounded text-red-400">
+        <div className="mb-4 rounded border border-red-800 bg-red-900/30 p-3 text-[10px] text-red-400">
           {(error as Error).message}
         </div>
       )}
 
-      {/* Grouped Entities */}
-      <div className="grid grid-cols-2 gap-6 mb-8">
-        {Object.entries(ENTITY_GROUPS).map(([group, entityIds]) => (
-          <div key={group} className="border border-gray-800 rounded p-4 bg-gray-950">
-            <h2 className="text-sm font-bold mb-3 text-cyan-400">{group}</h2>
-            <div>
+      {/* Entity Panels */}
+      <div className="grid grid-cols-2 gap-1">
+        {Object.entries(ENTITY_GROUPS).map(([group, entityIds]) => {
+          const available = entityIds.filter((id) => stateMap.has(id)).length
+          return (
+            <Panel key={group} title={group} right={`${available}/${entityIds.length}`}>
               {entityIds.map((id) => (
                 <EntityRow key={id} entity={stateMap.get(id)} />
               ))}
-            </div>
-          </div>
-        ))}
+            </Panel>
+          )
+        })}
       </div>
 
-      {/* Ungrouped (discoverable) */}
-      <details className="border border-gray-800 rounded p-4 bg-gray-950">
-        <summary className="cursor-pointer text-sm font-bold text-gray-400 hover:text-white">
+      {/* Ungrouped */}
+      <details className="mt-1">
+        <summary className="cursor-pointer rounded border border-white/[0.08] bg-white/[0.02] px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-gray-300">
           All other entities ({ungrouped.length} available)
         </summary>
-        <div className="mt-3 max-h-96 overflow-y-auto">
+        <div className="mt-1 max-h-96 overflow-y-auto rounded border border-white/[0.08] px-2.5 py-2">
           {ungrouped.map((entity) => (
             <EntityRow key={entity.entity_id} entity={entity} />
           ))}

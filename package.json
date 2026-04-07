@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/sora": "^5.2.8",
     "@fontsource/fira-sans": "^5.2.7",
     "@fontsource/m-plus-rounded-1c": "^5.2.10",

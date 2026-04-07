@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/sora';
+@import '@fontsource-variable/jetbrains-mono';
 @import '@fontsource/fira-sans/400.css';
 @import '@fontsource/fira-sans/800.css';
 
@@ -73,6 +74,7 @@
   --font-sans: 'Sora Variable', system-ui, Avenir, Helvetica, Arial, sans-serif;
   --font-caps: 'Optiker K', 'M PLUS Rounded 1c', system-ui, Avenir, Helvetica, Arial, sans-serif;
   --font-fira: 'Fira Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', monospace;
 }
 
 :root {
