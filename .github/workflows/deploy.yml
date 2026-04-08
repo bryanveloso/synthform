@@ -14,6 +14,14 @@ jobs:
       with:
         fetch-depth: 10
 
+    - name: Write .env
+      run: |
+        cat > .env << EOF
+        VITE_QUESTLOG_URL=${{ vars.VITE_QUESTLOG_URL }}
+        VITE_HOMEASSISTANT_URL=${{ vars.VITE_HOMEASSISTANT_URL }}
+        VITE_HOMEASSISTANT_TOKEN=${{ secrets.VITE_HOMEASSISTANT_TOKEN }}
+        EOF
+
     - name: Deploy containers
       run: |
         docker compose -f docker-compose.prod.yml up --build --force-recreate -d --remove-orphans
