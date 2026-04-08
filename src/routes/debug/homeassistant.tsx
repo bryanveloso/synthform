@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
-import { useHAStates } from '@/hooks/use-homeassistant'
-import type { HAState } from '@/hooks/use-homeassistant'
+import { useHomeAssistant } from '@/hooks/use-homeassistant'
+import type { HassEntity } from 'home-assistant-js-websocket'
 
 export const Route = createFileRoute('/debug/homeassistant')({
   component: HomeAssistantDebug,
@@ -103,7 +102,7 @@ function freshnessColor(isoString: string): string {
   return 'text-red-400'
 }
 
-function EntityRow({ entity }: { entity: HAState | undefined }) {
+function EntityRow({ entity }: { entity: HassEntity | undefined }) {
   if (!entity) return null
 
   const unit = (entity.attributes.unit_of_measurement as string) ?? ''
@@ -141,75 +140,51 @@ function Panel({ title, right, children }: { title: string; right?: string; chil
 }
 
 function HomeAssistantDebug() {
-  const [interval, setInterval] = useState(5_000)
-  const { data: states, isLoading, isError, error, dataUpdatedAt } = useHAStates(interval)
+  const { entities, isConnected, error } = useHomeAssistant()
 
-  const stateMap = new Map<string, HAState>()
-  if (states) {
-    for (const s of states) {
-      stateMap.set(s.entity_id, s)
-    }
-  }
+  const entityCount = Object.keys(entities).length
 
   // Entities not in any group
   const groupedIds = new Set(Object.values(ENTITY_GROUPS).flat())
-  const ungrouped = states?.filter((s) => !groupedIds.has(s.entity_id) && s.state !== 'unavailable') ?? []
+  const ungrouped = Object.values(entities).filter(
+    (e) => !groupedIds.has(e.entity_id) && e.state !== 'unavailable',
+  )
 
   return (
     <div className="min-h-screen bg-[#0a0e14] p-4 font-mono text-[13px] leading-relaxed text-gray-200 antialiased">
       {/* Topbar */}
       <div className="mb-4 flex items-center gap-4 rounded border border-white/[0.08] bg-white/[0.02] px-4 py-2">
-        <div
-          className={`flex items-center gap-2 ${
-            states ? 'text-green-400' : isError ? 'text-red-400' : 'text-gray-400'
-          }`}>
+        <div className={`flex items-center gap-2 ${isConnected ? 'text-green-400' : error ? 'text-red-400' : 'text-gray-400'}`}>
           <span
             className={`inline-block size-2 rounded-full ${
-              states ? 'bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]' : isError ? 'animate-pulse bg-red-400' : 'animate-pulse bg-gray-400'
+              isConnected
+                ? 'bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]'
+                : error
+                  ? 'animate-pulse bg-red-400'
+                  : 'animate-pulse bg-gray-400'
             }`}
           />
           <span className="text-[10px] font-bold uppercase tracking-[0.12em]">
-            {isLoading ? 'Connecting' : isError ? 'Error' : 'Live'}
+            {isConnected ? 'Live' : error ? 'Error' : 'Connecting'}
           </span>
         </div>
 
-        <span className="text-[10px] text-gray-500">{states?.length ?? 0} entities</span>
-
-        {dataUpdatedAt > 0 && (
-          <span className="text-[10px] tabular-nums text-gray-500">
-            {new Date(dataUpdatedAt).toLocaleTimeString('en-US', { hour12: false, fractionalSecondDigits: 3 })}
-          </span>
-        )}
-
-        <div className="ml-auto flex items-center gap-1">
-          <span className="mr-1 text-[10px] uppercase tracking-wider text-gray-500">Poll</span>
-          {[1_000, 2_000, 5_000, 10_000, 30_000].map((ms) => (
-            <button
-              key={ms}
-              onClick={() => setInterval(ms)}
-              className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                interval === ms ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'
-              }`}>
-              {ms / 1000}s
-            </button>
-          ))}
-        </div>
+        <span className="text-[10px] text-gray-500">{entityCount} entities</span>
+        <span className="text-[10px] text-gray-500">WebSocket</span>
       </div>
 
-      {isError && (
-        <div className="mb-4 rounded border border-red-800 bg-red-900/30 p-3 text-[10px] text-red-400">
-          {(error as Error).message}
-        </div>
+      {error && (
+        <div className="mb-4 rounded border border-red-800 bg-red-900/30 p-3 text-[10px] text-red-400">{error}</div>
       )}
 
       {/* Entity Panels */}
       <div className="grid grid-cols-2 gap-1">
         {Object.entries(ENTITY_GROUPS).map(([group, entityIds]) => {
-          const available = entityIds.filter((id) => stateMap.has(id)).length
+          const available = entityIds.filter((id) => entities[id]).length
           return (
             <Panel key={group} title={group} right={`${available}/${entityIds.length}`}>
               {entityIds.map((id) => (
-                <EntityRow key={id} entity={stateMap.get(id)} />
+                <EntityRow key={id} entity={entities[id]} />
               ))}
             </Panel>
           )
