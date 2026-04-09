@@ -19,6 +19,7 @@ import { Route as SpecialUmamusumeRouteImport } from './routes/special/umamusume
 import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
 import { Route as DebugServerRouteImport } from './routes/debug/server'
 import { Route as DebugIronmonRouteImport } from './routes/debug/ironmon'
+import { Route as DebugHudStylesRouteImport } from './routes/debug/hud-styles'
 import { Route as DebugHomeassistantRouteImport } from './routes/debug/homeassistant'
 import { Route as DebugEventsRouteImport } from './routes/debug/events'
 import { Route as AcnhVillagerHuntRouteImport } from './routes/acnh/villager-hunt'
@@ -77,6 +78,11 @@ const DebugIronmonRoute = DebugIronmonRouteImport.update({
   path: '/debug/ironmon',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DebugHudStylesRoute = DebugHudStylesRouteImport.update({
+  id: '/debug/hud-styles',
+  path: '/debug/hud-styles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DebugHomeassistantRoute = DebugHomeassistantRouteImport.update({
   id: '/debug/homeassistant',
   path: '/debug/homeassistant',
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/homeassistant': typeof DebugHomeassistantRoute
+  '/debug/hud-styles': typeof DebugHudStylesRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/homeassistant': typeof DebugHomeassistantRoute
+  '/debug/hud-styles': typeof DebugHudStylesRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
   '/debug/events': typeof DebugEventsRoute
   '/debug/homeassistant': typeof DebugHomeassistantRoute
+  '/debug/hud-styles': typeof DebugHudStylesRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
   '/special/podcast': typeof SpecialPodcastRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/acnh/villager-hunt'
     | '/debug/events'
     | '/debug/homeassistant'
+    | '/debug/hud-styles'
     | '/debug/ironmon'
     | '/debug/server'
     | '/special/podcast'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
     | '/acnh/villager-hunt'
     | '/debug/events'
     | '/debug/homeassistant'
+    | '/debug/hud-styles'
     | '/debug/ironmon'
     | '/debug/server'
     | '/special/podcast'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '/acnh/villager-hunt'
     | '/debug/events'
     | '/debug/homeassistant'
+    | '/debug/hud-styles'
     | '/debug/ironmon'
     | '/debug/server'
     | '/special/podcast'
@@ -243,6 +255,7 @@ export interface RootRouteChildren {
   AcnhVillagerHuntRoute: typeof AcnhVillagerHuntRoute
   DebugEventsRoute: typeof DebugEventsRoute
   DebugHomeassistantRoute: typeof DebugHomeassistantRoute
+  DebugHudStylesRoute: typeof DebugHudStylesRoute
   DebugIronmonRoute: typeof DebugIronmonRoute
   DebugServerRoute: typeof DebugServerRoute
   SpecialPodcastRoute: typeof SpecialPodcastRoute
@@ -323,6 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DebugIronmonRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/debug/hud-styles': {
+      id: '/debug/hud-styles'
+      path: '/debug/hud-styles'
+      fullPath: '/debug/hud-styles'
+      preLoaderRoute: typeof DebugHudStylesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/debug/homeassistant': {
       id: '/debug/homeassistant'
       path: '/debug/homeassistant'
@@ -387,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   AcnhVillagerHuntRoute: AcnhVillagerHuntRoute,
   DebugEventsRoute: DebugEventsRoute,
   DebugHomeassistantRoute: DebugHomeassistantRoute,
+  DebugHudStylesRoute: DebugHudStylesRoute,
   DebugIronmonRoute: DebugIronmonRoute,
   DebugServerRoute: DebugServerRoute,
   SpecialPodcastRoute: SpecialPodcastRoute,
