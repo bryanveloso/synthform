@@ -22,6 +22,7 @@ jobs:
         VITE_HOMEASSISTANT_TOKEN=${{ secrets.VITE_HOMEASSISTANT_TOKEN }}
         VITE_TEMPEST_TOKEN=${{ secrets.VITE_TEMPEST_TOKEN }}
         VITE_TEMPEST_DEVICE_ID=${{ vars.VITE_TEMPEST_DEVICE_ID }}
+        VITE_TEMPEST_STATION_ID=${{ vars.VITE_TEMPEST_STATION_ID }}
         EOF
 
     - name: Deploy containers

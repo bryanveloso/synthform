@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
-import { connectTempest } from '@/api/tempest'
-import type { TempestObservation, TempestRapidWind, TempestLightningStrike } from '@/api/tempest'
+import { useQuery } from '@tanstack/react-query'
+import { connectTempest, fetchForecast } from '@/api/tempest'
+import type {
+  TempestObservation,
+  TempestRapidWind,
+  TempestLightningStrike,
+  TempestForecast,
+} from '@/api/tempest'
 
-export type { TempestObservation, TempestRapidWind, TempestLightningStrike }
+export type { TempestObservation, TempestRapidWind, TempestLightningStrike, TempestForecast }
 
 export function useTempest() {
   const [observation, setObservation] = useState<TempestObservation | null>(null)
@@ -27,4 +33,13 @@ export function useTempest() {
   }, [])
 
   return { observation, rapidWind, lastStrike, isRaining, isConnected, error }
+}
+
+export function useTempestForecast() {
+  return useQuery<TempestForecast>({
+    queryKey: ['tempest', 'forecast'],
+    queryFn: fetchForecast,
+    staleTime: 15 * 60_000,
+    refetchInterval: 15 * 60_000,
+  })
 }

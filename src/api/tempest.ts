@@ -1,6 +1,8 @@
 const TEMPEST_TOKEN = import.meta.env.VITE_TEMPEST_TOKEN || ''
 const TEMPEST_DEVICE_ID = import.meta.env.VITE_TEMPEST_DEVICE_ID || ''
+const TEMPEST_STATION_ID = import.meta.env.VITE_TEMPEST_STATION_ID || ''
 const WS_URL = 'wss://ws.weatherflow.com/swd/data'
+const REST_URL = 'https://swd.weatherflow.com/swd/rest'
 
 // obs_st field indices
 const OBS_FIELDS = {
@@ -210,5 +212,153 @@ export function connectTempest(options: TempestConnectionOptions): () => void {
     destroyed = true
     if (reconnectTimer) clearTimeout(reconnectTimer)
     ws?.close()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// REST: Forecast
+// ---------------------------------------------------------------------------
+
+export interface TempestCurrentConditions {
+  airTemperature: number
+  feelsLike: number
+  dewPoint: number
+  humidity: number
+  windAvg: number
+  windGust: number
+  windDir: number
+  windDirectionCardinal: string
+  pressure: number
+  pressureTrend: string
+  uv: number
+  solarRadiation: number
+  brightness: number
+  conditions: string
+  icon: string
+  precipProbability: number
+  precipAccumLocalDay: number
+  lightningStrikeCountLast1hr: number
+  lightningStrikeCountLast3hr: number
+  lightningStrikeLastDistance: number
+}
+
+export interface TempestDailyForecast {
+  dayStartLocal: number
+  dayNum: number
+  monthNum: number
+  conditions: string
+  icon: string
+  sunrise: number
+  sunset: number
+  airTempHigh: number
+  airTempLow: number
+  precipProbability: number
+  precipIcon: string
+  precipType: string
+}
+
+export interface TempestHourlyForecast {
+  time: number
+  localHour: number
+  localDay: number
+  conditions: string
+  icon: string
+  airTemperature: number
+  feelsLike: number
+  windAvg: number
+  windDirection: number
+  windDirectionCardinal: string
+  windGust: number
+  precipProbability: number
+  precipType: string
+  uv: number
+}
+
+export interface TempestForecast {
+  current: TempestCurrentConditions
+  daily: TempestDailyForecast[]
+  hourly: TempestHourlyForecast[]
+}
+
+function parseCurrentConditions(cc: Record<string, unknown>): TempestCurrentConditions {
+  return {
+    airTemperature: (cc.air_temperature as number) ?? 0,
+    feelsLike: (cc.feels_like as number) ?? 0,
+    dewPoint: (cc.dew_point as number) ?? 0,
+    humidity: (cc.relative_humidity as number) ?? 0,
+    windAvg: (cc.wind_avg as number) ?? 0,
+    windGust: (cc.wind_gust as number) ?? 0,
+    windDir: (cc.wind_direction as number) ?? 0,
+    windDirectionCardinal: (cc.wind_direction_cardinal as string) ?? '',
+    pressure: (cc.sea_level_pressure as number) ?? 0,
+    pressureTrend: (cc.pressure_trend as string) ?? '',
+    uv: (cc.uv as number) ?? 0,
+    solarRadiation: (cc.solar_radiation as number) ?? 0,
+    brightness: (cc.brightness as number) ?? 0,
+    conditions: (cc.conditions as string) ?? '',
+    icon: (cc.icon as string) ?? '',
+    precipProbability: (cc.precip_probability as number) ?? 0,
+    precipAccumLocalDay: (cc.precip_accum_local_day as number) ?? 0,
+    lightningStrikeCountLast1hr: (cc.lightning_strike_count_last_1hr as number) ?? 0,
+    lightningStrikeCountLast3hr: (cc.lightning_strike_count_last_3hr as number) ?? 0,
+    lightningStrikeLastDistance: (cc.lightning_strike_last_distance as number) ?? 0,
+  }
+}
+
+function parseDailyForecast(d: Record<string, unknown>): TempestDailyForecast {
+  return {
+    dayStartLocal: (d.day_start_local as number) ?? 0,
+    dayNum: (d.day_num as number) ?? 0,
+    monthNum: (d.month_num as number) ?? 0,
+    conditions: (d.conditions as string) ?? '',
+    icon: (d.icon as string) ?? '',
+    sunrise: (d.sunrise as number) ?? 0,
+    sunset: (d.sunset as number) ?? 0,
+    airTempHigh: (d.air_temp_high as number) ?? 0,
+    airTempLow: (d.air_temp_low as number) ?? 0,
+    precipProbability: (d.precip_probability as number) ?? 0,
+    precipIcon: (d.precip_icon as string) ?? '',
+    precipType: (d.precip_type as string) ?? '',
+  }
+}
+
+function parseHourlyForecast(h: Record<string, unknown>): TempestHourlyForecast {
+  return {
+    time: (h.time as number) ?? 0,
+    localHour: (h.local_hour as number) ?? 0,
+    localDay: (h.local_day as number) ?? 0,
+    conditions: (h.conditions as string) ?? '',
+    icon: (h.icon as string) ?? '',
+    airTemperature: (h.air_temperature as number) ?? 0,
+    feelsLike: (h.feels_like as number) ?? 0,
+    windAvg: (h.wind_avg as number) ?? 0,
+    windDirection: (h.wind_direction as number) ?? 0,
+    windDirectionCardinal: (h.wind_direction_cardinal as string) ?? '',
+    windGust: (h.wind_gust as number) ?? 0,
+    precipProbability: (h.precip_probability as number) ?? 0,
+    precipType: (h.precip_type as string) ?? '',
+    uv: (h.uv as number) ?? 0,
+  }
+}
+
+export async function fetchForecast(): Promise<TempestForecast> {
+  const params = new URLSearchParams({
+    station_id: TEMPEST_STATION_ID,
+    units_temp: 'f',
+    units_wind: 'mph',
+    units_pressure: 'inhg',
+    units_precip: 'in',
+    units_distance: 'mi',
+    token: TEMPEST_TOKEN,
+  })
+
+  const res = await fetch(`${REST_URL}/better_forecast?${params}`)
+  if (!res.ok) throw new Error(`Tempest forecast: ${res.status} ${res.statusText}`)
+  const data = await res.json()
+
+  return {
+    current: parseCurrentConditions(data.current_conditions ?? {}),
+    daily: (data.forecast?.daily ?? []).map(parseDailyForecast),
+    hourly: (data.forecast?.hourly ?? []).map(parseHourlyForecast),
   }
 }
