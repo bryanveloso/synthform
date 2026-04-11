@@ -20,6 +20,8 @@ jobs:
         VITE_QUESTLOG_URL=${{ vars.VITE_QUESTLOG_URL }}
         VITE_HOMEASSISTANT_URL=${{ vars.VITE_HOMEASSISTANT_URL }}
         VITE_HOMEASSISTANT_TOKEN=${{ secrets.VITE_HOMEASSISTANT_TOKEN }}
+        VITE_TEMPEST_TOKEN=${{ secrets.VITE_TEMPEST_TOKEN }}
+        VITE_TEMPEST_DEVICE_ID=${{ vars.VITE_TEMPEST_DEVICE_ID }}
         EOF
 
     - name: Deploy containers

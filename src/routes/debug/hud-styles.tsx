@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useHomeAssistant } from '@/hooks/use-homeassistant'
+import { useTempest } from '@/hooks/use-tempest'
 import type { HassEntity } from 'home-assistant-js-websocket'
 
 export const Route = createFileRoute('/debug/hud-styles')({
@@ -10,11 +11,6 @@ export const Route = createFileRoute('/debug/hud-styles')({
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function useEntity(entityId: string): HassEntity | undefined {
-  const { entities } = useHomeAssistant()
-  return entities[entityId]
-}
 
 function numState(entity: HassEntity | undefined, fallback = 0): number {
   if (!entity || entity.state === 'unavailable' || entity.state === 'unknown') return fallback
@@ -505,23 +501,16 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // ---------------------------------------------------------------------------
 
 function HUDStyles() {
-  const { entities, isConnected } = useHomeAssistant()
+  const { entities, isConnected: haConnected } = useHomeAssistant()
+  const { observation, rapidWind, lastStrike, isConnected: tempestConnected } = useTempest()
 
-  // Pull live values
+  // HA data
   const temp = numState(entities['sensor.my_ecobee_temperature'])
   const humidity = numState(entities['sensor.my_ecobee_humidity'])
   const co2 = numState(entities['sensor.my_ecobee_carbon_dioxide'])
-  const aqi = numState(entities['sensor.my_ecobee_air_quality_index'])
-  const outdoorTemp = numState(entities['sensor.tempest_temperature'])
-  const windSpeed = numState(entities['sensor.tempest_wind_speed'])
-  const windAvg = numState(entities['sensor.tempest_wind_speed_avg'])
-  const windGust = numState(entities['sensor.tempest_wind_gust'])
-  const windDir = numState(entities['sensor.tempest_wind_direction'])
-  const pressure = numState(entities['sensor.tempest_pressure_sea_level'])
   const solarProd = numState(entities['sensor.envoy_202440001251_current_power_production'])
   const netPower = numState(entities['sensor.envoy_202440001251_current_net_power_consumption'])
   const batteryPct = numState(entities['sensor.envoy_202440001251_battery'])
-  const batteryAvail = numState(entities['sensor.envoy_202440001251_available_battery_energy'])
   const cpuUsage = numState(entities['sensor.unraid_cpu_usage'])
   const ramUsage = numState(entities['sensor.unraid_ram_usage'])
   const arrayUsage = numState(entities['sensor.unraid_array_usage'])
@@ -534,6 +523,13 @@ function HUDStyles() {
   const fossilPct = numState(entities['sensor.electricity_maps_grid_fossil_fuel_percentage'])
   const wifiClients = numState(entities['sensor.exandria'])
   const pm25 = numState(entities['sensor.vital_200s_series_pm2_5'])
+
+  // Tempest data (direct WebSocket — 3s rapid wind, ~1m observations)
+  const outdoorTemp = observation?.tempF ?? 0
+  const windAvg = rapidWind?.windSpeedMph ?? observation?.windAvg ?? 0
+  const windGust = observation?.windGust ?? 0
+  const windDir = rapidWind?.windDir ?? observation?.windDir ?? 0
+  const pressure = observation?.pressure ?? 0
 
   // Sparkline histories
   const tempHistory = useHistory(temp)
@@ -569,9 +565,13 @@ function HUDStyles() {
       {/* Header */}
       <div className="mb-6 flex items-center gap-4">
         <h1 className="text-sm font-bold uppercase tracking-[0.12em] text-gray-300">HUD Style Compendium</h1>
-        <div className={`flex items-center gap-2 text-[10px] ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
-          <span className={`inline-block size-2 rounded-full ${isConnected ? 'bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]' : 'animate-pulse bg-red-400'}`} />
-          {isConnected ? 'LIVE' : 'OFFLINE'}
+        <div className={`flex items-center gap-2 text-[10px] ${haConnected ? 'text-green-400' : 'text-red-400'}`}>
+          <span className={`inline-block size-2 rounded-full ${haConnected ? 'bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]' : 'animate-pulse bg-red-400'}`} />
+          HA {haConnected ? 'LIVE' : 'OFFLINE'}
+        </div>
+        <div className={`flex items-center gap-2 text-[10px] ${tempestConnected ? 'text-green-400' : 'text-red-400'}`}>
+          <span className={`inline-block size-2 rounded-full ${tempestConnected ? 'bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]' : 'animate-pulse bg-red-400'}`} />
+          Tempest {tempestConnected ? 'LIVE' : 'OFFLINE'}
         </div>
       </div>
 
