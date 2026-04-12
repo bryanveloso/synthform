@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
 import { useHomeAssistant } from '@/hooks/use-homeassistant'
 import { useTempest } from '@/hooks/use-tempest'
 import { useEnphase, useEnphaseBatteries } from '@/hooks/use-enphase'
+import { useSparkline, useAccumulatingSparkline } from '@/hooks/use-sparkline'
 import type { HassEntity } from 'home-assistant-js-websocket'
 
 export const Route = createFileRoute('/debug/hud-styles')({
@@ -16,19 +16,6 @@ export const Route = createFileRoute('/debug/hud-styles')({
 function numState(entity: HassEntity | undefined, fallback = 0): number {
   if (!entity || entity.state === 'unavailable' || entity.state === 'unknown') return fallback
   return parseFloat(entity.state) || fallback
-}
-
-// Accumulate recent values into a ring buffer for sparklines
-function useHistory(value: number, maxLength = 60) {
-  const ref = useRef<number[]>([])
-  const [history, setHistory] = useState<number[]>([])
-
-  useEffect(() => {
-    ref.current = [...ref.current.slice(-(maxLength - 1)), value]
-    setHistory([...ref.current])
-  }, [value, maxLength])
-
-  return history
 }
 
 // ---------------------------------------------------------------------------
@@ -542,14 +529,14 @@ function HUDStyles() {
   const windDir = rapidWind?.windDir ?? (readings.wind_dir as number) ?? 0
   const pressure = (readings.pressure as number) ?? 0
 
-  // Sparkline histories
-  const tempHistory = useHistory(temp)
-  const co2History = useHistory(co2)
-  const outdoorTempHistory = useHistory(outdoorTemp)
-  const windSpeedHistory = useHistory(windAvg)
-  const solarProdHistory = useHistory(solarProd)
-  const houseConsumptionHistory = useHistory(houseConsumption)
-  const cpuHistory = useHistory(cpuUsage)
+  // Sparkline histories — Synthhome sources backfill from DB, HA sources accumulate
+  const outdoorTempHistory = useSparkline('tempest', 'temp_f', outdoorTemp)
+  const windSpeedHistory = useSparkline('tempest', 'rapid_wind_speed', windAvg)
+  const solarProdHistory = useSparkline('enphase', 'pv_production_w', solarProd)
+  const houseConsumptionHistory = useSparkline('enphase', 'house_consumption_w', houseConsumption)
+  const tempHistory = useAccumulatingSparkline(temp)
+  const co2History = useAccumulatingSparkline(co2)
+  const cpuHistory = useAccumulatingSparkline(cpuUsage)
 
   // Lights for status grid
   const lightIds = [

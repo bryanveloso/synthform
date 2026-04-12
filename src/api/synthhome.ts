@@ -167,6 +167,21 @@ export interface SynthhomeWindReading {
   observed_at: string
 }
 
+export interface SynthhomeReading {
+  source: string
+  metric: string
+  value: number
+  observed_at: string
+}
+
+export async function fetchReadings(
+  source: string,
+  metric: string,
+  hours = 2,
+): Promise<SynthhomeReading[]> {
+  return fetchJSON(`/readings?source=${source}&metric=${metric}&hours=${hours}`)
+}
+
 export async function fetchCurrentWeather(): Promise<SynthhomeCurrentWeather> {
   return fetchJSON('/weather/current')
 }
