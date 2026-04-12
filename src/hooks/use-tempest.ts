@@ -1,25 +1,39 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { connectTempest, fetchForecast } from '@/api/tempest'
+import {
+  connectWeather,
+  fetchForecast,
+  fetchCurrentWeather,
+  fetchWindHistory,
+} from '@/api/synthhome'
 import type {
-  TempestObservation,
-  TempestRapidWind,
-  TempestLightningStrike,
-  TempestForecast,
-} from '@/api/tempest'
+  WeatherObservation,
+  WeatherRapidWind,
+  WeatherLightningStrike,
+  SynthhomeForecast,
+  SynthhomeCurrentWeather,
+  SynthhomeWindReading,
+} from '@/api/synthhome'
 
-export type { TempestObservation, TempestRapidWind, TempestLightningStrike, TempestForecast }
+export type {
+  WeatherObservation,
+  WeatherRapidWind,
+  WeatherLightningStrike,
+  SynthhomeForecast,
+  SynthhomeCurrentWeather,
+  SynthhomeWindReading,
+}
 
 export function useTempest() {
-  const [observation, setObservation] = useState<TempestObservation | null>(null)
-  const [rapidWind, setRapidWind] = useState<TempestRapidWind | null>(null)
-  const [lastStrike, setLastStrike] = useState<TempestLightningStrike | null>(null)
+  const [observation, setObservation] = useState<WeatherObservation | null>(null)
+  const [rapidWind, setRapidWind] = useState<WeatherRapidWind | null>(null)
+  const [lastStrike, setLastStrike] = useState<WeatherLightningStrike | null>(null)
   const [isRaining, setIsRaining] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const disconnect = connectTempest({
+    const disconnect = connectWeather({
       onObservation: setObservation,
       onRapidWind: setRapidWind,
       onLightningStrike: setLastStrike,
@@ -36,10 +50,28 @@ export function useTempest() {
 }
 
 export function useTempestForecast() {
-  return useQuery<TempestForecast>({
-    queryKey: ['tempest', 'forecast'],
+  return useQuery<SynthhomeForecast | null>({
+    queryKey: ['synthhome', 'forecast'],
     queryFn: fetchForecast,
     staleTime: 15 * 60_000,
     refetchInterval: 15 * 60_000,
+  })
+}
+
+export function useTempestCurrent() {
+  return useQuery<SynthhomeCurrentWeather>({
+    queryKey: ['synthhome', 'weather', 'current'],
+    queryFn: fetchCurrentWeather,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  })
+}
+
+export function useTempestWindHistory(minutes = 30) {
+  return useQuery<SynthhomeWindReading[]>({
+    queryKey: ['synthhome', 'wind', minutes],
+    queryFn: () => fetchWindHistory(minutes),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   })
 }

@@ -524,12 +524,13 @@ function HUDStyles() {
   const wifiClients = numState(entities['sensor.exandria'])
   const pm25 = numState(entities['sensor.vital_200s_series_pm2_5'])
 
-  // Tempest data (direct WebSocket — 3s rapid wind, ~1m observations)
-  const outdoorTemp = observation?.tempF ?? 0
-  const windAvg = rapidWind?.windSpeedMph ?? observation?.windAvg ?? 0
-  const windGust = observation?.windGust ?? 0
-  const windDir = rapidWind?.windDir ?? observation?.windDir ?? 0
-  const pressure = observation?.pressure ?? 0
+  // Tempest data (via Synthhome WebSocket — 3s rapid wind, ~1m observations)
+  const readings = observation?.readings ?? {}
+  const outdoorTemp = (readings.temp_f as number) ?? 0
+  const windAvg = rapidWind?.windSpeedMph ?? (readings.wind_avg_mph as number) ?? 0
+  const windGust = (readings.wind_gust_mph as number) ?? 0
+  const windDir = rapidWind?.windDir ?? (readings.wind_dir as number) ?? 0
+  const pressure = (readings.pressure as number) ?? 0
 
   // Sparkline histories
   const tempHistory = useHistory(temp)
