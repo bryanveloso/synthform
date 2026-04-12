@@ -344,3 +344,48 @@ export async function fetchBatteries(): Promise<BatteryDetail[]> {
 export async function fetchMicroinverters(): Promise<MicroinverterDetail[]> {
   return fetchJSON('/energy/inverters')
 }
+
+// ---------------------------------------------------------------------------
+// GitHub Activity (direct API, not via Synthhome)
+// ---------------------------------------------------------------------------
+
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN || ''
+const GITHUB_USER = 'bryanveloso'
+
+export interface GitHubCommit {
+  sha: string
+  message: string
+  repo: string
+  timestamp: string
+  url: string
+}
+
+export async function fetchRecentCommits(limit = 20): Promise<GitHubCommit[]> {
+  const res = await fetch(
+    `https://api.github.com/users/${GITHUB_USER}/events?per_page=100`,
+    {
+      headers: GITHUB_TOKEN
+        ? { Authorization: `Bearer ${GITHUB_TOKEN}` }
+        : {},
+    },
+  )
+  if (!res.ok) throw new Error(`GitHub API: ${res.status}`)
+  const events = await res.json()
+
+  const commits: GitHubCommit[] = []
+  for (const event of events) {
+    if (event.type !== 'PushEvent') continue
+    const repo = event.repo.name
+    for (const commit of event.payload.commits ?? []) {
+      commits.push({
+        sha: commit.sha.slice(0, 7),
+        message: commit.message.split('\n')[0],
+        repo: repo.replace(`${GITHUB_USER}/`, ''),
+        timestamp: event.created_at,
+        url: `https://github.com/${repo}/commit/${commit.sha}`,
+      })
+    }
+  }
+
+  return commits.slice(0, limit)
+}
