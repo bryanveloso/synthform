@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useHomeAssistant } from '@/hooks/use-homeassistant'
 import { useTempest } from '@/hooks/use-tempest'
+import { useEnphase, useEnphaseBatteries } from '@/hooks/use-enphase'
 import type { HassEntity } from 'home-assistant-js-websocket'
 
 export const Route = createFileRoute('/debug/hud-styles')({
@@ -503,14 +504,23 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function HUDStyles() {
   const { entities, isConnected: haConnected } = useHomeAssistant()
   const { observation, rapidWind, lastStrike, isConnected: tempestConnected } = useTempest()
+  const { snapshot: energySnapshot, isConnected: enphaseConnected } = useEnphase()
+  const { data: batteriesData } = useEnphaseBatteries()
 
-  // HA data
+  // Enphase data (via Synthhome WebSocket — 3s snapshots)
+  const energyReadings = energySnapshot?.readings ?? {}
+  const solarProd = (energyReadings.pv_production_w as number) ?? 0
+  const houseConsumption = (energyReadings.house_consumption_w as number) ?? 0
+  const gridImport = (energyReadings.grid_import_w as number) ?? 0
+  const gridExport = (energyReadings.grid_export_w as number) ?? 0
+  const batteryPct = (energyReadings.battery_agg_soc as number) ?? 0
+  const batteryPower = (energyReadings.battery_agg_power_w as number) ?? 0
+  const selfConsumption = (energyReadings.self_consumption_w as number) ?? 0
+
+  // HA data (everything not yet in Synthhome)
   const temp = numState(entities['sensor.my_ecobee_temperature'])
   const humidity = numState(entities['sensor.my_ecobee_humidity'])
   const co2 = numState(entities['sensor.my_ecobee_carbon_dioxide'])
-  const solarProd = numState(entities['sensor.envoy_202440001251_current_power_production'])
-  const netPower = numState(entities['sensor.envoy_202440001251_current_net_power_consumption'])
-  const batteryPct = numState(entities['sensor.envoy_202440001251_battery'])
   const cpuUsage = numState(entities['sensor.unraid_cpu_usage'])
   const ramUsage = numState(entities['sensor.unraid_ram_usage'])
   const arrayUsage = numState(entities['sensor.unraid_array_usage'])
@@ -537,7 +547,8 @@ function HUDStyles() {
   const co2History = useHistory(co2)
   const outdoorTempHistory = useHistory(outdoorTemp)
   const windSpeedHistory = useHistory(windAvg)
-  const netPowerHistory = useHistory(netPower)
+  const solarProdHistory = useHistory(solarProd)
+  const houseConsumptionHistory = useHistory(houseConsumption)
   const cpuHistory = useHistory(cpuUsage)
 
   // Lights for status grid
@@ -573,6 +584,10 @@ function HUDStyles() {
         <div className={`flex items-center gap-2 text-[10px] ${tempestConnected ? 'text-green-400' : 'text-red-400'}`}>
           <span className={`inline-block size-2 rounded-full ${tempestConnected ? 'bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]' : 'animate-pulse bg-red-400'}`} />
           Tempest {tempestConnected ? 'LIVE' : 'OFFLINE'}
+        </div>
+        <div className={`flex items-center gap-2 text-[10px] ${enphaseConnected ? 'text-green-400' : 'text-red-400'}`}>
+          <span className={`inline-block size-2 rounded-full ${enphaseConnected ? 'bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]' : 'animate-pulse bg-red-400'}`} />
+          Enphase {enphaseConnected ? 'LIVE' : 'OFFLINE'}
         </div>
       </div>
 
@@ -618,7 +633,8 @@ function HUDStyles() {
             <Sparkline data={outdoorTempHistory} label="Outdoor Temp" currentValue={outdoorTemp.toFixed(1)} unit="°F" color="#00e5ff" />
             <Sparkline data={co2History} label="CO₂" currentValue={co2.toFixed(0)} unit="ppm" color="#00ff88" />
             <Sparkline data={windSpeedHistory} label="Wind Speed" currentValue={windAvg.toFixed(1)} unit="mph" color="#b388ff" />
-            <Sparkline data={netPowerHistory} label="Net Power" currentValue={netPower.toFixed(2)} unit="kW" color="#ffd600" />
+            <Sparkline data={solarProdHistory} label="Solar" currentValue={(solarProd / 1000).toFixed(2)} unit="kW" color="#ffd600" />
+            <Sparkline data={houseConsumptionHistory} label="House" currentValue={(houseConsumption / 1000).toFixed(2)} unit="kW" color="#ff8c00" />
             <Sparkline data={cpuHistory} label="CPU" currentValue={cpuUsage.toFixed(1)} unit="%" color="#ff3d3d" />
           </div>
         </Section>
@@ -653,8 +669,10 @@ function HUDStyles() {
         {/* Big Numbers */}
         <Section title="Big Numbers">
           <div className="grid grid-cols-2 gap-4">
-            <BigNumber value={solarProd.toFixed(1)} unit="kW" label="Solar Production" color="#ffd600" />
-            <BigNumber value={netPower.toFixed(2)} unit="kW" label="Net Consumption" color={netPower > 0 ? '#ff8c00' : '#00ff88'} />
+            <BigNumber value={(solarProd / 1000).toFixed(2)} unit="kW" label="Solar Production" color="#ffd600" />
+            <BigNumber value={(houseConsumption / 1000).toFixed(2)} unit="kW" label="House Consumption" color="#ff8c00" />
+            <BigNumber value={(gridExport / 1000).toFixed(2)} unit="kW" label="Grid Export" color="#00ff88" />
+            <BigNumber value={(batteryPower / 1000).toFixed(2)} unit="kW" label="Battery Power" color={batteryPower > 0 ? '#00e5ff' : '#b388ff'} />
             <BigNumber value={co2Intensity.toFixed(0)} unit="gCO₂" label="Grid Carbon" color="#00e5ff" />
             <BigNumber value={wifiClients.toFixed(0)} unit="devices" label="Network" color="#b388ff" />
             <BigNumber value={pressure.toFixed(2)} unit="inHg" label="Barometric" color="#00e5ff" size="md" />

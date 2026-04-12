@@ -178,3 +178,154 @@ export async function fetchForecast(): Promise<SynthhomeForecast | null> {
 export async function fetchWindHistory(minutes = 30): Promise<SynthhomeWindReading[]> {
   return fetchJSON(`/weather/wind?minutes=${minutes}`)
 }
+
+// ---------------------------------------------------------------------------
+// WebSocket: Real-time energy data via Synthhome
+// ---------------------------------------------------------------------------
+
+export interface EnergySnapshot {
+  timestamp: string
+  readings: Record<string, number>
+}
+
+export interface EnergyEvent {
+  timestamp: string
+  kind: string
+  payload: Record<string, unknown>
+}
+
+export interface EnergyConnectionOptions {
+  onSnapshot: (snapshot: EnergySnapshot) => void
+  onEvent: (event: EnergyEvent) => void
+  onConnected: () => void
+  onDisconnected: () => void
+  onError: (error: string) => void
+}
+
+export function connectEnergy(options: EnergyConnectionOptions): () => void {
+  const wsUrl = SYNTHHOME_URL.replace(/^http/, 'ws')
+  let ws: WebSocket | null = null
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let destroyed = false
+
+  function connect() {
+    if (destroyed) return
+
+    ws = new WebSocket(`${wsUrl}/ws/enphase/`)
+
+    ws.onopen = () => {
+      options.onConnected()
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const msg: SynthhomeMessage = JSON.parse(event.data)
+
+        switch (msg.type) {
+          case 'snapshot':
+            options.onSnapshot({
+              timestamp: msg.data.timestamp as string,
+              readings: msg.data as Record<string, number>,
+            })
+            break
+          case 'grid_state_change':
+          case 'battery_full':
+          case 'battery_empty':
+          case 'pv_production_started':
+          case 'pv_production_stopped':
+            options.onEvent({
+              timestamp: msg.timestamp,
+              kind: msg.type,
+              payload: msg.data,
+            })
+            break
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    ws.onclose = () => {
+      options.onDisconnected()
+      if (!destroyed) {
+        reconnectTimer = setTimeout(connect, 3000)
+      }
+    }
+
+    ws.onerror = () => {
+      options.onError('Synthhome energy WebSocket error')
+    }
+  }
+
+  connect()
+
+  return () => {
+    destroyed = true
+    if (reconnectTimer) clearTimeout(reconnectTimer)
+    ws?.close()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// REST: Energy data from Synthhome API
+// ---------------------------------------------------------------------------
+
+export interface EnergyCurrent {
+  pv_production_w: number | null
+  pv_voltage: number | null
+  pv_frequency: number | null
+  pv_production_phase_a_w: number | null
+  pv_production_phase_b_w: number | null
+  grid_net_w: number | null
+  grid_import_w: number | null
+  grid_export_w: number | null
+  house_consumption_w: number | null
+  self_consumption_w: number | null
+  battery_agg_soc: number | null
+  battery_agg_power_w: number | null
+  battery_agg_avail_wh: number | null
+  battery_agg_backup_wh: number | null
+  battery_capacity_wh: number | null
+  battery_backup_reserve_pct: number | null
+  grid_mode: number | null
+  mains_state: number | null
+  controller_temp_f: number | null
+  production_today_wh: number | null
+  production_seven_day_wh: number | null
+  production_lifetime_wh: number | null
+  consumption_today_wh: number | null
+  consumption_lifetime_wh: number | null
+  observed_at: string | null
+}
+
+export interface BatteryDetail {
+  serial: string
+  capacity_wh: number
+  phase: string
+  encharge_rev: number
+  bmu_fw_version: string
+  installed_at: string | null
+  last_seen_at: string | null
+  soc: number | null
+  raw_power_mw: number | null
+  temp_c: number | null
+}
+
+export interface MicroinverterDetail {
+  serial: string
+  max_report_w: number
+  last_seen_at: string | null
+  last_w: number | null
+}
+
+export async function fetchCurrentEnergy(): Promise<EnergyCurrent> {
+  return fetchJSON('/energy/current')
+}
+
+export async function fetchBatteries(): Promise<BatteryDetail[]> {
+  return fetchJSON('/energy/batteries')
+}
+
+export async function fetchMicroinverters(): Promise<MicroinverterDetail[]> {
+  return fetchJSON('/energy/inverters')
+}
