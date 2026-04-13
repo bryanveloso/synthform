@@ -286,6 +286,7 @@ export function connectEnergy(options: EnergyConnectionOptions): () => void {
 // ---------------------------------------------------------------------------
 
 export interface EnergyCurrent {
+  // Live power (watts)
   pv_production_w: number | null
   pv_voltage: number | null
   pv_frequency: number | null
@@ -296,20 +297,26 @@ export interface EnergyCurrent {
   grid_export_w: number | null
   house_consumption_w: number | null
   self_consumption_w: number | null
-  battery_agg_soc: number | null
   battery_agg_power_w: number | null
-  battery_agg_avail_wh: number | null
-  battery_agg_backup_wh: number | null
-  battery_capacity_wh: number | null
-  battery_backup_reserve_pct: number | null
-  grid_mode: number | null
-  mains_state: number | null
+
+  // Battery state
+  battery_soc: number | null
+  battery_avail_wh: number | null
+
+  // Grid/controller state (strings from Envoy)
+  grid_mode: string | null
+  mains_state: string | null
   controller_temp_f: number | null
+
+  // Totals (refreshed ~5 min)
   production_today_wh: number | null
   production_seven_day_wh: number | null
   production_lifetime_wh: number | null
   consumption_today_wh: number | null
+  consumption_seven_day_wh: number | null
   consumption_lifetime_wh: number | null
+  grid_net_lifetime_wh: number | null
+
   observed_at: string | null
 }
 

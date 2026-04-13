@@ -500,7 +500,7 @@ function HUDStyles() {
   const houseConsumption = (energyReadings.house_consumption_w as number) ?? 0
   const gridImport = (energyReadings.grid_import_w as number) ?? 0
   const gridExport = (energyReadings.grid_export_w as number) ?? 0
-  const batteryPct = (energyReadings.battery_agg_soc as number) ?? 0
+  const batteryPct = (energyReadings.battery_soc as number) ?? 0
   const batteryPower = (energyReadings.battery_agg_power_w as number) ?? 0
   const selfConsumption = (energyReadings.self_consumption_w as number) ?? 0
 
