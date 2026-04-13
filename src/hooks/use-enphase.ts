@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   connectEnergy,
   fetchCurrentEnergy,
+  fetchEnergyToday,
   fetchBatteries,
   fetchMicroinverters,
 } from '@/api/synthhome'
@@ -10,6 +11,7 @@ import type {
   EnergySnapshot,
   EnergyEvent,
   EnergyCurrent,
+  EnergyToday,
   BatteryDetail,
   MicroinverterDetail,
 } from '@/api/synthhome'
@@ -18,6 +20,7 @@ export type {
   EnergySnapshot,
   EnergyEvent,
   EnergyCurrent,
+  EnergyToday,
   BatteryDetail,
   MicroinverterDetail,
 }
@@ -49,6 +52,15 @@ export function useEnphaseCurrent() {
     queryFn: fetchCurrentEnergy,
     staleTime: 10_000,
     refetchInterval: 10_000,
+  })
+}
+
+export function useEnphaseToday() {
+  return useQuery<EnergyToday>({
+    queryKey: ['synthhome', 'energy', 'today'],
+    queryFn: fetchEnergyToday,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   })
 }
 

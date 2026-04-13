@@ -340,6 +340,19 @@ export interface MicroinverterDetail {
   last_w: number | null
 }
 
+export interface EnergyToday {
+  date: string
+  baseline_captured_at: string
+  grid_import_today_wh: number | null
+  grid_export_today_wh: number | null
+  battery_charged_today_wh: number | null
+  battery_discharged_today_wh: number | null
+}
+
+export async function fetchEnergyToday(): Promise<EnergyToday> {
+  return fetchJSON('/energy/today')
+}
+
 export async function fetchCurrentEnergy(): Promise<EnergyCurrent> {
   return fetchJSON('/energy/current')
 }
