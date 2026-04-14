@@ -25,6 +25,7 @@ import { Route as DebugEventsRouteImport } from './routes/debug/events'
 import { Route as AcnhVillagerHuntRouteImport } from './routes/acnh/villager-hunt'
 import { Route as fullOmnibarRouteImport } from './routes/(full)/omnibar'
 import { Route as fullIntroRouteImport } from './routes/(full)/intro'
+import { Route as fullHudRouteImport } from './routes/(full)/hud'
 import { Route as fullEmoteRainRouteImport } from './routes/(full)/emote-rain'
 import { Route as fullCoworkingRouteImport } from './routes/(full)/coworking'
 
@@ -108,6 +109,11 @@ const fullIntroRoute = fullIntroRouteImport.update({
   path: '/intro',
   getParentRoute: () => rootRouteImport,
 } as any)
+const fullHudRoute = fullHudRouteImport.update({
+  id: '/(full)/hud',
+  path: '/hud',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const fullEmoteRainRoute = fullEmoteRainRouteImport.update({
   id: '/(full)/emote-rain',
   path: '/emote-rain',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/music': typeof MusicRoute
   '/coworking': typeof fullCoworkingRoute
   '/emote-rain': typeof fullEmoteRainRoute
+  '/hud': typeof fullHudRoute
   '/intro': typeof fullIntroRoute
   '/omnibar': typeof fullOmnibarRoute
   '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/music': typeof MusicRoute
   '/coworking': typeof fullCoworkingRoute
   '/emote-rain': typeof fullEmoteRainRoute
+  '/hud': typeof fullHudRoute
   '/intro': typeof fullIntroRoute
   '/omnibar': typeof fullOmnibarRoute
   '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/music': typeof MusicRoute
   '/(full)/coworking': typeof fullCoworkingRoute
   '/(full)/emote-rain': typeof fullEmoteRainRoute
+  '/(full)/hud': typeof fullHudRoute
   '/(full)/intro': typeof fullIntroRoute
   '/(full)/omnibar': typeof fullOmnibarRoute
   '/acnh/villager-hunt': typeof AcnhVillagerHuntRoute
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/music'
     | '/coworking'
     | '/emote-rain'
+    | '/hud'
     | '/intro'
     | '/omnibar'
     | '/acnh/villager-hunt'
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/music'
     | '/coworking'
     | '/emote-rain'
+    | '/hud'
     | '/intro'
     | '/omnibar'
     | '/acnh/villager-hunt'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/music'
     | '/(full)/coworking'
     | '/(full)/emote-rain'
+    | '/(full)/hud'
     | '/(full)/intro'
     | '/(full)/omnibar'
     | '/acnh/villager-hunt'
@@ -250,6 +262,7 @@ export interface RootRouteChildren {
   MusicRoute: typeof MusicRoute
   fullCoworkingRoute: typeof fullCoworkingRoute
   fullEmoteRainRoute: typeof fullEmoteRainRoute
+  fullHudRoute: typeof fullHudRoute
   fullIntroRoute: typeof fullIntroRoute
   fullOmnibarRoute: typeof fullOmnibarRoute
   AcnhVillagerHuntRoute: typeof AcnhVillagerHuntRoute
@@ -378,6 +391,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof fullIntroRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(full)/hud': {
+      id: '/(full)/hud'
+      path: '/hud'
+      fullPath: '/hud'
+      preLoaderRoute: typeof fullHudRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(full)/emote-rain': {
       id: '/(full)/emote-rain'
       path: '/emote-rain'
@@ -402,6 +422,7 @@ const rootRouteChildren: RootRouteChildren = {
   MusicRoute: MusicRoute,
   fullCoworkingRoute: fullCoworkingRoute,
   fullEmoteRainRoute: fullEmoteRainRoute,
+  fullHudRoute: fullHudRoute,
   fullIntroRoute: fullIntroRoute,
   fullOmnibarRoute: fullOmnibarRoute,
   AcnhVillagerHuntRoute: AcnhVillagerHuntRoute,

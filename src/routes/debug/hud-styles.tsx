@@ -1,9 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useHomeAssistant } from '@/hooks/use-homeassistant'
-import { useTempest } from '@/hooks/use-tempest'
-import { useEnphase, useEnphaseBatteries } from '@/hooks/use-enphase'
+import { useTempest, useTempestForecast } from '@/hooks/use-tempest'
+import { useEnphase, useEnphaseBatteries, useEnphaseToday } from '@/hooks/use-enphase'
+import { useGitHubCommits } from '@/hooks/use-github'
+import { useSteamPlayer, useSteamRecentGames } from '@/hooks/use-steam'
 import { useSparkline, useAccumulatingSparkline } from '@/hooks/use-sparkline'
 import type { HassEntity } from 'home-assistant-js-websocket'
+import type { BatteryDetail } from '@/api/synthhome'
 
 export const Route = createFileRoute('/debug/hud-styles')({
   component: HUDStyles,
@@ -471,6 +474,294 @@ function VerticalBar({
   )
 }
 
+// Energy flow diagram — animated arrows between solar/grid/battery/house
+function EnergyFlow({
+  solarW,
+  houseW,
+  gridW,
+  batteryW,
+  batterySoc,
+}: {
+  solarW: number
+  houseW: number
+  gridW: number
+  batteryW: number
+  batterySoc: number
+}) {
+  const maxW = Math.max(Math.abs(solarW), Math.abs(houseW), Math.abs(gridW), Math.abs(batteryW), 1)
+  const scale = (w: number) => Math.min(Math.abs(w) / maxW, 1)
+
+  const importing = gridW > 0
+  const exporting = gridW < 0
+  const charging = batteryW < 0
+  const discharging = batteryW > 0
+
+  function FlowArrow({ from, to, value, color, active }: { from: string; to: string; value: number; color: string; active: boolean }) {
+    const opacity = active ? Math.max(0.3, scale(value)) : 0.05
+    const width = active ? Math.max(1, scale(value) * 4) : 0.5
+    return (
+      <div className="flex items-center gap-1">
+        <span className="w-16 text-right text-[8px] uppercase tracking-wider text-gray-500">{from}</span>
+        <div className="relative h-1 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+          <div
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{
+              width: `${(active ? scale(value) : 0) * 100}%`,
+              backgroundColor: color,
+              opacity,
+              boxShadow: active ? `0 0 8px ${color}` : 'none',
+              height: width,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              transition: 'all 1s ease-out',
+            }}
+          />
+        </div>
+        <span className="w-16 text-[8px] uppercase tracking-wider text-gray-500">{to}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <FlowArrow from="Solar" to="House" value={solarW} color="#ffd600" active={solarW > 10} />
+      <FlowArrow from={importing ? "Grid" : "Solar"} to={importing ? "House" : "Grid"} value={gridW} color={importing ? '#ff8c00' : '#00ff88'} active={Math.abs(gridW) > 10} />
+      <FlowArrow from={charging ? "Solar" : "Battery"} to={charging ? "Battery" : "House"} value={batteryW} color={charging ? '#b388ff' : '#00e5ff'} active={Math.abs(batteryW) > 10} />
+      <div className="mt-1 flex items-center justify-between text-[10px]">
+        <span className="tabular-nums text-gray-400">
+          <span className="text-[8px] uppercase tracking-wider text-gray-500">House </span>
+          {(houseW / 1000).toFixed(2)} kW
+        </span>
+        <span className="tabular-nums text-gray-400">
+          <span className="text-[8px] uppercase tracking-wider text-gray-500">Battery </span>
+          {batterySoc.toFixed(0)}%
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// Solar panel grid — 45 microinverters as colored cells
+function SolarGrid({
+  inverters,
+}: {
+  inverters: { serial: string; lastW: number; maxW: number }[]
+}) {
+  const maxOutput = Math.max(...inverters.map((i) => i.lastW), 1)
+
+  return (
+    <div className="grid grid-cols-9 gap-[2px]">
+      {inverters.map((inv) => {
+        const intensity = inv.maxW === 0 ? 0 : inv.lastW / Math.max(maxOutput, 1)
+        const isDead = inv.maxW === 0
+        return (
+          <div
+            key={inv.serial}
+            className="aspect-square rounded-[2px]"
+            title={`${inv.serial}: ${inv.lastW}W / ${inv.maxW}W max`}
+            style={{
+              backgroundColor: isDead
+                ? 'rgba(255,60,60,0.2)'
+                : intensity > 0
+                  ? `rgba(255,214,0,${Math.max(0.1, intensity)})`
+                  : 'rgba(255,255,255,0.03)',
+              boxShadow: intensity > 0.5 ? `0 0 4px rgba(255,214,0,${intensity * 0.5})` : 'none',
+              transition: 'all 1s ease-out',
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+// Battery quartet — four individual battery units
+function BatteryQuartet({
+  batteries,
+}: {
+  batteries: BatteryDetail[]
+}) {
+  return (
+    <div className="flex gap-3">
+      {batteries.map((b) => (
+        <div key={b.serial} className="flex flex-col items-center gap-1">
+          <div className="relative h-16 w-8 rounded-sm" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+            <div
+              className="absolute bottom-0 w-full rounded-sm"
+              style={{
+                height: `${b.soc ?? 0}%`,
+                backgroundColor: (b.soc ?? 0) > 80 ? '#00ff88' : (b.soc ?? 0) > 30 ? '#ffd600' : '#ff3d3d',
+                boxShadow: `0 0 4px ${(b.soc ?? 0) > 80 ? '#00ff88' : (b.soc ?? 0) > 30 ? '#ffd600' : '#ff3d3d'}`,
+                transition: 'height 2s ease-out',
+              }}
+            />
+          </div>
+          <span className="tabular-nums text-[10px] font-bold text-gray-300">{(b.soc ?? 0).toFixed(0)}%</span>
+          <span className="text-[8px] text-gray-500">{b.temp_c != null ? `${((b.temp_c * 9) / 5 + 32).toFixed(0)}°F` : '—'}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Forecast strip — horizontal hourly timeline
+function ForecastStrip({
+  hours,
+}: {
+  hours: { localHour: number; temp: number; precipPct: number; conditions: string; icon: string }[]
+}) {
+  if (!hours.length) return <div className="text-[10px] text-gray-600">No forecast data</div>
+
+  const maxTemp = Math.max(...hours.map((h) => h.temp))
+  const minTemp = Math.min(...hours.map((h) => h.temp))
+  const range = maxTemp - minTemp || 1
+
+  return (
+    <div className="flex gap-[2px] overflow-hidden">
+      {hours.map((h, i) => {
+        const tempPct = (h.temp - minTemp) / range
+        const hasPrecip = h.precipPct > 0
+        return (
+          <div key={i} className="flex flex-1 flex-col items-center gap-0.5" title={`${h.conditions} ${h.temp}°F ${h.precipPct}%`}>
+            <span className="text-[8px] text-gray-500">{h.localHour}h</span>
+            <div className="relative h-8 w-full">
+              <div
+                className="absolute bottom-0 w-full rounded-t-[1px]"
+                style={{
+                  height: `${tempPct * 100}%`,
+                  backgroundColor: `rgba(255,140,0,${0.3 + tempPct * 0.7})`,
+                  transition: 'height 0.5s',
+                }}
+              />
+              {hasPrecip && (
+                <div
+                  className="absolute top-0 w-full rounded-b-[1px]"
+                  style={{
+                    height: `${h.precipPct}%`,
+                    backgroundColor: 'rgba(0,229,255,0.4)',
+                  }}
+                />
+              )}
+            </div>
+            <span className="tabular-nums text-[8px] text-gray-400">{h.temp.toFixed(0)}°</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Commit ticker — scrolling list of recent commits
+function CommitTicker({
+  commits,
+}: {
+  commits: { sha: string; message: string; repo: string; timestamp: string }[]
+}) {
+  if (!commits.length) return <div className="text-[10px] text-gray-600">No commits</div>
+
+  return (
+    <div className="flex flex-col gap-1">
+      {commits.map((c) => {
+        const ago = Math.floor((Date.now() - new Date(c.timestamp).getTime()) / 60000)
+        const timeStr = ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`
+        return (
+          <div key={c.sha} className="flex items-baseline gap-2 text-[10px]">
+            <span className="tabular-nums font-bold text-gray-500">{c.sha}</span>
+            <span className="truncate text-gray-300">{c.message}</span>
+            <span className="ml-auto shrink-0 text-[9px] text-gray-600">{c.repo}</span>
+            <span className="shrink-0 text-[9px] text-gray-600">{timeStr}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Steam status — currently playing or recent games
+function SteamStatus({
+  currentGame,
+  recentGames,
+  personaState,
+}: {
+  currentGame: string | null
+  recentGames: { name: string; playtime2Weeks: number; iconUrl: string }[]
+  personaState: number
+}) {
+  const stateLabels: Record<number, string> = { 0: 'Offline', 1: 'Online', 2: 'Busy', 3: 'Away', 4: 'Snooze', 5: 'Trade', 6: 'Play' }
+
+  if (currentGame) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className="size-2 animate-pulse rounded-full bg-green-400 shadow-[0_0_6px_theme(--color-green-400)]" />
+        <div>
+          <div className="text-xs font-bold text-white">{currentGame}</div>
+          <div className="text-[9px] text-gray-500">Currently playing</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 text-[10px] text-gray-500">
+        <div className="size-1.5 rounded-full" style={{ backgroundColor: personaState > 0 ? '#00e5ff' : '#666' }} />
+        {stateLabels[personaState] ?? 'Unknown'}
+      </div>
+      {recentGames.slice(0, 3).map((g) => (
+        <div key={g.name} className="flex items-center gap-2 text-[10px]">
+          <img src={g.iconUrl} alt="" className="size-4 rounded-[2px]" />
+          <span className="truncate text-gray-300">{g.name}</span>
+          <span className="ml-auto shrink-0 tabular-nums text-gray-500">{(g.playtime2Weeks / 60).toFixed(1)}h</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Day scorecard — today's summary numbers
+function DayScorecard({
+  productionWh,
+  consumptionWh,
+  gridImportWh,
+  gridExportWh,
+  batteryChargedWh,
+  batteryDischargedWh,
+  commitCount,
+}: {
+  productionWh: number | null
+  consumptionWh: number | null
+  gridImportWh: number | null
+  gridExportWh: number | null
+  batteryChargedWh: number | null
+  batteryDischargedWh: number | null
+  commitCount: number
+}) {
+  function Row({ label, value, unit }: { label: string; value: string; unit: string }) {
+    return (
+      <div className="flex items-baseline justify-between border-b border-white/5 py-0.5">
+        <span className="text-[9px] uppercase tracking-wider text-gray-500">{label}</span>
+        <span className="tabular-nums text-xs font-bold text-gray-300">
+          {value} <span className="text-[9px] font-normal text-gray-500">{unit}</span>
+        </span>
+      </div>
+    )
+  }
+
+  const fmt = (wh: number | null) => wh != null ? (wh / 1000).toFixed(2) : '—'
+
+  return (
+    <div className="flex flex-col">
+      <Row label="Produced" value={fmt(productionWh)} unit="kWh" />
+      <Row label="Consumed" value={fmt(consumptionWh)} unit="kWh" />
+      <Row label="Grid Import" value={fmt(gridImportWh)} unit="kWh" />
+      <Row label="Grid Export" value={fmt(gridExportWh)} unit="kWh" />
+      <Row label="Battery In" value={fmt(batteryChargedWh)} unit="kWh" />
+      <Row label="Battery Out" value={fmt(batteryDischargedWh)} unit="kWh" />
+      <Row label="Commits" value={commitCount.toString()} unit="today" />
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Section wrapper
 // ---------------------------------------------------------------------------
@@ -493,6 +784,11 @@ function HUDStyles() {
   const { observation, rapidWind, lastStrike, isConnected: tempestConnected } = useTempest()
   const { snapshot: energySnapshot, isConnected: enphaseConnected } = useEnphase()
   const { data: batteriesData } = useEnphaseBatteries()
+  const { data: energyToday } = useEnphaseToday()
+  const { data: forecast } = useTempestForecast()
+  const { data: commits } = useGitHubCommits(15)
+  const { data: steamPlayer } = useSteamPlayer()
+  const { data: steamGames } = useSteamRecentGames(5)
 
   // Enphase data (via Synthhome WebSocket — 3s snapshots)
   const energyReadings = energySnapshot?.readings ?? {}
@@ -688,6 +984,88 @@ function HUDStyles() {
               </div>
             </div>
           </div>
+        </Section>
+
+        {/* Energy Flow */}
+        <Section title="Energy Flow">
+          <EnergyFlow
+            solarW={solarProd}
+            houseW={houseConsumption}
+            gridW={gridImport - gridExport}
+            batteryW={batteryPower}
+            batterySoc={batteryPct}
+          />
+        </Section>
+
+        {/* Solar Panel Grid */}
+        <Section title="Solar Array (45 panels)">
+          <SolarGrid
+            inverters={([] as { serial: string; lastW: number; maxW: number }[]).concat(
+              ...(batteriesData ? [] : []),
+              // Build from REST data if available, otherwise empty
+              // useEnphaseMicroinverters() would be needed here for real data
+            )}
+          />
+          <div className="mt-2 text-[9px] text-gray-500">
+            Wire up useEnphaseMicroinverters() for live panel data
+          </div>
+        </Section>
+
+        {/* Battery Quartet */}
+        <Section title="Battery Quartet">
+          {batteriesData?.length ? (
+            <BatteryQuartet batteries={batteriesData} />
+          ) : (
+            <div className="text-[10px] text-gray-600">Loading batteries...</div>
+          )}
+        </Section>
+
+        {/* Forecast Strip */}
+        <Section title="Forecast (24h)">
+          <ForecastStrip
+            hours={(forecast?.hourly ?? []).slice(0, 24).map((h) => ({
+              localHour: h.local_hour,
+              temp: h.air_temperature,
+              precipPct: h.precip_probability,
+              conditions: h.conditions,
+              icon: h.icon,
+            }))}
+          />
+        </Section>
+
+        {/* Day Scorecard */}
+        <Section title="Day Scorecard">
+          <DayScorecard
+            productionWh={energyToday?.grid_export_today_wh != null ? (energyReadings.production_today_wh as number) ?? null : null}
+            consumptionWh={(energyReadings.consumption_today_wh as number) ?? null}
+            gridImportWh={energyToday?.grid_import_today_wh ?? null}
+            gridExportWh={energyToday?.grid_export_today_wh ?? null}
+            batteryChargedWh={energyToday?.battery_charged_today_wh ?? null}
+            batteryDischargedWh={energyToday?.battery_discharged_today_wh ?? null}
+            commitCount={commits?.filter((c) => {
+              const d = new Date(c.timestamp)
+              const now = new Date()
+              return d.toDateString() === now.toDateString()
+            }).length ?? 0}
+          />
+        </Section>
+
+        {/* Commit Ticker */}
+        <Section title="Git Activity">
+          <CommitTicker commits={commits ?? []} />
+        </Section>
+
+        {/* Steam */}
+        <Section title="Steam">
+          <SteamStatus
+            currentGame={steamPlayer?.currentGame ?? null}
+            recentGames={(steamGames ?? []).map((g) => ({
+              name: g.name,
+              playtime2Weeks: g.playtime2Weeks,
+              iconUrl: g.iconUrl,
+            }))}
+            personaState={steamPlayer?.personaState ?? 0}
+          />
         </Section>
       </div>
     </div>
