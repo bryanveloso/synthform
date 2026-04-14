@@ -411,17 +411,16 @@ export async function fetchRecentCommits(limit = 20): Promise<GitHubCommit[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Steam Activity (direct API, not via Synthhome)
+// Steam Activity (via Questlog proxy)
 // ---------------------------------------------------------------------------
 
-const STEAM_API_KEY = import.meta.env.VITE_STEAM_API_KEY || ''
-const STEAM_ID = import.meta.env.VITE_STEAM_ID || '76561198009545200'
+const QUESTLOG_URL = import.meta.env.VITE_QUESTLOG_URL || 'http://saya:7176/api'
 
 export interface SteamPlayer {
   personaName: string
   personaState: number
   currentGame: string | null
-  currentGameId: number | null
+  currentGameId: string | null
   avatarUrl: string
 }
 
@@ -434,34 +433,13 @@ export interface SteamRecentGame {
 }
 
 export async function fetchSteamPlayer(): Promise<SteamPlayer> {
-  const res = await fetch(
-    `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${STEAM_ID}`,
-  )
-  if (!res.ok) throw new Error(`Steam API: ${res.status}`)
-  const data = await res.json()
-  const p = data.response.players[0]
-
-  return {
-    personaName: p.personaname,
-    personaState: p.personastate,
-    currentGame: p.gameextrainfo ?? null,
-    currentGameId: p.gameid ? parseInt(p.gameid) : null,
-    avatarUrl: p.avatarmedium,
-  }
+  const res = await fetch(`${QUESTLOG_URL}/steam/player`)
+  if (!res.ok) throw new Error(`Questlog Steam: ${res.status}`)
+  return res.json()
 }
 
 export async function fetchSteamRecentGames(count = 5): Promise<SteamRecentGame[]> {
-  const res = await fetch(
-    `https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}&count=${count}`,
-  )
-  if (!res.ok) throw new Error(`Steam API: ${res.status}`)
-  const data = await res.json()
-
-  return (data.response.games ?? []).map((g: Record<string, unknown>) => ({
-    appId: g.appid as number,
-    name: g.name as string,
-    playtime2Weeks: (g.playtime_2weeks as number) ?? 0,
-    playtimeForever: (g.playtime_forever as number) ?? 0,
-    iconUrl: `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg`,
-  }))
+  const res = await fetch(`${QUESTLOG_URL}/steam/recent?count=${count}`)
+  if (!res.ok) throw new Error(`Questlog Steam: ${res.status}`)
+  return res.json()
 }
