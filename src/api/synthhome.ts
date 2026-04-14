@@ -400,7 +400,7 @@ export async function fetchRecentCommits(limit = 20): Promise<GitHubCommit[]> {
       commits.push({
         sha: commit.sha.slice(0, 7),
         message: commit.message.split('\n')[0],
-        repo: repo.replace(`${GITHUB_USER}/`, ''),
+        repo: repo.includes('/') ? repo.split('/')[1] : repo,
         timestamp: event.created_at,
         url: `https://github.com/${repo}/commit/${commit.sha}`,
       })

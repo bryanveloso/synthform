@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useHomeAssistant } from '@/hooks/use-homeassistant'
 import { useTempest, useTempestForecast } from '@/hooks/use-tempest'
-import { useEnphase, useEnphaseBatteries, useEnphaseToday } from '@/hooks/use-enphase'
+import { useEnphase, useEnphaseBatteries, useEnphaseMicroinverters, useEnphaseToday } from '@/hooks/use-enphase'
 import { useGitHubCommits } from '@/hooks/use-github'
 import { useSteamPlayer, useSteamRecentGames } from '@/hooks/use-steam'
 import { useSparkline, useAccumulatingSparkline } from '@/hooks/use-sparkline'
@@ -784,6 +784,7 @@ function HUDStyles() {
   const { observation, rapidWind, lastStrike, isConnected: tempestConnected } = useTempest()
   const { snapshot: energySnapshot, isConnected: enphaseConnected } = useEnphase()
   const { data: batteriesData } = useEnphaseBatteries()
+  const { data: invertersData } = useEnphaseMicroinverters()
   const { data: energyToday } = useEnphaseToday()
   const { data: forecast } = useTempestForecast()
   const { data: commits } = useGitHubCommits(15)
@@ -998,17 +999,18 @@ function HUDStyles() {
         </Section>
 
         {/* Solar Panel Grid */}
-        <Section title="Solar Array (45 panels)">
-          <SolarGrid
-            inverters={([] as { serial: string; lastW: number; maxW: number }[]).concat(
-              ...(batteriesData ? [] : []),
-              // Build from REST data if available, otherwise empty
-              // useEnphaseMicroinverters() would be needed here for real data
-            )}
-          />
-          <div className="mt-2 text-[9px] text-gray-500">
-            Wire up useEnphaseMicroinverters() for live panel data
-          </div>
+        <Section title={`Solar Array (${invertersData?.length ?? 0} panels)`}>
+          {invertersData?.length ? (
+            <SolarGrid
+              inverters={invertersData.map((inv) => ({
+                serial: inv.serial,
+                lastW: inv.last_w ?? 0,
+                maxW: inv.max_report_w,
+              }))}
+            />
+          ) : (
+            <div className="text-[10px] text-gray-600">Loading inverters...</div>
+          )}
         </Section>
 
         {/* Battery Quartet */}
