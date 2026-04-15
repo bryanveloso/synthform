@@ -246,6 +246,11 @@ export function connectEnergy(options: EnergyConnectionOptions): () => void {
           case 'grid_state_change':
           case 'battery_full':
           case 'battery_empty':
+          case 'battery_fault':
+          case 'controller_fault':
+          case 'microinverter_offline':
+          case 'microinverter_online':
+          case 'dead_panel_summary':
           case 'pv_production_started':
           case 'pv_production_stopped':
             options.onEvent({
@@ -347,6 +352,10 @@ export interface EnergyToday {
   grid_export_today_wh: number | null
   battery_charged_today_wh: number | null
   battery_discharged_today_wh: number | null
+  peak_production_w_today: number | null
+  peak_consumption_w_today: number | null
+  max_soc_today: number | null
+  min_soc_today: number | null
 }
 
 export async function fetchEnergyToday(): Promise<EnergyToday> {

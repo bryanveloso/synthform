@@ -124,7 +124,7 @@ function HUD() {
   // ---------------------------------------------------------------------------
   // Energy (Synthhome WebSocket + REST)
   // ---------------------------------------------------------------------------
-  const { snapshot: energySnapshot, lastEvent: energyEvent, isConnected: enphaseConnected } = useEnphase()
+  const { snapshot: energySnapshot, events: energyEvents, hasFault: energyHasFault, isConnected: enphaseConnected } = useEnphase()
   const { data: energyCurrent } = useEnphaseCurrent()
   const { data: energyToday } = useEnphaseToday()
   const { data: batteries } = useEnphaseBatteries()
@@ -140,6 +140,18 @@ function HUD() {
   const batterySoc = (energy.battery_soc as number) ?? 0
   const batteryAvailWh = (energy.battery_avail_wh as number) ?? 0
   const selfConsumption = (energy.self_consumption_w as number) ?? 0
+
+  // Daily totals and peaks
+  const productionTodayWh = energyToday?.grid_export_today_wh != null ? (energyCurrent?.production_today_wh ?? null) : null
+  const consumptionTodayWh = energyCurrent?.consumption_today_wh ?? null
+  const gridImportTodayWh = energyToday?.grid_import_today_wh ?? null
+  const gridExportTodayWh = energyToday?.grid_export_today_wh ?? null
+  const batteryChargedTodayWh = energyToday?.battery_charged_today_wh ?? null
+  const batteryDischargedTodayWh = energyToday?.battery_discharged_today_wh ?? null
+  const peakProductionW = energyToday?.peak_production_w_today ?? null
+  const peakConsumptionW = energyToday?.peak_consumption_w_today ?? null
+  const maxSocToday = energyToday?.max_soc_today ?? null
+  const minSocToday = energyToday?.min_soc_today ?? null
 
   // ---------------------------------------------------------------------------
   // GitHub (direct REST)
