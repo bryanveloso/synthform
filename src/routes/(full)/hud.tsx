@@ -175,10 +175,56 @@ function HUD() {
   // ---------------------------------------------------------------------------
   // Render — this is your canvas
   // ---------------------------------------------------------------------------
+  const debugPayloads = {
+    connections: { haConnected, tempestConnected, enphaseConnected },
+    status,
+    music: { track: musicTrack, source: musicSource, isPlaying },
+    limitbreak,
+    indoorClimate: { indoorTemp, indoorHumidity, indoorCo2, indoorAqi, indoorVocs, barTemp },
+    airPurifier: { pm25, airQuality, filterLife },
+    server: { cpuUsage, ramUsage, cpuTemp, uptime, arrayUsage, disk1, disk2, disk3, netIn, netOut },
+    network: { wifiClients },
+    ev: { evBattery, evRange, evCharging },
+    gridCarbon: { co2Intensity, fossilPct },
+    lights,
+    weather: {
+      outdoorTemp, outdoorHumidity, windAvg, windGust, windDir,
+      pressure, uv, solarRadiation, illuminance, dailyRain,
+      isRaining, lastStrike,
+    },
+    forecastCurrent,
+    forecastHourly: forecastHourly.slice(0, 6),
+    forecastDaily: forecastDaily.slice(0, 3),
+    energy: {
+      solarProd, houseConsumption, gridImport, gridExport, gridNet,
+      batteryPower, batterySoc, batteryAvailWh, selfConsumption,
+    },
+    energyToday: {
+      productionTodayWh, consumptionTodayWh,
+      gridImportTodayWh, gridExportTodayWh,
+      batteryChargedTodayWh, batteryDischargedTodayWh,
+      peakProductionW, peakConsumptionW, maxSocToday, minSocToday,
+    },
+    batteries: batteries?.map((b) => ({ serial: b.serial, soc: b.soc, temp_c: b.temp_c })),
+    inverters: { total: inverters?.length, producing: inverters?.filter((i) => (i.last_w ?? 0) > 0).length },
+    energyEvents: energyEvents.slice(0, 5),
+    energyHasFault,
+    github: commits?.slice(0, 5),
+    steam: { player: steamPlayer, recentGames: steamGames?.slice(0, 3) },
+    sparklines: {
+      outdoorTemp: `${outdoorTempSparkline.length} pts`,
+      wind: `${windSparkline.length} pts`,
+      solar: `${solarSparkline.length} pts`,
+      consumption: `${consumptionSparkline.length} pts`,
+    },
+  }
+
   return (
     <Canvas>
-      <div className="size-full bg-[#0a0e14] font-mono text-gray-200">
-        {/* Your layout goes here. All data is available above. */}
+      <div className="size-full overflow-auto bg-[#0a0e14] p-4 font-mono text-[11px] text-gray-200">
+        <pre className="whitespace-pre-wrap break-words text-gray-400">
+          {JSON.stringify(debugPayloads, null, 2)}
+        </pre>
       </div>
     </Canvas>
   )
