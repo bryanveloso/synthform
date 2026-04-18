@@ -1,4 +1,4 @@
-const SYNTHHOME_URL = import.meta.env.VITE_SYNTHHOME_URL || 'http://saya:7179'
+const SYNTHHOME_URL = import.meta.env.VITE_SYNTHHOME_URL || 'http://saya:7175'
 
 // ---------------------------------------------------------------------------
 // WebSocket: Real-time weather data via Synthhome
