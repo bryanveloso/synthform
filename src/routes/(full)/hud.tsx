@@ -4,6 +4,7 @@ import { Canvas } from '@/components/ui/canvas'
 import { useHomeAssistant } from '@/hooks/use-homeassistant'
 import { useTempest, useTempestForecast, useTempestCurrent } from '@/hooks/use-tempest'
 import { useEnphase, useEnphaseBatteries, useEnphaseToday, useEnphaseCurrent, useEnphaseMicroinverters } from '@/hooks/use-enphase'
+import { useNetwork, useNetworkDevices, usePduOutlets } from '@/hooks/use-network'
 import { useGitHubCommits } from '@/hooks/use-github'
 import { useSteamPlayer, useSteamRecentGames } from '@/hooks/use-steam'
 import { useSparkline } from '@/hooks/use-sparkline'
@@ -61,8 +62,7 @@ function HUD() {
   const netIn = numState(entities['sensor.unraid_br0_inbound'])
   const netOut = numState(entities['sensor.unraid_br0_outbound'])
 
-  // Network (UniFi)
-  const wifiClients = numState(entities['sensor.exandria'])
+  // Network (UniFi) — now via Synthhome, see Network section below
 
   // EV (Polestar 3)
   const evBattery = numState(entities['sensor.polestar_5857_battery_charge_level'])
@@ -154,6 +154,19 @@ function HUD() {
   const minSocToday = energyToday?.min_soc_today ?? null
 
   // ---------------------------------------------------------------------------
+  // Network (Synthhome WebSocket + REST)
+  // ---------------------------------------------------------------------------
+  const { snapshot: networkSnapshot, events: networkEvents, isConnected: unifiConnected } = useNetwork()
+  const { data: networkDevices } = useNetworkDevices()
+  const { data: pduOutlets } = usePduOutlets()
+
+  const wanDownload = networkSnapshot?.wanRxBytesPs ?? 0
+  const wanUpload = networkSnapshot?.wanTxBytesPs ?? 0
+  const wanLatency = networkSnapshot?.wanLatencyAvgMs ?? 0
+  const rackPower = networkSnapshot?.pduTotalPowerW ?? 0
+  const wifiClients = networkSnapshot?.wifiClientsTotal ?? 0
+
+  // ---------------------------------------------------------------------------
   // GitHub (direct REST)
   // ---------------------------------------------------------------------------
   const { data: commits } = useGitHubCommits(20)
@@ -176,14 +189,19 @@ function HUD() {
   // Render — this is your canvas
   // ---------------------------------------------------------------------------
   const debugPayloads = {
-    connections: { haConnected, tempestConnected, enphaseConnected },
+    connections: { haConnected, tempestConnected, enphaseConnected, unifiConnected },
     status,
     music: { track: musicTrack, source: musicSource, isPlaying },
     limitbreak,
     indoorClimate: { indoorTemp, indoorHumidity, indoorCo2, indoorAqi, indoorVocs, barTemp },
     airPurifier: { pm25, airQuality, filterLife },
     server: { cpuUsage, ramUsage, cpuTemp, uptime, arrayUsage, disk1, disk2, disk3, netIn, netOut },
-    network: { wifiClients },
+    network: {
+      wanDownload, wanUpload, wanLatency, rackPower, wifiClients,
+      devices: networkDevices?.map((d) => ({ name: d.name, type: d.device_type, cpu: d.cpu_pct, mem: d.mem_pct })),
+      pdu: pduOutlets?.filter((o) => o.has_metering && (o.power_w ?? 0) > 0).map((o) => ({ index: o.index, name: o.name, power: o.power_w })),
+      events: networkEvents.slice(0, 5),
+    },
     ev: { evBattery, evRange, evCharging },
     gridCarbon: { co2Intensity, fossilPct },
     lights,

@@ -375,6 +375,150 @@ export async function fetchMicroinverters(): Promise<MicroinverterDetail[]> {
 }
 
 // ---------------------------------------------------------------------------
+// WebSocket: Real-time network data via Synthhome
+// ---------------------------------------------------------------------------
+
+export interface NetworkSnapshot {
+  timestamp: string
+  wanRxBytesPs: number
+  wanTxBytesPs: number
+  wanLatencyAvgMs: number
+  pduTotalPowerW: number
+  wifiClientsTotal: number
+}
+
+export interface NetworkEvent {
+  timestamp: string
+  kind: string
+  payload: Record<string, unknown>
+}
+
+export interface NetworkConnectionOptions {
+  onSnapshot: (snapshot: NetworkSnapshot) => void
+  onEvent: (event: NetworkEvent) => void
+  onConnected: () => void
+  onDisconnected: () => void
+  onError: (error: string) => void
+}
+
+export function connectNetwork(options: NetworkConnectionOptions): () => void {
+  const wsUrl = SYNTHHOME_URL.replace(/^http/, 'ws')
+  let ws: WebSocket | null = null
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let destroyed = false
+
+  function connect() {
+    if (destroyed) return
+
+    ws = new WebSocket(`${wsUrl}/ws/unifi/`)
+
+    ws.onopen = () => {
+      options.onConnected()
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const msg: SynthhomeMessage = JSON.parse(event.data)
+
+        switch (msg.type) {
+          case 'snapshot':
+            options.onSnapshot({
+              timestamp: msg.data.timestamp as string,
+              wanRxBytesPs: (msg.data.wan_rx_bytes_ps as number) ?? 0,
+              wanTxBytesPs: (msg.data.wan_tx_bytes_ps as number) ?? 0,
+              wanLatencyAvgMs: (msg.data.wan_latency_avg_ms as number) ?? 0,
+              pduTotalPowerW: (msg.data.pdu_total_power_w as number) ?? 0,
+              wifiClientsTotal: (msg.data.wifi_clients_total as number) ?? 0,
+            })
+            break
+          case 'device_offline':
+          case 'device_online':
+          case 'high_cpu':
+          case 'pdu_outlet_toggle':
+            options.onEvent({
+              timestamp: msg.timestamp,
+              kind: msg.type,
+              payload: msg.data,
+            })
+            break
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    ws.onclose = () => {
+      options.onDisconnected()
+      if (!destroyed) {
+        reconnectTimer = setTimeout(connect, 3000)
+      }
+    }
+
+    ws.onerror = () => {
+      options.onError('Synthhome network WebSocket error')
+    }
+  }
+
+  connect()
+
+  return () => {
+    destroyed = true
+    if (reconnectTimer) clearTimeout(reconnectTimer)
+    ws?.close()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// REST: Network data from Synthhome API
+// ---------------------------------------------------------------------------
+
+export interface NetworkCurrent {
+  wan_rx_bytes_ps: number | null
+  wan_tx_bytes_ps: number | null
+  wan_latency_avg_ms: number | null
+  wan_latency_max_ms: number | null
+  pdu_total_power_w: number | null
+  pdu_power_budget_w: number | null
+  wifi_clients_total: number | null
+}
+
+export interface NetworkDevice {
+  mac: string
+  name: string
+  model: string
+  device_type: string
+  firmware_version: string
+  ip: string
+  cpu_pct: number | null
+  mem_pct: number | null
+  uptime_s: number | null
+  last_seen_at: string | null
+}
+
+export interface PduOutlet {
+  index: number
+  name: string
+  outlet_type: number
+  has_metering: boolean
+  relay_state: boolean
+  power_w: number | null
+  current_a: number | null
+  voltage_v: number | null
+}
+
+export async function fetchNetworkCurrent(): Promise<NetworkCurrent> {
+  return fetchJSON('/network/current')
+}
+
+export async function fetchNetworkDevices(): Promise<NetworkDevice[]> {
+  return fetchJSON('/network/devices')
+}
+
+export async function fetchPduOutlets(): Promise<PduOutlet[]> {
+  return fetchJSON('/network/pdu')
+}
+
+// ---------------------------------------------------------------------------
 // GitHub Activity (direct API, not via Synthhome)
 // ---------------------------------------------------------------------------
 
