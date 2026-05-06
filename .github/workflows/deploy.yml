@@ -22,6 +22,7 @@ jobs:
         VITE_HOMEASSISTANT_TOKEN=${{ secrets.VITE_HOMEASSISTANT_TOKEN }}
         VITE_SYNTHHOME_URL=${{ vars.VITE_SYNTHHOME_URL }}
         VITE_GITHUB_TOKEN=${{ secrets.VITE_GITHUB_TOKEN }}
+        VITE_OBS_WS_URL=${{ vars.VITE_OBS_WS_URL }}
         EOF
 
     - name: Deploy containers

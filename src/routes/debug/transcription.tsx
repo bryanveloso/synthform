@@ -7,8 +7,8 @@ export const Route = createFileRoute('/debug/transcription')({
 
 interface TranscriptionLine {
   text: string
-  start: number
-  end: number
+  start: string
+  end: string
   speaker?: number
 }
 
@@ -119,8 +119,8 @@ function TranscriptionDebug() {
               <div className="space-y-1">
                 {lines.map((line, i) => (
                   <div key={i} className="flex gap-3">
-                    <span className="text-gray-600 shrink-0 w-16 text-right">
-                      {line.start.toFixed(1)}s
+                    <span className="text-gray-600 shrink-0 w-24 text-right">
+                      {line.start}
                     </span>
                     <span>{line.text}</span>
                   </div>

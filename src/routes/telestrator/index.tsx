@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRealtimeStore } from '@/store/realtime'
 import { serverConnection } from '@/hooks/use-server'
+import { useOBSScreenshot } from '@/hooks/use-obs-screenshot'
 import type { TelestratorPoint } from '@/types/telestrator'
 
 export const Route = createFileRoute('/telestrator/')({
@@ -31,11 +32,13 @@ interface LocalStroke {
 
 function TelestratorInput() {
   const isConnected = useRealtimeStore((s) => s.isConnected)
+  const { imageUrl: obsScreenshot, isConnected: obsConnected } = useOBSScreenshot(null, 5000)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const [color, setColor] = useState('#ef4444')
   const [width, setWidth] = useState(6)
+  const [showBackground, setShowBackground] = useState(true)
 
   // Drawing state (refs to avoid re-renders during drawing)
   const isDrawingRef = useRef(false)
@@ -313,17 +316,50 @@ function TelestratorInput() {
         >
           Clear
         </button>
+
+        <div className="h-6 w-px bg-shark-700" />
+
+        {/* OBS background toggle */}
+        <button
+          onClick={() => setShowBackground((v) => !v)}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            showBackground && obsConnected
+              ? 'bg-sky/20 text-sky'
+              : 'bg-shark-800 text-shark-400 hover:bg-shark-700'
+          }`}
+        >
+          BG {showBackground && obsConnected ? 'ON' : 'OFF'}
+        </button>
+
+        {/* OBS status */}
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-block h-2.5 w-2.5 rounded-full ${obsConnected ? 'bg-sky' : 'bg-shark-600'}`}
+          />
+          <span className="text-xs text-shark-400">OBS</span>
+        </div>
       </div>
 
       {/* Canvas area */}
       <div
         ref={containerRef}
-        className="flex flex-1 items-center justify-center bg-shark-920 p-4"
+        className="relative flex flex-1 items-center justify-center bg-shark-920 p-4"
       >
+        {showBackground && obsScreenshot && (
+          <img
+            src={obsScreenshot}
+            alt=""
+            className="pointer-events-none absolute rounded-lg opacity-40"
+            style={{
+              width: canvasRef.current?.style.width,
+              height: canvasRef.current?.style.height,
+            }}
+          />
+        )}
         <canvas
           ref={canvasRef}
-          className="cursor-crosshair rounded-lg bg-shark-950"
-          style={{ touchAction: 'none' }}
+          className="relative cursor-crosshair rounded-lg"
+          style={{ touchAction: 'none', background: showBackground && obsScreenshot ? 'transparent' : undefined }}
         />
       </div>
     </div>
