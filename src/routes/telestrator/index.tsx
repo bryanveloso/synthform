@@ -345,22 +345,20 @@ function TelestratorInput() {
         ref={containerRef}
         className="relative flex flex-1 items-center justify-center bg-shark-920 p-4"
       >
-        {showBackground && obsScreenshot && (
-          <img
-            src={obsScreenshot}
-            alt=""
-            className="pointer-events-none absolute rounded-lg opacity-40"
-            style={{
-              width: canvasRef.current?.style.width,
-              height: canvasRef.current?.style.height,
-            }}
+        <div className="relative">
+          {showBackground && obsScreenshot && (
+            <img
+              src={obsScreenshot}
+              alt=""
+              className="pointer-events-none absolute inset-0 size-full rounded-lg object-cover opacity-40"
+            />
+          )}
+          <canvas
+            ref={canvasRef}
+            className="relative cursor-crosshair rounded-lg"
+            style={{ touchAction: 'none' }}
           />
-        )}
-        <canvas
-          ref={canvasRef}
-          className="relative cursor-crosshair rounded-lg"
-          style={{ touchAction: 'none', background: showBackground && obsScreenshot ? 'transparent' : undefined }}
-        />
+        </div>
       </div>
     </div>
   )
