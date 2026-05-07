@@ -46,7 +46,7 @@ export function useOBSScreenshot(
             if (sourceName) {
               result = await obs.call('GetSourceScreenshot', {
                 sourceName,
-                imageFormat: `image/${imageFormat}`,
+                imageFormat: imageFormat,
                 imageWidth,
               })
             } else {
@@ -54,7 +54,7 @@ export function useOBSScreenshot(
               console.log('[OBS] Capturing scene:', currentProgramSceneName)
               result = await obs.call('GetSourceScreenshot', {
                 sourceName: currentProgramSceneName,
-                imageFormat: `image/${imageFormat}`,
+                imageFormat: imageFormat,
                 imageWidth,
               })
             }
