@@ -31,8 +31,10 @@ export function useOBSScreenshot(
 
     async function connect() {
       try {
+        console.log('[OBS] Connecting to', OBS_WS_URL)
         await obs.connect(OBS_WS_URL, OBS_WS_PASSWORD || undefined)
         if (destroyed) return
+        console.log('[OBS] Connected')
         setIsConnected(true)
         setError(null)
 
@@ -49,6 +51,7 @@ export function useOBSScreenshot(
               })
             } else {
               const { currentProgramSceneName } = await obs.call('GetCurrentProgramScene')
+              console.log('[OBS] Capturing scene:', currentProgramSceneName)
               result = await obs.call('GetSourceScreenshot', {
                 sourceName: currentProgramSceneName,
                 imageFormat: `image/${imageFormat}`,
@@ -57,10 +60,11 @@ export function useOBSScreenshot(
             }
 
             if (!destroyed && result.imageData) {
+              console.log('[OBS] Screenshot captured:', result.imageData.length, 'bytes')
               setImageUrl(result.imageData)
             }
-          } catch {
-            // Silently skip failed captures (OBS might be transitioning scenes)
+          } catch (err) {
+            console.warn('[OBS] Screenshot failed:', err)
           }
         }
 
