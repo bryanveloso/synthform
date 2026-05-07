@@ -17,6 +17,7 @@ import { Route as TelestratorIndexRouteImport } from './routes/telestrator/index
 import { Route as TelestratorOutputRouteImport } from './routes/telestrator/output'
 import { Route as SpecialUmamusumeRouteImport } from './routes/special/umamusume'
 import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
+import { Route as DebugTranscriptionRouteImport } from './routes/debug/transcription'
 import { Route as DebugServerRouteImport } from './routes/debug/server'
 import { Route as DebugIronmonRouteImport } from './routes/debug/ironmon'
 import { Route as DebugHudStylesRouteImport } from './routes/debug/hud-styles'
@@ -67,6 +68,11 @@ const SpecialUmamusumeRoute = SpecialUmamusumeRouteImport.update({
 const SpecialPodcastRoute = SpecialPodcastRouteImport.update({
   id: '/special/podcast',
   path: '/special/podcast',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugTranscriptionRoute = DebugTranscriptionRouteImport.update({
+  id: '/debug/transcription',
+  path: '/debug/transcription',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DebugServerRoute = DebugServerRouteImport.update({
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/debug/hud-styles': typeof DebugHudStylesRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
+  '/debug/transcription': typeof DebugTranscriptionRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
   '/telestrator/output': typeof TelestratorOutputRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/debug/hud-styles': typeof DebugHudStylesRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
+  '/debug/transcription': typeof DebugTranscriptionRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
   '/telestrator/output': typeof TelestratorOutputRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/debug/hud-styles': typeof DebugHudStylesRoute
   '/debug/ironmon': typeof DebugIronmonRoute
   '/debug/server': typeof DebugServerRoute
+  '/debug/transcription': typeof DebugTranscriptionRoute
   '/special/podcast': typeof SpecialPodcastRoute
   '/special/umamusume': typeof SpecialUmamusumeRoute
   '/telestrator/output': typeof TelestratorOutputRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/debug/hud-styles'
     | '/debug/ironmon'
     | '/debug/server'
+    | '/debug/transcription'
     | '/special/podcast'
     | '/special/umamusume'
     | '/telestrator/output'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/debug/hud-styles'
     | '/debug/ironmon'
     | '/debug/server'
+    | '/debug/transcription'
     | '/special/podcast'
     | '/special/umamusume'
     | '/telestrator/output'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/debug/hud-styles'
     | '/debug/ironmon'
     | '/debug/server'
+    | '/debug/transcription'
     | '/special/podcast'
     | '/special/umamusume'
     | '/telestrator/output'
@@ -271,6 +283,7 @@ export interface RootRouteChildren {
   DebugHudStylesRoute: typeof DebugHudStylesRoute
   DebugIronmonRoute: typeof DebugIronmonRoute
   DebugServerRoute: typeof DebugServerRoute
+  DebugTranscriptionRoute: typeof DebugTranscriptionRoute
   SpecialPodcastRoute: typeof SpecialPodcastRoute
   SpecialUmamusumeRoute: typeof SpecialUmamusumeRoute
   TelestratorOutputRoute: typeof TelestratorOutputRoute
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/special/podcast'
       fullPath: '/special/podcast'
       preLoaderRoute: typeof SpecialPodcastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/transcription': {
+      id: '/debug/transcription'
+      path: '/debug/transcription'
+      fullPath: '/debug/transcription'
+      preLoaderRoute: typeof DebugTranscriptionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/debug/server': {
@@ -431,6 +451,7 @@ const rootRouteChildren: RootRouteChildren = {
   DebugHudStylesRoute: DebugHudStylesRoute,
   DebugIronmonRoute: DebugIronmonRoute,
   DebugServerRoute: DebugServerRoute,
+  DebugTranscriptionRoute: DebugTranscriptionRoute,
   SpecialPodcastRoute: SpecialPodcastRoute,
   SpecialUmamusumeRoute: SpecialUmamusumeRoute,
   TelestratorOutputRoute: TelestratorOutputRoute,
