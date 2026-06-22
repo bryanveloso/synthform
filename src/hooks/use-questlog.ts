@@ -1,38 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 
+import type { components } from '@/api/generated/questlog'
+
 const QUESTLOG_URL = import.meta.env.VITE_QUESTLOG_URL || 'http://saya:7176/api'
 
-interface CheckpointStat {
-  order: number
-  name: string
-  trainer: string
-  entered: number
-  survived: number
-  survival_rate: number
-}
-
-interface IronMONStats {
-  challenge: string
-  total_runs: number
-  victories: number
-  victory_rate: number
-  runs_with_results: number
-  checkpoints: CheckpointStat[]
-}
-
-interface Run {
-  seed_number: number
-  challenge: string
-  highest_checkpoint: string | null
-  highest_checkpoint_order: number | null
-  is_victory: boolean
-  started_at: string
-}
-
-interface RunList {
-  runs: Run[]
-  total: number
-}
+// Types generated from questlog's OpenAPI spec (see package.json `generate:api`).
+type IronMONStats = components['schemas']['IronMONStatsSchema']
+type RunList = components['schemas']['RunListSchema']
 
 async function fetchJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${QUESTLOG_URL}${path}`)
@@ -62,71 +36,12 @@ export function useIronMONRuns(challenge?: string, limit = 50) {
   })
 }
 
-// ACNH types
-
-interface ACNHVillager {
-  id: number
-  name: string
-  species: string
-  personality: string
-  icon_url: string
-  image_url: string
-}
-
-interface ACNHEncounter {
-  id: string
-  villager: ACNHVillager
-  timestamp: string
-  recruited: boolean
-  notes: string
-  encounters: number
-}
-
-interface ACNHHunt {
-  id: string
-  date: string
-  target_villager: ACNHVillager | null
-  result_villager: ACNHVillager | null
-  encounter_count: number
-  encounters: ACNHEncounter[]
-}
-
-interface ACNHHuntResponse {
-  hunt: ACNHHunt | null
-}
-
-interface ACNHTopVillager {
-  villager: ACNHVillager
-  count: number
-}
-
-interface ACNHPersonalityStat {
-  personality: string
-  count: number
-}
-
-interface ACNHSpeciesStat {
-  species: string
-  count: number
-}
-
-interface ACNHHuntRecord {
-  id: string
-  date: string
-  encounter_count: number
-  result_villager: ACNHVillager | null
-}
-
-interface ACNHStats {
-  total_hunts: number
-  total_islands: number
-  avg_islands_per_hunt: number
-  most_encountered: ACNHTopVillager[]
-  personality_distribution: ACNHPersonalityStat[]
-  species_distribution: ACNHSpeciesStat[]
-  shortest_hunt: ACNHHuntRecord | null
-  longest_hunt: ACNHHuntRecord | null
-}
+// ACNH types — generated from questlog's OpenAPI spec.
+type ACNHVillager = components['schemas']['VillagerSchema']
+type ACNHEncounter = components['schemas']['EncounterSchema']
+type ACNHHunt = components['schemas']['HuntSchema']
+type ACNHHuntResponse = components['schemas']['HuntResponseSchema']
+type ACNHStats = components['schemas']['ACNHStatsSchema']
 
 export type { ACNHVillager, ACNHEncounter, ACNHHunt, ACNHStats }
 
