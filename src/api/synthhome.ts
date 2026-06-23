@@ -1,3 +1,9 @@
+import type { components } from '@/api/generated/synthhome'
+
+// REST response types generated from synthhome's OpenAPI spec
+// (see package.json `generate:api`). WebSocket message types below are
+// hand-written — WS isn't part of the OpenAPI surface.
+
 const SYNTHHOME_URL = import.meta.env.VITE_SYNTHHOME_URL || 'http://saya:7175'
 
 // ---------------------------------------------------------------------------
@@ -146,33 +152,11 @@ export interface SynthhomeForecast {
   fetched_at: string
 }
 
-export interface SynthhomeCurrentWeather {
-  temp_f: number | null
-  humidity: number | null
-  wind_avg: number | null
-  wind_gust: number | null
-  wind_lull: number | null
-  wind_dir: number | null
-  pressure: number | null
-  illuminance: number | null
-  uv: number | null
-  solar_radiation: number | null
-  daily_rain: number | null
-  observed_at: string | null
-}
+export type SynthhomeCurrentWeather = components['schemas']['CurrentWeatherSchema']
 
-export interface SynthhomeWindReading {
-  wind_speed: number
-  wind_dir: number
-  observed_at: string
-}
+export type SynthhomeWindReading = components['schemas']['WindReadingSchema']
 
-export interface SynthhomeReading {
-  source: string
-  metric: string
-  value: number
-  observed_at: string
-}
+export type SynthhomeReading = components['schemas']['ReadingSchema']
 
 export async function fetchReadings(
   source: string,
@@ -290,73 +274,13 @@ export function connectEnergy(options: EnergyConnectionOptions): () => void {
 // REST: Energy data from Synthhome API
 // ---------------------------------------------------------------------------
 
-export interface EnergyCurrent {
-  // Live power (watts)
-  pv_production_w: number | null
-  pv_voltage: number | null
-  pv_frequency: number | null
-  pv_production_phase_a_w: number | null
-  pv_production_phase_b_w: number | null
-  grid_net_w: number | null
-  grid_import_w: number | null
-  grid_export_w: number | null
-  house_consumption_w: number | null
-  self_consumption_w: number | null
-  battery_agg_power_w: number | null
+export type EnergyCurrent = components['schemas']['EnergyCurrentSchema']
 
-  // Battery state
-  battery_soc: number | null
-  battery_avail_wh: number | null
+export type BatteryDetail = components['schemas']['BatteryDetailSchema']
 
-  // Grid/controller state (strings from Envoy)
-  grid_mode: string | null
-  mains_state: string | null
-  controller_temp_f: number | null
+export type MicroinverterDetail = components['schemas']['MicroinverterDetailSchema']
 
-  // Totals (refreshed ~5 min)
-  production_today_wh: number | null
-  production_seven_day_wh: number | null
-  production_lifetime_wh: number | null
-  consumption_today_wh: number | null
-  consumption_seven_day_wh: number | null
-  consumption_lifetime_wh: number | null
-  grid_net_lifetime_wh: number | null
-
-  observed_at: string | null
-}
-
-export interface BatteryDetail {
-  serial: string
-  capacity_wh: number
-  phase: string
-  encharge_rev: number
-  bmu_fw_version: string
-  installed_at: string | null
-  last_seen_at: string | null
-  soc: number | null
-  raw_power_mw: number | null
-  temp_c: number | null
-}
-
-export interface MicroinverterDetail {
-  serial: string
-  max_report_w: number
-  last_seen_at: string | null
-  last_w: number | null
-}
-
-export interface EnergyToday {
-  date: string
-  baseline_captured_at: string
-  grid_import_today_wh: number | null
-  grid_export_today_wh: number | null
-  battery_charged_today_wh: number | null
-  battery_discharged_today_wh: number | null
-  peak_production_w_today: number | null
-  peak_consumption_w_today: number | null
-  max_soc_today: number | null
-  min_soc_today: number | null
-}
+export type EnergyToday = components['schemas']['EnergyTodaySchema']
 
 export async function fetchEnergyToday(): Promise<EnergyToday> {
   return fetchJSON('/energy/today')
@@ -472,39 +396,11 @@ export function connectNetwork(options: NetworkConnectionOptions): () => void {
 // REST: Network data from Synthhome API
 // ---------------------------------------------------------------------------
 
-export interface NetworkCurrent {
-  wan_rx_bytes_ps: number | null
-  wan_tx_bytes_ps: number | null
-  wan_latency_avg_ms: number | null
-  wan_latency_max_ms: number | null
-  pdu_total_power_w: number | null
-  pdu_power_budget_w: number | null
-  wifi_clients_total: number | null
-}
+export type NetworkCurrent = components['schemas']['NetworkCurrentSchema']
 
-export interface NetworkDevice {
-  mac: string
-  name: string
-  model: string
-  device_type: string
-  firmware_version: string
-  ip: string
-  cpu_pct: number | null
-  mem_pct: number | null
-  uptime_s: number | null
-  last_seen_at: string | null
-}
+export type NetworkDevice = components['schemas']['DeviceDetailSchema']
 
-export interface PduOutlet {
-  index: number
-  name: string
-  outlet_type: number
-  has_metering: boolean
-  relay_state: boolean
-  power_w: number | null
-  current_a: number | null
-  voltage_v: number | null
-}
+export type PduOutlet = components['schemas']['PDUOutletSchema']
 
 export async function fetchNetworkCurrent(): Promise<NetworkCurrent> {
   return fetchJSON('/network/current')
