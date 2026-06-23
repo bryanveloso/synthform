@@ -11,7 +11,7 @@ const SYNTHHOME_URL = import.meta.env.VITE_SYNTHHOME_URL || 'http://saya:7175'
 // ---------------------------------------------------------------------------
 
 export interface SynthhomeMessage {
-  type: string
+  event_type: string
   source: string
   timestamp: string
   data: Record<string, unknown>
@@ -63,7 +63,7 @@ export function connectWeather(options: WeatherConnectionOptions): () => void {
       try {
         const msg: SynthhomeMessage = JSON.parse(event.data)
 
-        switch (msg.type) {
+        switch (msg.event_type) {
           case 'observation':
             options.onObservation({
               timestamp: msg.data.timestamp as string,
@@ -220,7 +220,7 @@ export function connectEnergy(options: EnergyConnectionOptions): () => void {
       try {
         const msg: SynthhomeMessage = JSON.parse(event.data)
 
-        switch (msg.type) {
+        switch (msg.event_type) {
           case 'snapshot':
             options.onSnapshot({
               timestamp: msg.data.timestamp as string,
@@ -239,7 +239,7 @@ export function connectEnergy(options: EnergyConnectionOptions): () => void {
           case 'pv_production_stopped':
             options.onEvent({
               timestamp: msg.timestamp,
-              kind: msg.type,
+              kind: msg.event_type,
               payload: msg.data,
             })
             break
@@ -344,7 +344,7 @@ export function connectNetwork(options: NetworkConnectionOptions): () => void {
       try {
         const msg: SynthhomeMessage = JSON.parse(event.data)
 
-        switch (msg.type) {
+        switch (msg.event_type) {
           case 'snapshot':
             options.onSnapshot({
               timestamp: msg.data.timestamp as string,
@@ -361,7 +361,7 @@ export function connectNetwork(options: NetworkConnectionOptions): () => void {
           case 'pdu_outlet_toggle':
             options.onEvent({
               timestamp: msg.timestamp,
-              kind: msg.type,
+              kind: msg.event_type,
               payload: msg.data,
             })
             break
