@@ -125,6 +125,21 @@ async function fetchJSON<T>(path: string): Promise<T> {
   return res.json()
 }
 
+// Fetch every page of a `@paginate` endpoint and return the flattened items.
+// The default page size is 100; this walks `offset` until `count` is reached so
+// list consumers never silently truncate to the first page.
+async function fetchAllPages<T>(path: string): Promise<T[]> {
+  const sep = path.includes('?') ? '&' : '?'
+  const first = await fetchJSON<Paginated<T>>(path)
+  const items = [...first.items]
+  while (items.length < first.count) {
+    const page = await fetchJSON<Paginated<T>>(`${path}${sep}offset=${items.length}`)
+    if (page.items.length === 0) break
+    items.push(...page.items)
+  }
+  return items
+}
+
 export interface SynthhomeForecastDay {
   day_start_local: number
   conditions: string
@@ -164,10 +179,9 @@ export async function fetchReadings(
   metric: string,
   hours = 2,
 ): Promise<SynthhomeReading[]> {
-  const res = await fetchJSON<Paginated<SynthhomeReading>>(
+  return fetchAllPages<SynthhomeReading>(
     `/readings?source=${source}&metric=${metric}&hours=${hours}`,
   )
-  return res.items
 }
 
 export async function fetchCurrentWeather(): Promise<SynthhomeCurrentWeather> {
@@ -179,10 +193,7 @@ export async function fetchForecast(): Promise<SynthhomeForecast | null> {
 }
 
 export async function fetchWindHistory(minutes = 30): Promise<SynthhomeWindReading[]> {
-  const res = await fetchJSON<Paginated<SynthhomeWindReading>>(
-    `/weather/wind?minutes=${minutes}`,
-  )
-  return res.items
+  return fetchAllPages<SynthhomeWindReading>(`/weather/wind?minutes=${minutes}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -298,13 +309,11 @@ export async function fetchCurrentEnergy(): Promise<EnergyCurrent> {
 }
 
 export async function fetchBatteries(): Promise<BatteryDetail[]> {
-  const res = await fetchJSON<Paginated<BatteryDetail>>('/energy/batteries')
-  return res.items
+  return fetchAllPages<BatteryDetail>('/energy/batteries')
 }
 
 export async function fetchMicroinverters(): Promise<MicroinverterDetail[]> {
-  const res = await fetchJSON<Paginated<MicroinverterDetail>>('/energy/inverters')
-  return res.items
+  return fetchAllPages<MicroinverterDetail>('/energy/inverters')
 }
 
 // ---------------------------------------------------------------------------
@@ -416,13 +425,11 @@ export async function fetchNetworkCurrent(): Promise<NetworkCurrent> {
 }
 
 export async function fetchNetworkDevices(): Promise<NetworkDevice[]> {
-  const res = await fetchJSON<Paginated<NetworkDevice>>('/network/devices')
-  return res.items
+  return fetchAllPages<NetworkDevice>('/network/devices')
 }
 
 export async function fetchPduOutlets(): Promise<PduOutlet[]> {
-  const res = await fetchJSON<Paginated<PduOutlet>>('/network/pdu')
-  return res.items
+  return fetchAllPages<PduOutlet>('/network/pdu')
 }
 
 // ---------------------------------------------------------------------------
