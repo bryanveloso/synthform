@@ -1,4 +1,5 @@
 import type { components } from '@/api/generated/synthhome'
+import type { Paginated } from '@/api/pagination'
 
 // REST response types generated from synthhome's OpenAPI spec
 // (see package.json `generate:api`). WebSocket message types below are
@@ -163,7 +164,10 @@ export async function fetchReadings(
   metric: string,
   hours = 2,
 ): Promise<SynthhomeReading[]> {
-  return fetchJSON(`/readings?source=${source}&metric=${metric}&hours=${hours}`)
+  const res = await fetchJSON<Paginated<SynthhomeReading>>(
+    `/readings?source=${source}&metric=${metric}&hours=${hours}`,
+  )
+  return res.items
 }
 
 export async function fetchCurrentWeather(): Promise<SynthhomeCurrentWeather> {
@@ -175,7 +179,10 @@ export async function fetchForecast(): Promise<SynthhomeForecast | null> {
 }
 
 export async function fetchWindHistory(minutes = 30): Promise<SynthhomeWindReading[]> {
-  return fetchJSON(`/weather/wind?minutes=${minutes}`)
+  const res = await fetchJSON<Paginated<SynthhomeWindReading>>(
+    `/weather/wind?minutes=${minutes}`,
+  )
+  return res.items
 }
 
 // ---------------------------------------------------------------------------
@@ -291,11 +298,13 @@ export async function fetchCurrentEnergy(): Promise<EnergyCurrent> {
 }
 
 export async function fetchBatteries(): Promise<BatteryDetail[]> {
-  return fetchJSON('/energy/batteries')
+  const res = await fetchJSON<Paginated<BatteryDetail>>('/energy/batteries')
+  return res.items
 }
 
 export async function fetchMicroinverters(): Promise<MicroinverterDetail[]> {
-  return fetchJSON('/energy/inverters')
+  const res = await fetchJSON<Paginated<MicroinverterDetail>>('/energy/inverters')
+  return res.items
 }
 
 // ---------------------------------------------------------------------------
@@ -407,11 +416,13 @@ export async function fetchNetworkCurrent(): Promise<NetworkCurrent> {
 }
 
 export async function fetchNetworkDevices(): Promise<NetworkDevice[]> {
-  return fetchJSON('/network/devices')
+  const res = await fetchJSON<Paginated<NetworkDevice>>('/network/devices')
+  return res.items
 }
 
 export async function fetchPduOutlets(): Promise<PduOutlet[]> {
-  return fetchJSON('/network/pdu')
+  const res = await fetchJSON<Paginated<PduOutlet>>('/network/pdu')
+  return res.items
 }
 
 // ---------------------------------------------------------------------------
