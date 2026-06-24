@@ -1618,12 +1618,25 @@ export interface components {
             /** Checkpoints */
             checkpoints: components["schemas"]["CheckpointStatSchema"][];
         };
-        /** RunListSchema */
-        RunListSchema: {
-            /** Runs */
-            runs: components["schemas"]["RunSchema"][];
-            /** Total */
-            total: number;
+        /** Input */
+        Input: {
+            /**
+             * Limit
+             * @default 100
+             */
+            limit: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+        };
+        /** PagedRunSchema */
+        PagedRunSchema: {
+            /** Items */
+            items: components["schemas"]["RunSchema"][];
+            /** Count */
+            count: number;
         };
         /** RunSchema */
         RunSchema: {
@@ -2803,7 +2816,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunListSchema"];
+                    "application/json": components["schemas"]["PagedRunSchema"];
                 };
             };
         };

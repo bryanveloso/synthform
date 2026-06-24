@@ -141,7 +141,7 @@ function IronMONDebug() {
           <p className="text-gray-500">Loading runs...</p>
         ) : runs ? (
           <div>
-            <p className="text-gray-500 mb-2">{runs.total} total runs</p>
+            <p className="text-gray-500 mb-2">{runs.count} total runs</p>
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-gray-500 text-left">
@@ -152,7 +152,7 @@ function IronMONDebug() {
                 </tr>
               </thead>
               <tbody>
-                {runs.runs.map((run) => (
+                {runs.items.map((run) => (
                   <tr key={run.seed_number} className="text-gray-300">
                     <td className="pr-4">{run.seed_number}</td>
                     <td className="pr-4">{run.highest_checkpoint || '-'}</td>

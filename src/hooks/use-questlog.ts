@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 
 import type { components } from '@/api/generated/questlog'
+import type { Paginated } from '@/api/pagination'
 
 const QUESTLOG_URL = import.meta.env.VITE_QUESTLOG_URL || 'http://saya:7176/api'
 
 // Types generated from questlog's OpenAPI spec (see package.json `generate:api`).
 type IronMONStats = components['schemas']['IronMONStatsSchema']
-type RunList = components['schemas']['RunListSchema']
+type Run = components['schemas']['RunSchema']
 
 async function fetchJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${QUESTLOG_URL}${path}`)
@@ -29,7 +30,7 @@ export function useIronMONRuns(challenge?: string, limit = 50) {
   if (limit !== 50) params.set('limit', String(limit))
   const qs = params.toString() ? `?${params.toString()}` : ''
 
-  return useQuery<RunList>({
+  return useQuery<Paginated<Run>>({
     queryKey: ['ironmon', 'runs', challenge, limit],
     queryFn: () => fetchJSON(`/ironmon/runs${qs}`),
     staleTime: 30_000,
