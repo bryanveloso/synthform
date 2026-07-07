@@ -7,6 +7,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
 import { preloadSounds } from './lib/audio-preloader'
+import { connectRealtime } from './store/wiring'
 
 import './index.css'
 
@@ -24,6 +25,11 @@ gsap.registerPlugin(Flip)
 gsap.registerPlugin(useGSAP)
 
 preloadSounds()
+
+// Open the realtime transport and wire it into the store. Previously this ran
+// as a side effect of importing the store; doing it explicitly here keeps the
+// store import pure (and testable).
+connectRealtime()
 
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {
