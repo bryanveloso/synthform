@@ -13,7 +13,8 @@ Synthform is a personal streaming overlay frontend built with React, Vite, and T
 Project-specific deltas (everything else is inherited from the import above and ~/.claude/CLAUDE.md):
 
 - **Commits:** open to agents, like the rest of the rack (the Dev-only rule was retired 2026-08-28). Stage paths, never `git add -A`.
-- **Port:** 8008. Single-tenant (always `avalonstar`); runs on the Tailscale LAN.
+- Single-tenant (always `avalonstar`); runs on the Tailscale LAN.
+- **Ports, Redis DB, container names:** not restated here. `recall("<project> port")` or `lookup` against `registry/allocations.md`, which is canonical and derived from what is actually listening. A copy in this file is a second place to be wrong.
 - **No mock mode** — real data/APIs only.
 - **Don't reimplement from scratch** without explicit permission; make the smallest reasonable change; never rename things "improved"/"new"/"enhanced".
 - **Ask for clarification** rather than assuming; it's fine to stop and ask for help.
