@@ -27,7 +27,7 @@ function HUD() {
   // ---------------------------------------------------------------------------
   // Synthfunc (existing overlay data)
   // ---------------------------------------------------------------------------
-  const { currentAlert, onAlertComplete, soundEnabled } = useAlertQueue({ soundEnabled: false })
+  useAlertQueue({ soundEnabled: false })
   const { status } = useStatus()
   const { current: musicTrack, source: musicSource, isPlaying } = useMusic()
   const limitbreak = useLimitbreak()
@@ -103,7 +103,7 @@ function HUD() {
   // ---------------------------------------------------------------------------
   const { observation, rapidWind, lastStrike, isRaining, isConnected: tempestConnected } = useTempest()
   const { data: forecast } = useTempestForecast()
-  const { data: currentWeather } = useTempestCurrent()
+  useTempestCurrent()
 
   const weatherReadings = observation?.readings ?? {}
   const outdoorTemp = (weatherReadings.temp_f as number) ?? 0

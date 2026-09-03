@@ -103,7 +103,6 @@ function HalfArcGauge({
   const halfCirc = Math.PI * radius
   const pct = Math.min(value / max, 1)
   const offset = halfCirc * (1 - pct)
-  const cx = width / 2
   const cy = height - strokeWidth / 2
 
   return (
@@ -210,7 +209,7 @@ function Sparkline({
         {/* Current value dot */}
         <circle
           cx={width}
-          cy={parseFloat(points[points.length - 1].split(',')[1])}
+          cy={parseFloat(points[points.length - 1]?.split(',')[1] ?? '0')}
           r={2.5}
           fill={color}
           style={{ filter: `drop-shadow(0 0 4px ${color})` }}
@@ -489,44 +488,15 @@ function EnergyFlow({
   batterySoc: number
 }) {
   const maxW = Math.max(Math.abs(solarW), Math.abs(houseW), Math.abs(gridW), Math.abs(batteryW), 1)
-  const scale = (w: number) => Math.min(Math.abs(w) / maxW, 1)
 
   const importing = gridW > 0
-  const exporting = gridW < 0
   const charging = batteryW < 0
-  const discharging = batteryW > 0
-
-  function FlowArrow({ from, to, value, color, active }: { from: string; to: string; value: number; color: string; active: boolean }) {
-    const opacity = active ? Math.max(0.3, scale(value)) : 0.05
-    const width = active ? Math.max(1, scale(value) * 4) : 0.5
-    return (
-      <div className="flex items-center gap-1">
-        <span className="w-16 text-right text-[8px] uppercase tracking-wider text-gray-500">{from}</span>
-        <div className="relative h-1 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
-          <div
-            className="absolute inset-y-0 left-0 rounded-full"
-            style={{
-              width: `${(active ? scale(value) : 0) * 100}%`,
-              backgroundColor: color,
-              opacity,
-              boxShadow: active ? `0 0 8px ${color}` : 'none',
-              height: width,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              transition: 'all 1s ease-out',
-            }}
-          />
-        </div>
-        <span className="w-16 text-[8px] uppercase tracking-wider text-gray-500">{to}</span>
-      </div>
-    )
-  }
 
   return (
     <div className="flex flex-col gap-3">
-      <FlowArrow from="Solar" to="House" value={solarW} color="#ffd600" active={solarW > 10} />
-      <FlowArrow from={importing ? "Grid" : "Solar"} to={importing ? "House" : "Grid"} value={gridW} color={importing ? '#ff8c00' : '#00ff88'} active={Math.abs(gridW) > 10} />
-      <FlowArrow from={charging ? "Solar" : "Battery"} to={charging ? "Battery" : "House"} value={batteryW} color={charging ? '#b388ff' : '#00e5ff'} active={Math.abs(batteryW) > 10} />
+      <FlowArrow from="Solar" to="House" value={solarW} color="#ffd600" active={solarW > 10} maxW={maxW} />
+      <FlowArrow from={importing ? "Grid" : "Solar"} to={importing ? "House" : "Grid"} value={gridW} color={importing ? '#ff8c00' : '#00ff88'} active={Math.abs(gridW) > 10} maxW={maxW} />
+      <FlowArrow from={charging ? "Solar" : "Battery"} to={charging ? "Battery" : "House"} value={batteryW} color={charging ? '#b388ff' : '#00e5ff'} active={Math.abs(batteryW) > 10} maxW={maxW} />
       <div className="mt-1 flex items-center justify-between text-[10px]">
         <span className="tabular-nums text-gray-400">
           <span className="text-[8px] uppercase tracking-wider text-gray-500">House </span>
@@ -537,6 +507,33 @@ function EnergyFlow({
           {batterySoc.toFixed(0)}%
         </span>
       </div>
+    </div>
+  )
+}
+
+function FlowArrow({ from, to, value, color, active, maxW }: { from: string; to: string; value: number; color: string; active: boolean; maxW: number }) {
+  const scale = (w: number) => Math.min(Math.abs(w) / maxW, 1)
+  const opacity = active ? Math.max(0.3, scale(value)) : 0.05
+  const width = active ? Math.max(1, scale(value) * 4) : 0.5
+  return (
+    <div className="flex items-center gap-1">
+      <span className="w-16 text-right text-[8px] uppercase tracking-wider text-gray-500">{from}</span>
+      <div className="relative h-1 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: `${(active ? scale(value) : 0) * 100}%`,
+            backgroundColor: color,
+            opacity,
+            boxShadow: active ? `0 0 8px ${color}` : 'none',
+            height: width,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            transition: 'all 1s ease-out',
+          }}
+        />
+      </div>
+      <span className="w-16 text-[8px] uppercase tracking-wider text-gray-500">{to}</span>
     </div>
   )
 }
@@ -736,17 +733,6 @@ function DayScorecard({
   batteryDischargedWh: number | null
   commitCount: number
 }) {
-  function Row({ label, value, unit }: { label: string; value: string; unit: string }) {
-    return (
-      <div className="flex items-baseline justify-between border-b border-white/5 py-0.5">
-        <span className="text-[9px] uppercase tracking-wider text-gray-500">{label}</span>
-        <span className="tabular-nums text-xs font-bold text-gray-300">
-          {value} <span className="text-[9px] font-normal text-gray-500">{unit}</span>
-        </span>
-      </div>
-    )
-  }
-
   const fmt = (wh: number | null) => wh != null ? (wh / 1000).toFixed(2) : '—'
 
   return (
@@ -766,6 +752,17 @@ function DayScorecard({
 // Section wrapper
 // ---------------------------------------------------------------------------
 
+function Row({ label, value, unit }: { label: string; value: string; unit: string }) {
+  return (
+    <div className="flex items-baseline justify-between border-b border-white/5 py-0.5">
+      <span className="text-[9px] uppercase tracking-wider text-gray-500">{label}</span>
+      <span className="tabular-nums text-xs font-bold text-gray-300">
+        {value} <span className="text-[9px] font-normal text-gray-500">{unit}</span>
+      </span>
+    </div>
+  )
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-3 rounded border border-white/[0.08] p-4">
@@ -781,7 +778,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function HUDStyles() {
   const { entities, isConnected: haConnected } = useHomeAssistant()
-  const { observation, rapidWind, lastStrike, isConnected: tempestConnected } = useTempest()
+  const { observation, rapidWind, isConnected: tempestConnected } = useTempest()
   const { snapshot: energySnapshot, isConnected: enphaseConnected } = useEnphase()
   const { data: batteriesData } = useEnphaseBatteries()
   const { data: invertersData } = useEnphaseMicroinverters()
@@ -799,7 +796,6 @@ function HUDStyles() {
   const gridExport = (energyReadings.grid_export_w as number) ?? 0
   const batteryPct = (energyReadings.battery_soc as number) ?? 0
   const batteryPower = (energyReadings.battery_agg_power_w as number) ?? 0
-  const selfConsumption = (energyReadings.self_consumption_w as number) ?? 0
 
   // HA data (everything not yet in Synthhome)
   const temp = numState(entities['sensor.my_ecobee_temperature'])

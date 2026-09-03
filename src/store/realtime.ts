@@ -393,8 +393,16 @@ export const useRealtimeStore = create<RealtimeStore>()(
             const obsPayload = payload as PayloadType<'obs:sync'>
             set({
               obs: {
-                scene: obsPayload.scene || state.obs.scene,
-                stream: obsPayload.stream || state.obs.stream,
+                scene: {
+                  current_scene: obsPayload.current_scene,
+                  scenes: obsPayload.scenes,
+                },
+                stream: {
+                  streaming: obsPayload.streaming,
+                  recording: obsPayload.recording,
+                  stream_time: obsPayload.stream_time,
+                  record_time: obsPayload.record_time,
+                },
               },
             })
           }

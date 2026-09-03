@@ -39,10 +39,12 @@ function TelestratorOutput() {
       ctx.lineJoin = 'round'
 
       const first = stroke.points[0]
+      if (!first) return
       ctx.moveTo(first.x * canvas.width, first.y * canvas.height)
 
       for (let i = 1; i < stroke.points.length; i++) {
         const point = stroke.points[i]
+        if (!point) continue
         ctx.lineTo(point.x * canvas.width, point.y * canvas.height)
       }
 

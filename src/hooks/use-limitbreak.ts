@@ -12,6 +12,7 @@ export function useLimitbreak() {
   const [hasJustMaxed, setHasJustMaxed] = useState(false)
   const [hasJustExecuted, setHasJustExecuted] = useState(false)
   const [lastExecutionTime, setLastExecutionTime] = useState<string | null>(null)
+  const [previousData, setPreviousData] = useState<LimitBreakData | null>(null)
 
   const previousIsMaxedRef = useRef<boolean>(false)
   const previousDataRef = useRef<LimitBreakData | null>(null)
@@ -31,6 +32,7 @@ export function useLimitbreak() {
     }
 
     previousIsMaxedRef.current = isNowMaxed
+    setPreviousData(previousDataRef.current)
     previousDataRef.current = data
   }, [data])
 
@@ -67,7 +69,7 @@ export function useLimitbreak() {
 
   return {
     data,
-    previousData: previousDataRef.current,
+    previousData,
     count: data?.count || 0,
     isReady,
     progress,

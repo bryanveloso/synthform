@@ -148,6 +148,7 @@ export function useAlertQueue(config: AlertQueueConfig = {}) {
 
     // Get first alert from queue and set as current
     const nextAlert = alerts.queue[0]
+    if (!nextAlert) return
 
     // Update store to move alert from queue to current
     useRealtimeStore.setState((state) => ({

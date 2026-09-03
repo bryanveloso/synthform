@@ -43,7 +43,7 @@ function DebugTimeline() {
                   .filter((event) => event.type?.includes('channel.chat.notification'))
                   .map((event, i) => (
                     <li key={i}>
-                      {event.type} - notice_type: {event.data?.payload?.notice_type || 'N/A'}
+                      {event.type} - notice_type: {(event.data?.payload as { notice_type?: string } | undefined)?.notice_type || 'N/A'}
                     </li>
                   ))}
               </ul>

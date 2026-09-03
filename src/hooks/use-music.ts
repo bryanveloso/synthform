@@ -17,7 +17,7 @@ export function useMusic() {
   
   // Track interpolated elapsed time
   const [interpolatedElapsed, setInterpolatedElapsed] = useState(0)
-  const animationFrameRef = useRef<number>()
+  const animationFrameRef = useRef<number | undefined>(undefined)
   
   const storeMusic = useRealtimeStore((s) => s.music)
   const isConnected = useRealtimeStore((s) => s.isConnected)

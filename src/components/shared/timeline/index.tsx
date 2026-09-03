@@ -135,7 +135,11 @@ export const Timeline = () => {
 
       // Calculate how much each element moved due to reflow
       existingElements.forEach((el, i) => {
-        const shift = newPositions[i] - oldPositions[i]
+        const oldPos = oldPositions[i]
+        const newPos = newPositions[i]
+        if (oldPos === undefined || newPos === undefined) return
+
+        const shift = newPos - oldPos
         if (shift !== 0) {
           // Put element back to old position
           gsap.set(el, { x: -shift })

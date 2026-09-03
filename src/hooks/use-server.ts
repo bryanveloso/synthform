@@ -37,10 +37,6 @@ class ServerConnection {
 
   private getWebSocketUrl(): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const isDev =
-      import.meta.env.DEV ||
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === 'zelan'
     const host = import.meta.env.VITE_WS_HOST || 'saya'
     const port = import.meta.env.VITE_WS_PORT || '7178'
     const slug = import.meta.env.VITE_TENANT_SLUG || 'avalonstar'

@@ -50,8 +50,10 @@ function TelestratorInput() {
   // Stable refs for current tool settings
   const colorRef = useRef(color)
   const widthRef = useRef(width)
-  colorRef.current = color
-  widthRef.current = width
+  useEffect(() => {
+    colorRef.current = color
+    widthRef.current = width
+  }, [color, width])
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
@@ -76,10 +78,12 @@ function TelestratorInput() {
       ctx.lineJoin = 'round'
 
       const first = stroke.points[0]
+      if (!first) continue
       ctx.moveTo(first.x * canvas.width, first.y * canvas.height)
 
       for (let i = 1; i < stroke.points.length; i++) {
         const point = stroke.points[i]
+        if (!point) continue
         ctx.lineTo(point.x * canvas.width, point.y * canvas.height)
       }
 

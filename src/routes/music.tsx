@@ -255,7 +255,7 @@ function RainwaveView({ currentTrack, progress, upcoming, history, formatTime }:
             <h2 className="font-caps text-xl font-bold mb-4">Previously Played</h2>
             <div className="space-y-2">
               {history.slice(0, 5).map((item, index) => {
-                const track = isRainwaveElection(item) && item.songs.length > 0 ? item.songs[0] : item
+                const track = isRainwaveElection(item) ? (item.songs[0] ?? item) : item
                 return (
                   <div key={index} className="p-2 bg-shark-900 rounded">
                     <p className="text-sm">{track.title}</p>

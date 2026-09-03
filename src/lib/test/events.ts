@@ -34,7 +34,7 @@ export class TestEventFactory {
       'ChatChampion',
       'SubSquadLeader',
     ]
-    return usernames[Math.floor(Math.random() * usernames.length)]
+    return usernames[Math.floor(Math.random() * usernames.length)] ?? usernames[0]!
   }
 
   static follow(username?: string): TestEventPair {
