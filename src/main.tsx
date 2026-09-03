@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
 import { preloadSounds } from './lib/audio-preloader'
 import { connectRealtime } from './store/wiring'
+import { connectMicStatus } from './lib/mic-status-adapter'
 
 import './index.css'
 
@@ -30,6 +31,7 @@ preloadSounds()
 // as a side effect of importing the store; doing it explicitly here keeps the
 // store import pure (and testable).
 connectRealtime()
+connectMicStatus()
 
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {
