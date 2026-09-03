@@ -9,35 +9,30 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as MusicRouteImport } from './routes/music'
-import { Route as LimitbreakRouteImport } from './routes/limitbreak'
-import { Route as AudioRouteImport } from './routes/audio'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AudioRouteImport } from './routes/audio'
+import { Route as LimitbreakRouteImport } from './routes/limitbreak'
+import { Route as MusicRouteImport } from './routes/music'
+import { Route as fullCoworkingRouteImport } from './routes/(full)/coworking'
+import { Route as fullEmoteRainRouteImport } from './routes/(full)/emote-rain'
+import { Route as fullHudRouteImport } from './routes/(full)/hud'
+import { Route as fullIntroRouteImport } from './routes/(full)/intro'
+import { Route as fullOmnibarRouteImport } from './routes/(full)/omnibar'
+import { Route as AcnhVillagerHuntRouteImport } from './routes/acnh/villager-hunt'
+import { Route as DebugEventsRouteImport } from './routes/debug/events'
+import { Route as DebugHomeassistantRouteImport } from './routes/debug/homeassistant'
+import { Route as DebugHudStylesRouteImport } from './routes/debug/hud-styles'
+import { Route as DebugIronmonRouteImport } from './routes/debug/ironmon'
+import { Route as DebugServerRouteImport } from './routes/debug/server'
+import { Route as DebugTranscriptionRouteImport } from './routes/debug/transcription'
+import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
+import { Route as SpecialUmamusumeRouteImport } from './routes/special/umamusume'
 import { Route as TelestratorIndexRouteImport } from './routes/telestrator/index'
 import { Route as TelestratorOutputRouteImport } from './routes/telestrator/output'
-import { Route as SpecialUmamusumeRouteImport } from './routes/special/umamusume'
-import { Route as SpecialPodcastRouteImport } from './routes/special/podcast'
-import { Route as DebugTranscriptionRouteImport } from './routes/debug/transcription'
-import { Route as DebugServerRouteImport } from './routes/debug/server'
-import { Route as DebugIronmonRouteImport } from './routes/debug/ironmon'
-import { Route as DebugHudStylesRouteImport } from './routes/debug/hud-styles'
-import { Route as DebugHomeassistantRouteImport } from './routes/debug/homeassistant'
-import { Route as DebugEventsRouteImport } from './routes/debug/events'
-import { Route as AcnhVillagerHuntRouteImport } from './routes/acnh/villager-hunt'
-import { Route as fullOmnibarRouteImport } from './routes/(full)/omnibar'
-import { Route as fullIntroRouteImport } from './routes/(full)/intro'
-import { Route as fullHudRouteImport } from './routes/(full)/hud'
-import { Route as fullEmoteRainRouteImport } from './routes/(full)/emote-rain'
-import { Route as fullCoworkingRouteImport } from './routes/(full)/coworking'
 
-const MusicRoute = MusicRouteImport.update({
-  id: '/music',
-  path: '/music',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LimitbreakRoute = LimitbreakRouteImport.update({
-  id: '/limitbreak',
-  path: '/limitbreak',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AudioRoute = AudioRouteImport.update({
@@ -45,9 +40,84 @@ const AudioRoute = AudioRouteImport.update({
   path: '/audio',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LimitbreakRoute = LimitbreakRouteImport.update({
+  id: '/limitbreak',
+  path: '/limitbreak',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MusicRoute = MusicRouteImport.update({
+  id: '/music',
+  path: '/music',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const fullCoworkingRoute = fullCoworkingRouteImport.update({
+  id: '/(full)/coworking',
+  path: '/coworking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const fullEmoteRainRoute = fullEmoteRainRouteImport.update({
+  id: '/(full)/emote-rain',
+  path: '/emote-rain',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const fullHudRoute = fullHudRouteImport.update({
+  id: '/(full)/hud',
+  path: '/hud',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const fullIntroRoute = fullIntroRouteImport.update({
+  id: '/(full)/intro',
+  path: '/intro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const fullOmnibarRoute = fullOmnibarRouteImport.update({
+  id: '/(full)/omnibar',
+  path: '/omnibar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcnhVillagerHuntRoute = AcnhVillagerHuntRouteImport.update({
+  id: '/acnh/villager-hunt',
+  path: '/acnh/villager-hunt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugEventsRoute = DebugEventsRouteImport.update({
+  id: '/debug/events',
+  path: '/debug/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugHomeassistantRoute = DebugHomeassistantRouteImport.update({
+  id: '/debug/homeassistant',
+  path: '/debug/homeassistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugHudStylesRoute = DebugHudStylesRouteImport.update({
+  id: '/debug/hud-styles',
+  path: '/debug/hud-styles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugIronmonRoute = DebugIronmonRouteImport.update({
+  id: '/debug/ironmon',
+  path: '/debug/ironmon',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugServerRoute = DebugServerRouteImport.update({
+  id: '/debug/server',
+  path: '/debug/server',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugTranscriptionRoute = DebugTranscriptionRouteImport.update({
+  id: '/debug/transcription',
+  path: '/debug/transcription',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpecialPodcastRoute = SpecialPodcastRouteImport.update({
+  id: '/special/podcast',
+  path: '/special/podcast',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpecialUmamusumeRoute = SpecialUmamusumeRouteImport.update({
+  id: '/special/umamusume',
+  path: '/special/umamusume',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TelestratorIndexRoute = TelestratorIndexRouteImport.update({
@@ -58,76 +128,6 @@ const TelestratorIndexRoute = TelestratorIndexRouteImport.update({
 const TelestratorOutputRoute = TelestratorOutputRouteImport.update({
   id: '/telestrator/output',
   path: '/telestrator/output',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SpecialUmamusumeRoute = SpecialUmamusumeRouteImport.update({
-  id: '/special/umamusume',
-  path: '/special/umamusume',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SpecialPodcastRoute = SpecialPodcastRouteImport.update({
-  id: '/special/podcast',
-  path: '/special/podcast',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DebugTranscriptionRoute = DebugTranscriptionRouteImport.update({
-  id: '/debug/transcription',
-  path: '/debug/transcription',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DebugServerRoute = DebugServerRouteImport.update({
-  id: '/debug/server',
-  path: '/debug/server',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DebugIronmonRoute = DebugIronmonRouteImport.update({
-  id: '/debug/ironmon',
-  path: '/debug/ironmon',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DebugHudStylesRoute = DebugHudStylesRouteImport.update({
-  id: '/debug/hud-styles',
-  path: '/debug/hud-styles',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DebugHomeassistantRoute = DebugHomeassistantRouteImport.update({
-  id: '/debug/homeassistant',
-  path: '/debug/homeassistant',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DebugEventsRoute = DebugEventsRouteImport.update({
-  id: '/debug/events',
-  path: '/debug/events',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AcnhVillagerHuntRoute = AcnhVillagerHuntRouteImport.update({
-  id: '/acnh/villager-hunt',
-  path: '/acnh/villager-hunt',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const fullOmnibarRoute = fullOmnibarRouteImport.update({
-  id: '/(full)/omnibar',
-  path: '/omnibar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const fullIntroRoute = fullIntroRouteImport.update({
-  id: '/(full)/intro',
-  path: '/intro',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const fullHudRoute = fullHudRouteImport.update({
-  id: '/(full)/hud',
-  path: '/hud',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const fullEmoteRainRoute = fullEmoteRainRouteImport.update({
-  id: '/(full)/emote-rain',
-  path: '/emote-rain',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const fullCoworkingRoute = fullCoworkingRouteImport.update({
-  id: '/(full)/coworking',
-  path: '/coworking',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -292,18 +292,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/music': {
-      id: '/music'
-      path: '/music'
-      fullPath: '/music'
-      preLoaderRoute: typeof MusicRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/limitbreak': {
-      id: '/limitbreak'
-      path: '/limitbreak'
-      fullPath: '/limitbreak'
-      preLoaderRoute: typeof LimitbreakRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/audio': {
@@ -313,11 +306,116 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AudioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/limitbreak': {
+      id: '/limitbreak'
+      path: '/limitbreak'
+      fullPath: '/limitbreak'
+      preLoaderRoute: typeof LimitbreakRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/music': {
+      id: '/music'
+      path: '/music'
+      fullPath: '/music'
+      preLoaderRoute: typeof MusicRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(full)/coworking': {
+      id: '/(full)/coworking'
+      path: '/coworking'
+      fullPath: '/coworking'
+      preLoaderRoute: typeof fullCoworkingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(full)/emote-rain': {
+      id: '/(full)/emote-rain'
+      path: '/emote-rain'
+      fullPath: '/emote-rain'
+      preLoaderRoute: typeof fullEmoteRainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(full)/hud': {
+      id: '/(full)/hud'
+      path: '/hud'
+      fullPath: '/hud'
+      preLoaderRoute: typeof fullHudRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(full)/intro': {
+      id: '/(full)/intro'
+      path: '/intro'
+      fullPath: '/intro'
+      preLoaderRoute: typeof fullIntroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(full)/omnibar': {
+      id: '/(full)/omnibar'
+      path: '/omnibar'
+      fullPath: '/omnibar'
+      preLoaderRoute: typeof fullOmnibarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acnh/villager-hunt': {
+      id: '/acnh/villager-hunt'
+      path: '/acnh/villager-hunt'
+      fullPath: '/acnh/villager-hunt'
+      preLoaderRoute: typeof AcnhVillagerHuntRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/events': {
+      id: '/debug/events'
+      path: '/debug/events'
+      fullPath: '/debug/events'
+      preLoaderRoute: typeof DebugEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/homeassistant': {
+      id: '/debug/homeassistant'
+      path: '/debug/homeassistant'
+      fullPath: '/debug/homeassistant'
+      preLoaderRoute: typeof DebugHomeassistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/hud-styles': {
+      id: '/debug/hud-styles'
+      path: '/debug/hud-styles'
+      fullPath: '/debug/hud-styles'
+      preLoaderRoute: typeof DebugHudStylesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/ironmon': {
+      id: '/debug/ironmon'
+      path: '/debug/ironmon'
+      fullPath: '/debug/ironmon'
+      preLoaderRoute: typeof DebugIronmonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/server': {
+      id: '/debug/server'
+      path: '/debug/server'
+      fullPath: '/debug/server'
+      preLoaderRoute: typeof DebugServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/transcription': {
+      id: '/debug/transcription'
+      path: '/debug/transcription'
+      fullPath: '/debug/transcription'
+      preLoaderRoute: typeof DebugTranscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/special/podcast': {
+      id: '/special/podcast'
+      path: '/special/podcast'
+      fullPath: '/special/podcast'
+      preLoaderRoute: typeof SpecialPodcastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/special/umamusume': {
+      id: '/special/umamusume'
+      path: '/special/umamusume'
+      fullPath: '/special/umamusume'
+      preLoaderRoute: typeof SpecialUmamusumeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/telestrator/': {
@@ -332,104 +430,6 @@ declare module '@tanstack/react-router' {
       path: '/telestrator/output'
       fullPath: '/telestrator/output'
       preLoaderRoute: typeof TelestratorOutputRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/special/umamusume': {
-      id: '/special/umamusume'
-      path: '/special/umamusume'
-      fullPath: '/special/umamusume'
-      preLoaderRoute: typeof SpecialUmamusumeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/special/podcast': {
-      id: '/special/podcast'
-      path: '/special/podcast'
-      fullPath: '/special/podcast'
-      preLoaderRoute: typeof SpecialPodcastRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/debug/transcription': {
-      id: '/debug/transcription'
-      path: '/debug/transcription'
-      fullPath: '/debug/transcription'
-      preLoaderRoute: typeof DebugTranscriptionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/debug/server': {
-      id: '/debug/server'
-      path: '/debug/server'
-      fullPath: '/debug/server'
-      preLoaderRoute: typeof DebugServerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/debug/ironmon': {
-      id: '/debug/ironmon'
-      path: '/debug/ironmon'
-      fullPath: '/debug/ironmon'
-      preLoaderRoute: typeof DebugIronmonRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/debug/hud-styles': {
-      id: '/debug/hud-styles'
-      path: '/debug/hud-styles'
-      fullPath: '/debug/hud-styles'
-      preLoaderRoute: typeof DebugHudStylesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/debug/homeassistant': {
-      id: '/debug/homeassistant'
-      path: '/debug/homeassistant'
-      fullPath: '/debug/homeassistant'
-      preLoaderRoute: typeof DebugHomeassistantRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/debug/events': {
-      id: '/debug/events'
-      path: '/debug/events'
-      fullPath: '/debug/events'
-      preLoaderRoute: typeof DebugEventsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/acnh/villager-hunt': {
-      id: '/acnh/villager-hunt'
-      path: '/acnh/villager-hunt'
-      fullPath: '/acnh/villager-hunt'
-      preLoaderRoute: typeof AcnhVillagerHuntRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(full)/omnibar': {
-      id: '/(full)/omnibar'
-      path: '/omnibar'
-      fullPath: '/omnibar'
-      preLoaderRoute: typeof fullOmnibarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(full)/intro': {
-      id: '/(full)/intro'
-      path: '/intro'
-      fullPath: '/intro'
-      preLoaderRoute: typeof fullIntroRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(full)/hud': {
-      id: '/(full)/hud'
-      path: '/hud'
-      fullPath: '/hud'
-      preLoaderRoute: typeof fullHudRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(full)/emote-rain': {
-      id: '/(full)/emote-rain'
-      path: '/emote-rain'
-      fullPath: '/emote-rain'
-      preLoaderRoute: typeof fullEmoteRainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(full)/coworking': {
-      id: '/(full)/coworking'
-      path: '/coworking'
-      fullPath: '/coworking'
-      preLoaderRoute: typeof fullCoworkingRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
